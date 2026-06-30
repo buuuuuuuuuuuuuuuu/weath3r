@@ -163,22 +163,24 @@
     content:"";position:absolute;inset:0;pointer-events:none;
     background:radial-gradient(70% 120% at 85% -20%, rgba(244,196,48,.10), transparent 60%);
   }
-  .hero-top{display:flex;align-items:center;gap:16px;position:relative}
-  .now-temp{font-size:62px;font-weight:600;letter-spacing:-.04em;line-height:.9;flex:none}
-  .now-temp sup{font-size:24px;font-weight:500;vertical-align:top;top:.18em;position:relative;color:var(--ink-2)}
-  .now-meta{text-align:left;flex:none}
+  .hero-top{display:flex;align-items:stretch;gap:16px;position:relative}
+  .now-temp{font-size:74px;font-weight:600;letter-spacing:-.04em;line-height:.9;flex:none;align-self:center}
+  .now-temp sup{font-size:26px;font-weight:500;vertical-align:top;top:.18em;position:relative;color:var(--ink-2)}
+  .now-meta{text-align:left;flex:none;display:flex;flex-direction:column;justify-content:space-between}
   .now-cond{font-size:15px;font-weight:500;color:var(--ink)}
   .now-range{font-size:13px;color:var(--ink-2);margin-top:2px}
   .now-feels{font-size:13px;color:var(--feels);margin-top:3px;font-weight:500}
-  .chips{display:flex;flex-direction:column;gap:5px;margin-left:auto;align-items:flex-end;position:relative}
+  .chips{display:flex;flex-direction:column;justify-content:space-between;gap:5px;margin-left:auto;align-items:flex-end;position:relative}
   .chip{
-    display:inline-flex;align-items:center;gap:5px;
-    font-size:11px;font-weight:500;color:var(--ink-2);
+    display:inline-flex;align-items:center;gap:4px;
+    font-size:10px;font-weight:500;color:var(--ink-2);
     background:rgba(255,255,255,.04);border:1px solid var(--stroke-2);
-    padding:4px 9px;border-radius:999px;white-space:nowrap;
+    padding:3px 7px;border-radius:999px;white-space:nowrap;
   }
   .chip b{color:var(--ink);font-weight:600}
-  .chip .dot{width:6px;height:6px;border-radius:50%;flex:none}
+  .chip .dot{width:5px;height:5px;border-radius:50%;flex:none}
+  .chip-extreme{display:none}
+  .chip-extreme.show{display:inline-flex}
 
   /* ---------- Nowcast ---------- */
   .nowcast{
@@ -370,7 +372,7 @@
       </button>
       <div class="chips" id="chips">
         <span class="chip"><span class="dot" style="background:var(--rain)"></span>Regen <b id="chip-rain">–</b></span>
-        <span class="chip"><span class="dot" style="background:var(--storm)"></span>Gewitter <b id="chip-storm">–</b></span>
+        <span class="chip chip-extreme" id="chip-extreme-wrap"><span class="dot" style="background:var(--storm)"></span><span id="chip-extreme-label">Gewitter</span> <b id="chip-storm">–</b></span>
         <span class="chip"><span class="dot" style="background:var(--wind)"></span>Wind <b id="chip-wind">–</b></span>
       </div>
     </div>
@@ -1469,7 +1471,39 @@ function rangeLabel(day){
   return `${Math.round(lo)}° / ${Math.round(hi)}°`;
 }
 
-function applyData(data){
+// Extreme-weather chip: a single slot that surfaces whichever hazard is
+// currently most relevant (thunderstorm, heavy rain, snow, high wind).
+// Stays hidden entirely when nothing notable is happening.
+function applyExtremeChip(h){
+  const wrap=document.getElementById("chip-extreme-wrap");
+  const label=document.getElementById("chip-extreme-label");
+  const val=document.getElementById("chip-storm");
+  if(!wrap) return;
+
+  let hazard=null; // {label, value, color}
+  const code=h.code, prob=h.prob, wind=h.wind;
+
+  if(code!=null && code>=95){
+    hazard={ label:"Gewitter", value:(prob!=null?`${Math.round(prob)} %`:"") , color:"var(--storm)"};
+  } else if(code!=null && (code>=71&&code<=77 || code===85 || code===86)){
+    hazard={ label:"Schnee", value:(prob!=null?`${Math.round(prob)} %`:""), color:"#9ad0ff" };
+  } else if(code!=null && (code===65||code===67||code===82)){
+    hazard={ label:"Starkregen", value:(prob!=null?`${Math.round(prob)} %`:""), color:"var(--rain)" };
+  } else if(wind!=null && wind>=50){
+    hazard={ label:"Sturm", value:`${Math.round(wind)} km/h`, color:"var(--wind)" };
+  }
+
+  if(hazard){
+    label.textContent=hazard.label;
+    val.textContent=hazard.value||"–";
+    wrap.querySelector(".dot").style.background=hazard.color;
+    wrap.classList.add("show");
+  } else {
+    wrap.classList.remove("show");
+  }
+}
+
+
   // location
   if(data.geo && data.geo.name) document.getElementById("loc-name").textContent=data.geo.name;
   // hero
@@ -1481,8 +1515,8 @@ function applyData(data){
     document.getElementById("now-feels").textContent=h.feels!=null?`Gefühlt ${h.feels}°`:"";
     const f=x=>(Math.round(x*10)/10).toString().replace(".",",");
     document.getElementById("chip-rain").textContent=h.precip>0.05?`${f(h.precip)} mm`:"0 mm";
-    document.getElementById("chip-storm").textContent=h.prob!=null?`${Math.round(h.prob)} %`:"–";
     document.getElementById("chip-wind").textContent=`${h.wind} km/h`;
+    applyExtremeChip(h);
   }
   // chart labels
   const now=new Date();
