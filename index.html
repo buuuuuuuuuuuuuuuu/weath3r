@@ -54,6 +54,12 @@
     --c-axis:#5e6b7d;
     --c-sky-cloud:#6b7585;
     --c-night:rgba(10,14,20,.55);
+    /* Sky state colours — softened, still easy to tell apart */
+    --c-sky-sun:#ffd166;
+    --c-sky-cloud2:#8a95a6;
+    --c-sky-rain:#4ca6e8;
+    --c-sky-nodata:#0a0e14;
+    --topbar-bg:linear-gradient(180deg, rgba(8,11,16,.92) 60%, rgba(8,11,16,0));
 
     --radius:20px;
     --radius-sm:14px;
@@ -84,6 +90,11 @@
     --c-axis:#8a96aa;
     --c-sky-cloud:#9aa6b6;
     --c-night:rgba(20,30,50,.06);
+    --c-sky-sun:#f4b740;
+    --c-sky-cloud2:#aab4c2;
+    --c-sky-rain:#3d9be9;
+    --c-sky-nodata:#1a2230;
+    --topbar-bg:linear-gradient(180deg, rgba(238,241,246,.92) 60%, rgba(238,241,246,0));
   }
 
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -92,7 +103,7 @@
     font-family:var(--font);
     color:var(--ink);
     background:
-      radial-gradient(120% 80% at 50% -10%, #1a2230 0%, transparent 55%),
+      radial-gradient(120% 80% at 50% -10%, var(--bg-radial) 0%, transparent 55%),
       linear-gradient(180deg, var(--bg-grad-top), var(--bg-grad-bot));
     background-attachment:fixed;
     -webkit-font-smoothing:antialiased;
@@ -106,7 +117,7 @@
   .topbar{
     position:sticky;top:0;z-index:30;
     padding:calc(env(safe-area-inset-top) + 14px) 2px 12px;
-    background:linear-gradient(180deg, rgba(8,11,16,.92) 60%, rgba(8,11,16,0));
+    background:var(--topbar-bg);
     backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
   }
   .topbar-row{display:flex;align-items:center;gap:12px}
@@ -125,6 +136,20 @@
   }
   .iconbtn:hover{color:var(--ink);border-color:rgba(255,255,255,.18)}
   .iconbtn svg{width:17px;height:17px}
+
+  /* refresh spin */
+  @keyframes spin{to{transform:rotate(360deg)}}
+  #refresh-btn.spinning svg{animation:spin .8s linear infinite}
+
+  /* pull-to-refresh indicator */
+  .ptr{
+    position:fixed;top:0;left:0;right:0;z-index:40;
+    display:flex;align-items:center;justify-content:center;
+    height:0;overflow:hidden;pointer-events:none;
+    color:var(--ink-2);
+  }
+  .ptr svg{width:20px;height:20px}
+  .ptr.spin svg{animation:spin .8s linear infinite}
 
   /* ---------- Now hero ---------- */
   .hero{
@@ -157,7 +182,7 @@
 
   /* ---------- Nowcast ---------- */
   .nowcast{
-    margin-top:10px;
+    margin-top:14px;
     border:1px solid var(--stroke);border-radius:var(--radius);
     background:var(--card);
     padding:13px 16px 8px;
@@ -194,8 +219,8 @@
   .chart-card{
     border:1px solid var(--stroke);border-radius:var(--radius);
     background:var(--card);overflow:hidden;
+    margin-top:14px;
   }
-  .chart-card + .chart-card{margin-top:14px}
   .chart-daylabel{
     padding:13px 16px 0;font-size:15px;font-weight:600;letter-spacing:-.01em;
     display:flex;align-items:center;gap:8px;
@@ -207,10 +232,26 @@
   .daily{
     border:1px solid var(--stroke);border-radius:var(--radius);
     background:var(--card);overflow:hidden;
+    margin-top:14px;
   }
+  .dgroup{border-top:1px solid var(--stroke-2)}
+  .dgroup:first-child{border-top:none}
+  .drow-btn{
+    width:100%;background:none;border:none;cursor:pointer;
+    color:inherit;font:inherit;text-align:left;
+    border-top:none;
+  }
+  .drow-btn .chev{width:16px;height:16px;color:var(--ink-3);transition:transform .25s ease;flex:none}
+  .dgroup.open .chev{transform:rotate(180deg)}
+  .dpanel{
+    max-height:0;overflow:hidden;transition:max-height .3s ease;
+    background:var(--card-2);
+  }
+  .dgroup.open .dpanel{max-height:320px}
+  .dpanel canvas{display:block;width:100%}
   .drow{
     display:grid;
-    grid-template-columns: 1.2fr auto 1fr auto;
+    grid-template-columns: 1.2fr auto 1fr auto auto;
     align-items:center;gap:12px;
     padding:13px 16px;
     border-top:1px solid var(--stroke-2);
@@ -233,10 +274,69 @@
   }
   .footnote b{color:var(--ink-2);font-weight:600}
 
+  /* ---------- Weather warning button + badge ---------- */
+  .warn-btn{
+    position:relative;flex:none;
+    width:34px;height:34px;border-radius:50%;
+    border:1px solid rgba(255,138,61,.4);
+    background:rgba(255,138,61,.14);
+    color:#ff8a3d;display:grid;place-items:center;cursor:pointer;
+    margin:0 4px;transition:.2s;
+  }
+  .warn-btn:hover{background:rgba(255,138,61,.24)}
+  .warn-btn svg{width:18px;height:18px}
+  .warn-btn.sev-3{border-color:rgba(255,90,77,.6);background:rgba(255,90,77,.18);color:#ff5a4d}
+  .warn-count{
+    position:absolute;top:-4px;right:-4px;
+    min-width:15px;height:15px;padding:0 3px;border-radius:8px;
+    background:#ff5a4d;color:#fff;font-size:10px;font-weight:700;
+    display:grid;place-items:center;line-height:1;
+  }
+
+  /* ---------- Modal ---------- */
+  .modal-overlay{
+    position:fixed;inset:0;z-index:100;
+    background:rgba(0,0,0,.5);
+    backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);
+    display:flex;align-items:center;justify-content:center;padding:20px;
+    animation:fadein .15s ease;
+  }
+  @keyframes fadein{from{opacity:0}to{opacity:1}}
+  .modal{
+    width:100%;max-width:420px;max-height:80vh;overflow-y:auto;
+    background:var(--card);border:1px solid var(--stroke);
+    border-radius:var(--radius);padding:18px;
+    box-shadow:0 20px 60px rgba(0,0,0,.4);
+  }
+  .modal-head{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+  .modal-head h3{font-size:17px;font-weight:600;color:var(--ink)}
+  .modal-close{
+    margin-left:auto;width:30px;height:30px;border-radius:50%;flex:none;
+    border:1px solid var(--stroke);background:var(--card-2);color:var(--ink-2);
+    display:grid;place-items:center;cursor:pointer;
+  }
+  .modal-close svg{width:15px;height:15px}
+  .warn-item{
+    border:1px solid var(--stroke-2);border-radius:var(--radius-sm);
+    padding:12px 14px;margin-top:10px;background:var(--card-2);
+  }
+  .warn-item:first-child{margin-top:0}
+  .warn-item .wi-head{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+  .warn-item .wi-dot{width:9px;height:9px;border-radius:50%;flex:none;background:#ff8a3d}
+  .warn-item.sev-3 .wi-dot{background:#ff5a4d}
+  .warn-item.sev-2 .wi-dot{background:#ff8a3d}
+  .warn-item.sev-1 .wi-dot{background:#f4c430}
+  .warn-item .wi-event{font-size:14px;font-weight:600;color:var(--ink)}
+  .warn-item .wi-time{font-size:11px;color:var(--ink-3);margin-bottom:6px}
+  .warn-item .wi-desc{font-size:12px;line-height:1.5;color:var(--ink-2)}
+
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
+<div class="ptr" id="ptr">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v5h-5"/></svg>
+</div>
 <div class="app">
 
   <header class="topbar">
@@ -245,6 +345,9 @@
         <div class="eyebrow">bu sein Wetter</div>
         <h1 id="loc-name">Treptow-Köpenick, Berlin</h1>
       </div>
+      <button class="iconbtn" id="refresh-btn" aria-label="Aktualisieren">
+        <svg id="icon-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v5h-5"/></svg>
+      </button>
       <button class="iconbtn" id="theme-toggle" aria-label="Hell/Dunkel umschalten">
         <svg id="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8"/></svg>
         <svg id="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:none"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>
@@ -261,6 +364,10 @@
         <div class="now-range" id="now-range">–</div>
         <div class="now-feels" id="now-feels"></div>
       </div>
+      <button class="warn-btn" id="warn-btn" aria-label="Wetterwarnung anzeigen" style="display:none">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.6 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.6a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+        <span class="warn-count" id="warn-count"></span>
+      </button>
       <div class="chips" id="chips">
         <span class="chip"><span class="dot" style="background:var(--rain)"></span>Regen <b id="chip-rain">–</b></span>
         <span class="chip"><span class="dot" style="background:var(--storm)"></span>Gewitter <b id="chip-storm">–</b></span>
@@ -284,27 +391,38 @@
     <canvas id="cv-today"></canvas>
   </div>
 
-  <!-- Thu chart -->
-  <div class="section-head"><h2>Folgetage im Detail</h2></div>
+  <!-- Tomorrow chart (+1) -->
   <div class="chart-card">
     <div class="chart-daylabel"><span id="lbl-thu">–</span> <span class="meta" id="meta-thu"></span></div>
     <canvas id="cv-thu"></canvas>
   </div>
-  <!-- Fri chart -->
+  <!-- Day after tomorrow chart (+2) -->
   <div class="chart-card">
     <div class="chart-daylabel"><span id="lbl-fri">–</span> <span class="meta" id="meta-fri"></span></div>
     <canvas id="cv-fri"></canvas>
   </div>
 
-  <!-- 7-day list -->
-  <div class="section-head"><h2>7 Tage</h2></div>
+  <!-- day list (offset 3..14), each expandable -->
   <div class="daily" id="daily"></div>
 
   <p class="footnote">
     <b>Multi-Modell-Ansicht.</b> Drei unabhängige Wettermodelle laufen parallel — AROME (durchgezogen), ICON-D2 (gestrichelt), ECMWF (gepunktet). Liegen die Linien nah beieinander, ist die Prognose sicher; spreizen sie sich, ist sie unsicher. Farbe codiert die Wärme, das Linienmuster die Modell-Identität.<br>
-    <span id="data-status"></span> Wetterdaten: <b>Open-Meteo.com</b> (CC BY 4.0).
+    <span id="data-status"></span> Wetterdaten: <b>Open-Meteo.com</b> (CC BY 4.0). Warnungen: <b>DWD</b> via Bright Sky.
   </p>
 
+</div>
+
+<!-- Weather warning modal -->
+<div class="modal-overlay" id="warn-modal" style="display:none">
+  <div class="modal" role="dialog" aria-modal="true" aria-label="Wetterwarnungen">
+    <div class="modal-head">
+      <h3>Wetterwarnungen</h3>
+      <button class="modal-close" id="warn-close" aria-label="Schließen">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body" id="warn-body"></div>
+  </div>
 </div>
 
 <script>
@@ -471,17 +589,20 @@ const AURORA = (function(){
         const area=buildPrecipArea(ds, H.precipitation_probability, cols[mi]||cols[0]);
         if(area.pts.some(p=>p.y>0)) day.precip.push(area);
       });
-      // sky bands + storm: use the highest-priority model that has cloud data
+      // sky bands + storm
       if(includeBands){
-        for(let mi=0; mi<perModel.length; mi++){
-          const H=perModel[mi].hourly; if(!H) continue;
-          const ds=dayStartIndex(H.time,dOffset); if(ds==null) continue;
-          // build a sky track per model (up to 3)
-        }
+        // Always emit one track per model (in fixed model order), so a model
+        // with no sky data shows a "nodata" marker (black line) instead of
+        // silently collapsing the layout.
         perModel.forEach((pm)=>{
-          const H=pm.hourly; if(!H) return;
-          const ds=dayStartIndex(H.time,dOffset); if(ds==null) return;
-          day.sky.push(buildSky(H.time, ds, H.cloud_cover, H.precipitation));
+          const H=pm.hourly;
+          const ds=H?dayStartIndex(H.time,dOffset):null;
+          const hasCloud = H && H.cloud_cover && H.cloud_cover.some(v=>v!=null);
+          if(H && ds!=null && hasCloud){
+            day.sky.push(buildSky(H.time, ds, H.cloud_cover, H.precipitation));
+          } else {
+            day.sky.push([{from:0,to:24,state:"nodata",inten:1}]);
+          }
         });
         // storm from first model with CAPE
         for(let mi=0; mi<perModel.length; mi++){
@@ -495,7 +616,7 @@ const AURORA = (function(){
       return day;
     }
 
-    const out={ geo, today:dayObject(0,true), thu:dayObject(3,true), fri:dayObject(4,true) };
+    const out={ geo, today:dayObject(0,true), thu:dayObject(1,true), fri:dayObject(2,true) };
 
     // hero (current conditions) — from first model, nearest hour
     const h0=perModel.find(pm=>pm.hourly&&pm.hourly.time);
@@ -517,10 +638,11 @@ const AURORA = (function(){
     const base=perModel.find(pm=>pm.daily&&pm.daily.time);
     if(base){
       const D=base.daily;
-      for(let d=1; d<=7 && d<D.time.length; d++){
+      for(let d=3; d<=14 && d<D.time.length; d++){
         const dt=new Date(D.time[d]);
         // average max/min across models that have this day
-        let hiS=0,hiN=0,loS=0,loN=0,prMax=0,probMax=0,windMax=0,code=D.weather_code?D.weather_code[d]:null;
+        let hiS=0,hiN=0,loS=0,loN=0,prMax=0,probMax=0,windMax=0;
+        let code=D.weather_code?D.weather_code[d]:null;
         perModel.forEach(pm=>{
           const dd=pm.daily; if(!dd||!dd.time||!dd.time[d]) return;
           if(dd.temperature_2m_max&&dd.temperature_2m_max[d]!=null){hiS+=dd.temperature_2m_max[d];hiN++;}
@@ -529,16 +651,18 @@ const AURORA = (function(){
           if(dd.precipitation_probability_max&&dd.precipitation_probability_max[d]!=null) probMax=Math.max(probMax,dd.precipitation_probability_max[d]);
           if(dd.wind_speed_10m_max&&dd.wind_speed_10m_max[d]!=null) windMax=Math.max(windMax,dd.wind_speed_10m_max[d]);
         });
-        const icons=["rain"]; if(windMax>=30) icons.push("wind");
         out.dailyList.push({
+          offset:d,
           d:WD[dt.getDay()], dd:`${dt.getDate()}. ${MO[dt.getMonth()]}`,
-          icon:icons,
+          code, windMax,
           pr: fmtMM(prMax>0?Math.max(0,prMax-0.4):0, prMax),
           lo: hiN?Math.round(loS/loN):null,
           hi: hiN?Math.round(hiS/hiN):null,
         });
       }
     }
+    // expose a builder so the UI can lazily construct an expanded day chart
+    out.buildDay=function(offset){ return dayObject(offset, true); };
 
     // nowcast — 15-min precip prob + intensity for next 2h
     out.nowcast=buildNowcast(perModel, now);
@@ -588,7 +712,7 @@ const AURORA = (function(){
     u.searchParams.set("daily", DAILY+",sunrise,sunset");
     u.searchParams.set("models", MODELS.map(m=>m.id).join(","));
     u.searchParams.set("timezone","auto");
-    u.searchParams.set("forecast_days","8");
+    u.searchParams.set("forecast_days","16");
     u.searchParams.set("forecast_minutely_15","48");
     u.searchParams.set("wind_speed_unit","kmh");
     return u.toString();
@@ -633,6 +757,55 @@ const AURORA = (function(){
     return transform(per, geo);
   }
 
+  // ---- DWD warnings via Bright Sky (free, no key, CORS-enabled) ----
+  // Returns array of {event, headline, description, severity, sev (0..3),
+  //   onsetH, expiresH} where onsetH/expiresH are hour-of-day floats for
+  //   placing the band on a day axis (or null if outside the window).
+  function sevRank(s){
+    s=(s||"").toLowerCase();
+    if(s==="extreme") return 3;
+    if(s==="severe") return 2;
+    if(s==="moderate") return 1;
+    return 0; // minor / unknown
+  }
+  async function fetchAlerts(geo){
+    try{
+      const u=`https://api.brightsky.dev/alerts?lat=${geo.lat}&lon=${geo.lon}&tz=auto`;
+      const r=await fetch(u);
+      if(!r.ok) return [];
+      const j=await r.json();
+      const arr=(j&&j.alerts)||[];
+      return arr.map(a=>({
+        event: a.event_de || a.event_en || a.event || "Warnung",
+        headline: a.headline_de || a.headline_en || a.headline || "",
+        description: a.description_de || a.description_en || a.description || "",
+        instruction: a.instruction_de || a.instruction_en || a.instruction || "",
+        severity: a.severity || "minor",
+        sev: sevRank(a.severity),
+        onset: a.onset || null,
+        expires: a.expires || a.expires_utc || null,
+      })).sort((x,y)=>y.sev-x.sev);
+    }catch(e){ return []; }
+  }
+
+  // attach warning bands to each detailed day: which alerts overlap that day,
+  // mapped to hour-of-day [from,to] within 0..24.
+  function alertBandsForDay(alerts, dayDate){
+    if(!alerts||!alerts.length) return [];
+    const dayStart=new Date(dayDate); dayStart.setHours(0,0,0,0);
+    const dayEnd=new Date(dayStart); dayEnd.setDate(dayEnd.getDate()+1);
+    const out=[];
+    alerts.forEach(a=>{
+      if(!a.onset||!a.expires) return;
+      const on=new Date(a.onset), ex=new Date(a.expires);
+      if(ex<=dayStart || on>=dayEnd) return; // no overlap
+      const from=Math.max(0,(on-dayStart)/3600000);
+      const to=Math.min(24,(ex-dayStart)/3600000);
+      if(to>from) out.push({from,to,sev:a.sev,event:a.event});
+    });
+    return out;
+  }
+
   // ---- geolocation ----
   function getLocation(){
     return new Promise(resolve=>{
@@ -674,6 +847,26 @@ const AURORA = (function(){
       // resolve place name AFTER weather succeeds; never let it block
       try{ await resolveName(geo); }catch(e){}
       data.geo=geo;
+      // weather warnings (best-effort; never block on failure)
+      try{
+        const alerts=await fetchAlerts(geo);
+        data.alerts=alerts;
+        // attach alert bands to the detailed days (today/thu/fri)
+        const today=new Date();
+        const dOf=off=>{const d=new Date(today);d.setDate(d.getDate()+off);return d;};
+        if(data.today) data.today.alerts=alertBandsForDay(alerts, dOf(0));
+        if(data.thu)   data.thu.alerts  =alertBandsForDay(alerts, dOf(1));
+        if(data.fri)   data.fri.alerts  =alertBandsForDay(alerts, dOf(2));
+        // wrap buildDay so expanded list days also get their alert bands
+        if(typeof data.buildDay==="function"){
+          const inner=data.buildDay;
+          data.buildDay=function(offset){
+            const day=inner(offset);
+            if(day) day.alerts=alertBandsForDay(alerts, dOf(offset));
+            return day;
+          };
+        }
+      }catch(e){ data.alerts=[]; }
       saveCache(data);
       return { data, stale:false };
     }catch(err){
@@ -858,14 +1051,20 @@ function drawChart(canvasId, day, opts){
   if(hasBands){
     const trackY=padT+8, trackGap=20, maxTh=10, minTh=2;
     const SKY={
-      sun:  '#ffcf4a',
-      cloud:cssVar('--c-sky-cloud'),
-      rain: '#3d9be9',
+      sun:  cssVar('--c-sky-sun'),
+      cloud:cssVar('--c-sky-cloud2'),
+      rain: cssVar('--c-sky-rain'),
     };
+    const nodataCol=cssVar('--c-sky-nodata');
     const tracks = day.sky || [];
     tracks.forEach((segs, ti)=>{
       const cy = trackY + ti*trackGap;           // vertical centre of track
       segs.forEach(s=>{
+        if(s.state==="nodata"){
+          // thin solid black line spanning the track = model has no data
+          roundBar(ctx, X(s.from)+1, cy-1.25, X(s.to)-X(s.from)-2, 2.5, nodataCol);
+          return;
+        }
         const th = minTh + (maxTh-minTh)*Math.max(0,Math.min(1,s.inten));
         const x = X(s.from), w = X(s.to)-X(s.from);
         roundBar(ctx, x+1, cy - th/2, w-2, th, SKY[s.state]);
@@ -880,6 +1079,23 @@ function drawChart(canvasId, day, opts){
         roundBar(ctx, X(a)+1, sy - th/2, X(b)-X(a)-2, th, '#b07bff');
       });
     }
+  }
+
+  /* --- DWD warning bands (time-aligned, top of plot) --- */
+  if(day.alerts && day.alerts.length){
+    const sevCol=["#9bd45a","#f4c430","#ff8a3d","#ff5a4d"];
+    day.alerts.forEach((al,i)=>{
+      const from=Math.max(0,Math.min(24,al.from)), to=Math.max(0,Math.min(24,al.to));
+      if(to<=from) return;
+      const col=sevCol[al.sev!=null?al.sev:2];
+      const ay=padT + i*5;          // stack multiple warnings thinly
+      const xa=X(from), xb=X(to);
+      // translucent fill spanning full plot height
+      ctx.fillStyle=col+"22";
+      ctx.fillRect(xa, padT, xb-xa, (H-padB)-padT);
+      // solid top marker bar
+      roundBar(ctx, xa+1, ay, xb-xa-2, 3, col);
+    });
   }
 
   /* --- PRECIP areas (bottom) --- */
@@ -1014,29 +1230,81 @@ function roundBar(ctx,x,y,w,h,col){
 
 /* ---------- Daily list ---------- */
 const SVG = {
-  rain:'<svg viewBox="0 0 24 24" fill="none"><path d="M7 15a4 4 0 010-8 5 5 0 019.6-1.3A3.5 3.5 0 0117 15H7z" fill="#7b8694"/><path d="M16 7a3 3 0 014 2.5" stroke="#ffcf4a" stroke-width="0" /><circle cx="17" cy="6" r="2.4" fill="#ffcf4a"/><path d="M8 17l-1 3M12 17l-1 3M16 17l-1 3" stroke="#3d9be9" stroke-width="1.6" stroke-linecap="round"/></svg>',
   wind:'<svg viewBox="0 0 24 24" fill="none" stroke="#34d3a6" stroke-width="1.8" stroke-linecap="round"><path d="M3 9h11a2.5 2.5 0 10-2.5-2.5"/><path d="M3 14h15a2.5 2.5 0 11-2.5 2.5"/></svg>',
+  sun:'<svg viewBox="0 0 24 24" fill="none" stroke="#ffd166" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4.2" fill="#ffd166" stroke="none"/><path d="M12 3v2.2M12 18.8V21M3 12h2.2M18.8 12H21M5.5 5.5l1.6 1.6M16.9 16.9l1.6 1.6M18.5 5.5l-1.6 1.6M7.1 16.9l-1.6 1.6"/></svg>',
+  partly:'<svg viewBox="0 0 24 24" fill="none"><circle cx="8" cy="8" r="3.2" fill="#ffd166"/><path d="M9 17a4 4 0 010-8 5 5 0 019.6-1.3A3.5 3.5 0 0119 17H9z" fill="#8a95a6"/></svg>',
+  cloud:'<svg viewBox="0 0 24 24" fill="none"><path d="M7 17a4.2 4.2 0 010-8.4 5.2 5.2 0 0110-1.4A3.7 3.7 0 0117 17H7z" fill="#8a95a6"/></svg>',
+  rain:'<svg viewBox="0 0 24 24" fill="none"><path d="M7 14a4 4 0 010-8 5 5 0 019.6-1.3A3.5 3.5 0 0117 14H7z" fill="#8a95a6"/><path d="M8 16l-1 3M12 16l-1 3M16 16l-1 3" stroke="#4ca6e8" stroke-width="1.7" stroke-linecap="round"/></svg>',
+  snow:'<svg viewBox="0 0 24 24" fill="none"><path d="M7 14a4 4 0 010-8 5 5 0 019.6-1.3A3.5 3.5 0 0117 14H7z" fill="#8a95a6"/><g fill="#cfe6ff"><circle cx="8" cy="18" r="1"/><circle cx="12" cy="19.5" r="1"/><circle cx="16" cy="18" r="1"/></g></svg>',
+  storm:'<svg viewBox="0 0 24 24" fill="none"><path d="M7 13a4 4 0 010-8 5 5 0 019.6-1.3A3.5 3.5 0 0117 13H7z" fill="#8a95a6"/><path d="M12 13l-2.5 4.5h2L11 22l4-5.5h-2L13.5 13z" fill="#b07bff"/></svg>',
+  fog:'<svg viewBox="0 0 24 24" fill="none" stroke="#8a95a6" stroke-width="1.8" stroke-linecap="round"><path d="M4 9h16M4 13h16M6 17h12"/></svg>',
 };
+// WMO weather_code → icon key
+function codeIcon(code){
+  if(code==null) return "cloud";
+  if(code===0) return "sun";
+  if(code>=1&&code<=2) return "partly";
+  if(code===3) return "cloud";
+  if(code>=45&&code<=48) return "fog";
+  if(code>=51&&code<=67) return "rain";
+  if(code>=71&&code<=77) return "snow";
+  if(code>=80&&code<=82) return "rain";
+  if(code>=85&&code<=86) return "snow";
+  if(code>=95) return "storm";
+  return "cloud";
+}
 const DAILY=[]; // filled live
+let __dailyBuilder=null; // set from applyData: (offset)=>dayObject
 function renderDaily(list){
   const el=document.getElementById("daily");
   if(!el) return;
   el.innerHTML="";
   (list||[]).forEach(r=>{
-    const row=document.createElement("div");row.className="drow";
     const dry = r.pr==="trocken";
     const loC = r.lo!=null?rgb(tempColor(r.lo)):"var(--ink-2)";
     const hiC = r.hi!=null?rgb(tempColor(r.hi)):"var(--ink)";
+    const icons = [SVG[codeIcon(r.code)]];
+    if(r.windMax>=30) icons.push(SVG.wind);
+
+    const wrap=document.createElement("div");
+    wrap.className="dgroup";
+
+    const row=document.createElement("button");
+    row.className="drow drow-btn";
+    row.setAttribute("aria-expanded","false");
     row.innerHTML=`
       <div class="day">${r.d} <small>${r.dd}</small></div>
-      <div class="ic">${r.icon.map(i=>SVG[i]).join("")}</div>
+      <div class="ic">${icons.join("")}</div>
       <div class="precip ${dry?'dry':''}">${r.pr}</div>
       <div class="temprange">
         <span class="lo">${r.lo!=null?r.lo+'°':'–'}</span>
         <span class="bar" style="--c1:${loC};--c2:${hiC}"></span>
         <span class="hi" style="color:${hiC}">${r.hi!=null?r.hi+'°':'–'}</span>
-      </div>`;
-    el.appendChild(row);
+      </div>
+      <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>`;
+
+    const panel=document.createElement("div");
+    panel.className="dpanel";
+    const cvId="cv-day-"+r.offset;
+    panel.innerHTML=`<canvas id="${cvId}"></canvas>`;
+
+    row.addEventListener("click", ()=>{
+      const open=wrap.classList.toggle("open");
+      row.setAttribute("aria-expanded", open?"true":"false");
+      if(open && __dailyBuilder){
+        // build + draw the day chart lazily, once
+        if(!panel.dataset.drawn){
+          const day=__dailyBuilder(r.offset);
+          drawChart(cvId, day, {bands:true, height:240});
+          panel.dataset.drawn="1";
+          panel._day=day;
+        }
+      }
+    });
+
+    wrap.appendChild(row);
+    wrap.appendChild(panel);
+    el.appendChild(wrap);
   });
 }
 
@@ -1220,15 +1488,18 @@ function applyData(data){
   const now=new Date();
   document.getElementById("lbl-today").textContent=`Heute · ${dayLabelFromOffset(0)}`;
   document.getElementById("meta-today").textContent=`jetzt ${now.getHours()}:${String(now.getMinutes()).padStart(2,"0")}`;
-  document.getElementById("lbl-thu").textContent=dayLabelFromOffset(3);
+  document.getElementById("lbl-thu").textContent=dayLabelFromOffset(1);
   document.getElementById("meta-thu").textContent=rangeLabel(data.thu);
-  document.getElementById("lbl-fri").textContent=dayLabelFromOffset(4);
+  document.getElementById("lbl-fri").textContent=dayLabelFromOffset(2);
   document.getElementById("meta-fri").textContent=rangeLabel(data.fri);
   // nowcast summary
   if(data.nowcast) document.getElementById("nowcast-summary").textContent=data.nowcast.summary||"";
+  // weather warnings
+  applyAlerts(data.alerts||[]);
   // assign render data
   DATA=data;
   NOWCAST=data.nowcast||{start:0,end:2,pts:[]};
+  __dailyBuilder = (typeof data.buildDay==="function") ? data.buildDay : null;
   renderDaily(data.dailyList);
   renderAll();
 }
@@ -1238,8 +1509,65 @@ function setStatus(msg){
   if(el) el.textContent=msg?msg+" · ":"";
 }
 
-async function boot(){
-  setStatus("Lädt aktuelle Daten…");
+/* ---------- Weather warnings (DWD via Bright Sky) ---------- */
+let __alerts=[];
+function fmtAlertTime(iso){
+  if(!iso) return "";
+  const d=new Date(iso);
+  const wd=["So.","Mo.","Di.","Mi.","Do.","Fr.","Sa."][d.getDay()];
+  return `${wd} ${d.getHours()}:${String(d.getMinutes()).padStart(2,"0")}`;
+}
+function applyAlerts(alerts){
+  __alerts=alerts||[];
+  const btn=document.getElementById("warn-btn");
+  const cnt=document.getElementById("warn-count");
+  if(!btn) return;
+  if(!__alerts.length){
+    btn.style.display="none";
+    return;
+  }
+  btn.style.display="grid";
+  const maxSev=Math.max(...__alerts.map(a=>a.sev));
+  btn.classList.toggle("sev-3", maxSev>=3);
+  if(cnt) cnt.textContent=__alerts.length>1?__alerts.length:"";
+  // build modal body
+  const body=document.getElementById("warn-body");
+  if(body){
+    body.innerHTML="";
+    __alerts.forEach(a=>{
+      const it=document.createElement("div");
+      it.className="warn-item sev-"+a.sev;
+      const time=[a.onset?("ab "+fmtAlertTime(a.onset)):"", a.expires?("bis "+fmtAlertTime(a.expires)):""].filter(Boolean).join(" · ");
+      it.innerHTML=`
+        <div class="wi-head"><span class="wi-dot"></span><span class="wi-event">${escapeHtml(a.event)}</span></div>
+        ${time?`<div class="wi-time">${time}</div>`:""}
+        <div class="wi-desc">${escapeHtml(a.headline||a.description||"")}</div>`;
+      body.appendChild(it);
+    });
+  }
+}
+function escapeHtml(s){
+  return (s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+function openWarnModal(){ const m=document.getElementById("warn-modal"); if(m) m.style.display="flex"; }
+function closeWarnModal(){ const m=document.getElementById("warn-modal"); if(m) m.style.display="none"; }
+document.addEventListener("DOMContentLoaded",()=>{
+  const btn=document.getElementById("warn-btn");
+  if(btn) btn.addEventListener("click", openWarnModal);
+  const close=document.getElementById("warn-close");
+  if(close) close.addEventListener("click", closeWarnModal);
+  const overlay=document.getElementById("warn-modal");
+  if(overlay) overlay.addEventListener("click", e=>{ if(e.target===overlay) closeWarnModal(); });
+  document.addEventListener("keydown", e=>{ if(e.key==="Escape") closeWarnModal(); });
+});
+
+let __loading=false;
+async function boot(manual){
+  if(__loading) return;
+  __loading=true;
+  const rb=document.getElementById("refresh-btn");
+  if(manual && rb) rb.classList.add("spinning");
+  if(!manual) setStatus("Lädt aktuelle Daten…");
   try{
     const { data, stale, age } = await AURORA.load();
     applyData(data);
@@ -1253,9 +1581,52 @@ async function boot(){
     document.getElementById("now-cond").textContent="Keine Verbindung";
     setStatus("Fehler: "+(err&&err.message?err.message:err)+" — Datei muss über http(s) geöffnet werden, nicht in einer Vorschau.");
     console.error(err);
+  }finally{
+    __loading=false;
+    if(rb) rb.classList.remove("spinning");
   }
 }
 boot();
+
+/* ---------- Refresh: button + pull-to-refresh ---------- */
+document.addEventListener("DOMContentLoaded",()=>{
+  const rb=document.getElementById("refresh-btn");
+  if(rb) rb.addEventListener("click", ()=>boot(true));
+});
+(function pullToRefresh(){
+  const ptr=document.getElementById("ptr");
+  if(!ptr) return;
+  let startY=0, pulling=false, dist=0;
+  const THRESH=70, MAX=90;
+  window.addEventListener("touchstart",e=>{
+    // only when scrolled to the very top
+    if(window.scrollY<=0 && e.touches.length===1){
+      startY=e.touches[0].clientY; pulling=true; dist=0;
+    } else pulling=false;
+  },{passive:true});
+  window.addEventListener("touchmove",e=>{
+    if(!pulling) return;
+    dist=e.touches[0].clientY-startY;
+    if(dist>0){
+      const d=Math.min(dist*0.5, MAX);
+      ptr.style.height=d+"px";
+      ptr.style.opacity=Math.min(1, d/THRESH);
+    }
+  },{passive:true});
+  window.addEventListener("touchend",()=>{
+    if(!pulling) return;
+    pulling=false;
+    if(dist*0.5>=THRESH){
+      ptr.classList.add("spin"); ptr.style.height=THRESH+"px";
+      boot(true).finally(()=>{
+        ptr.classList.remove("spin");
+        ptr.style.height="0px"; ptr.style.opacity="0";
+      });
+    } else {
+      ptr.style.height="0px"; ptr.style.opacity="0";
+    }
+  });
+})();
 
 /* ---------- PWA: register service worker ---------- */
 if("serviceWorker" in navigator){
