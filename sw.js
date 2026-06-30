@@ -1,5 +1,5 @@
 /* WEATH3R service worker — offline shell + last-data cache */
-const CACHE = "weath3r-v6";
+const CACHE = "weath3r-v7-1";
 const ASSETS = [
   "./",
   "./index.html",

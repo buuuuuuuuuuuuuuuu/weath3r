@@ -141,6 +141,49 @@
   @keyframes spin{to{transform:rotate(360deg)}}
   #refresh-btn.spinning svg{animation:spin .8s linear infinite}
 
+  /* ---------- Location picker ---------- */
+  .locsheet{
+    position:fixed;inset:0;z-index:60;display:flex;align-items:flex-start;justify-content:center;
+    padding:calc(env(safe-area-inset-top) + 60px) 16px 16px;
+    background:rgba(4,7,11,.55);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+  }
+  .locsheet[hidden]{display:none}
+  .locsheet-card{
+    width:100%;max-width:430px;background:var(--card);border:1px solid var(--stroke);
+    border-radius:var(--radius);padding:16px;box-shadow:0 20px 60px rgba(0,0,0,.45);
+    animation:locpop .18s ease;
+  }
+  @keyframes locpop{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+  .locsheet-head{display:flex;align-items:center;margin-bottom:12px}
+  .locsheet-title{font-size:16px;font-weight:700;letter-spacing:-.01em}
+  .locsheet-close{margin-left:auto;width:32px;height:32px;border-radius:50%;border:1px solid var(--stroke);
+    background:var(--card-2);color:var(--ink-2);display:grid;place-items:center;cursor:pointer}
+  .locsheet-close svg{width:15px;height:15px}
+  .locsearch-input{
+    width:100%;font-size:15px;color:var(--ink);background:var(--card-2);
+    border:1px solid var(--stroke);border-radius:12px;padding:11px 13px;outline:none;font-family:var(--font);
+  }
+  .locsearch-input:focus{border-color:rgba(120,160,220,.5)}
+  .locgps-btn{
+    width:100%;margin-top:10px;display:flex;align-items:center;gap:9px;justify-content:center;
+    font-size:13.5px;font-weight:600;color:var(--ink);background:var(--card-2);
+    border:1px solid var(--stroke);border-radius:12px;padding:11px;cursor:pointer;transition:.15s;
+  }
+  .locgps-btn:hover{border-color:rgba(120,160,220,.45)}
+  .locgps-btn svg{width:16px;height:16px;color:var(--rain)}
+  .locresults{margin-top:10px;display:flex;flex-direction:column;gap:0}
+  .locresult{
+    text-align:left;background:none;border:none;border-top:1px solid var(--stroke-2);
+    padding:11px 4px;cursor:pointer;color:var(--ink);font-family:var(--font);
+    display:flex;flex-direction:column;gap:2px;
+  }
+  .locresult:first-child{border-top:none}
+  .locresult:hover{background:rgba(255,255,255,.03)}
+  .locresult .lr-name{font-size:14px;font-weight:600}
+  .locresult .lr-sub{font-size:12px;color:var(--ink-3)}
+  .locsheet-hint{margin-top:10px;font-size:12px;color:var(--ink-3);line-height:1.5;min-height:16px}
+  .locsheet-hint.err{color:var(--feels)}
+
   /* pull-to-refresh indicator */
   .ptr{
     position:fixed;top:0;left:0;right:0;z-index:40;
@@ -412,6 +455,9 @@
         <div class="eyebrow">bu sein Wetter</div>
         <h1 id="loc-name">Treptow-Köpenick, Berlin</h1>
       </div>
+      <button class="iconbtn" id="loc-btn" aria-label="Standort ändern">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6-5.3-6-10a6 6 0 1 1 12 0c0 4.7-6 10-6 10z"/><circle cx="12" cy="11" r="2.2"/></svg>
+      </button>
       <button class="iconbtn" id="refresh-btn" aria-label="Aktualisieren">
         <svg id="icon-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v5h-5"/></svg>
       </button>
@@ -421,6 +467,28 @@
       </button>
     </div>
   </header>
+
+  <!-- Location picker overlay -->
+  <div class="locsheet" id="locsheet" hidden>
+    <div class="locsheet-card" role="dialog" aria-modal="true" aria-label="Standort ändern">
+      <div class="locsheet-head">
+        <div class="locsheet-title">Standort ändern</div>
+        <button class="locsheet-close" id="locsheet-close" aria-label="Schließen">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+      <div class="locsearch-row">
+        <input id="locsearch-input" class="locsearch-input" type="text" inputmode="search"
+          placeholder="Ort suchen (z. B. Hamburg)…" autocomplete="off" autocorrect="off" spellcheck="false">
+      </div>
+      <button class="locgps-btn" id="locgps-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="4"/></svg>
+        Aktuellen Standort verwenden (GPS)
+      </button>
+      <div class="locresults" id="locresults"></div>
+      <div class="locsheet-hint" id="locsheet-hint"></div>
+    </div>
+  </div>
 
   <!-- NOW -->
   <section class="hero">
@@ -864,15 +932,19 @@ const AURORA = (function(){
 
   // ---- DWD radar MAP (larger area for the expandable map view) ----
   // Fetches a wider grid around the user so we can draw a 2D rain map with a
-  // short animation (now → +2h). Uses the `plain` format (nested int arrays)
-  // to avoid a zlib dependency; bbox kept modest to keep the payload small.
+  // short animation (now → +2h) plus an approach arrow. Uses the `plain`
+  // format (nested int arrays) — unambiguous grid dimensions, no zlib needed.
+  // ±128 km is the meteorologically relevant range for a 2h nowcast (rain
+  // travels ~30–60 km/h, so anything farther can't reach you within 2h).
+  // Responses are HTTP-gzipped, so the all-zeros areas cost almost nothing.
+  const RADAR_MAP_DISTANCE = 128000;          // metres each side (~256 km box)
   async function fetchRadarMap(geo){
     const now=new Date();
     const end=new Date(now.getTime()+120*60*1000);
     const u=new URL("https://api.brightsky.dev/radar");
     u.searchParams.set("lat", geo.lat);
     u.searchParams.set("lon", geo.lon);
-    u.searchParams.set("distance", 64000);   // ~128 km box around the user
+    u.searchParams.set("distance", RADAR_MAP_DISTANCE);
     u.searchParams.set("format", "plain");
     u.searchParams.set("date", now.toISOString());
     u.searchParams.set("last_date", end.toISOString());
@@ -881,7 +953,8 @@ const AURORA = (function(){
     return res.json();
   }
 
-  // Parse the /radar plain response into frames of mm/h grids for rendering.
+  // Parse the /radar plain response into frames of grids for rendering.
+  // Each DWD pixel is 1 km², so km-per-cell = 1 (used for range rings).
   function buildRadarMap(j){
     if(!j || !Array.isArray(j.radar) || !j.radar.length) return null;
     const pos=j.latlon_position||null;
@@ -899,6 +972,7 @@ const AURORA = (function(){
       w, h,
       userX: pos? pos.x : w/2,
       userY: pos? pos.y : h/2,
+      kmPerCell: 1,                            // DWD RV grid: 1 px = 1 km²
       frames,                                  // each: {time, grid}  (grid in 0.01mm/5min)
     };
   }
@@ -1008,8 +1082,23 @@ const AURORA = (function(){
   }
 
   // ---- geolocation ----
+  // A manually chosen location (via the pin picker) overrides GPS. Stored
+  // separately from the weather cache so it survives refreshes.
+  const LOC_OVERRIDE_KEY = "weath3r_loc_override";
+  function getOverride(){
+    try{ const r=localStorage.getItem(LOC_OVERRIDE_KEY); return r?JSON.parse(r):null; }catch(e){ return null; }
+  }
+  function setOverride(geo){
+    try{
+      if(geo) localStorage.setItem(LOC_OVERRIDE_KEY, JSON.stringify(geo));
+      else localStorage.removeItem(LOC_OVERRIDE_KEY);
+    }catch(e){}
+  }
+
   function getLocation(){
     return new Promise(resolve=>{
+      const ov=getOverride();
+      if(ov && ov.lat!=null && ov.lon!=null){ resolve(ov); return; }
       if(!navigator.geolocation){ resolve(DEFAULT_LOC); return; }
       navigator.geolocation.getCurrentPosition(
         p=>resolve({ lat:+p.coords.latitude.toFixed(3), lon:+p.coords.longitude.toFixed(3), name:null }),
@@ -1038,6 +1127,25 @@ const AURORA = (function(){
       const raw=localStorage.getItem(CACHE_KEY); if(!raw) return null;
       const o=JSON.parse(raw); return o&&o.data?o:null;
     }catch(e){ return null; }
+  }
+
+  // ---- forward geocoding for the location picker (Open-Meteo geocoding) ----
+  async function searchPlaces(query){
+    const q=(query||"").trim();
+    if(q.length<2) return [];
+    const u=new URL("https://geocoding-api.open-meteo.com/v1/search");
+    u.searchParams.set("name", q);
+    u.searchParams.set("count", "6");
+    u.searchParams.set("language", "de");
+    u.searchParams.set("format", "json");
+    const res=await fetch(u.toString());
+    if(!res.ok) throw new Error("Geo "+res.status);
+    const j=await res.json();
+    return (j.results||[]).map(r=>({
+      lat:+(+r.latitude).toFixed(3), lon:+(+r.longitude).toFixed(3),
+      name:r.name + (r.admin1 && r.admin1!==r.name ? ", "+r.admin1 : ""),
+      country:r.country, admin1:r.admin1,
+    }));
   }
 
   // ---- public ----
@@ -1085,7 +1193,8 @@ const AURORA = (function(){
     }
   }
 
-  return { load, loadCache, MODELS, DEFAULT_LOC, fetchRadarMap, buildRadarMap };
+  return { load, loadCache, MODELS, DEFAULT_LOC, fetchRadarMap, buildRadarMap,
+           searchPlaces, setOverride, getOverride };
 })();
 
 </script>
@@ -1939,6 +2048,84 @@ async function boot(manual){
 boot();
 
 /* ============================================================
+   LOCATION PICKER · pin button → search / GPS
+   ============================================================ */
+(function locationPicker(){
+  const btn=document.getElementById("loc-btn");
+  const sheet=document.getElementById("locsheet");
+  const closeBtn=document.getElementById("locsheet-close");
+  const input=document.getElementById("locsearch-input");
+  const gpsBtn=document.getElementById("locgps-btn");
+  const results=document.getElementById("locresults");
+  const hint=document.getElementById("locsheet-hint");
+  if(!btn||!sheet) return;
+
+  let searchTimer=null;
+
+  function open(){
+    sheet.hidden=false;
+    hint.className="locsheet-hint"; hint.textContent="";
+    results.innerHTML="";
+    input.value="";
+    setTimeout(()=>input.focus(), 50);
+  }
+  function close(){ sheet.hidden=true; }
+
+  function chooseGeo(geo){
+    AURORA.setOverride(geo);
+    if(window.__radarReset) window.__radarReset();
+    close();
+    // re-run with the new location
+    boot(true);
+  }
+
+  function renderResults(list){
+    results.innerHTML="";
+    if(!list.length){ hint.className="locsheet-hint"; hint.textContent="Keine Treffer."; return; }
+    hint.textContent="";
+    list.forEach(r=>{
+      const b=document.createElement("button");
+      b.className="locresult";
+      const sub=[r.admin1, r.country].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(" · ");
+      b.innerHTML=`<span class="lr-name">${r.name}</span><span class="lr-sub">${sub||""}</span>`;
+      b.addEventListener("click", ()=>chooseGeo({ lat:r.lat, lon:r.lon, name:r.name }));
+      results.appendChild(b);
+    });
+  }
+
+  function doSearch(){
+    const q=input.value.trim();
+    if(q.length<2){ results.innerHTML=""; hint.textContent=""; return; }
+    hint.className="locsheet-hint"; hint.textContent="Suche…";
+    AURORA.searchPlaces(q).then(list=>{
+      // ignore stale responses
+      if(input.value.trim()!==q) return;
+      renderResults(list);
+    }).catch(()=>{ hint.className="locsheet-hint err"; hint.textContent="Suche fehlgeschlagen."; });
+  }
+
+  function useGPS(){
+    if(!navigator.geolocation){ hint.className="locsheet-hint err"; hint.textContent="GPS nicht verfügbar."; return; }
+    hint.className="locsheet-hint"; hint.textContent="Standort wird ermittelt…";
+    navigator.geolocation.getCurrentPosition(
+      p=>{ AURORA.setOverride(null); if(window.__radarReset) window.__radarReset(); close(); boot(true); },   // clear override → app uses live GPS
+      ()=>{ hint.className="locsheet-hint err"; hint.textContent="GPS-Zugriff verweigert oder fehlgeschlagen."; },
+      { timeout:8000, maximumAge:5*60*1000, enableHighAccuracy:true }
+    );
+  }
+
+  btn.addEventListener("click", open);
+  closeBtn.addEventListener("click", close);
+  sheet.addEventListener("click", e=>{ if(e.target===sheet) close(); });
+  gpsBtn.addEventListener("click", useGPS);
+  input.addEventListener("input", ()=>{ clearTimeout(searchTimer); searchTimer=setTimeout(doSearch, 280); });
+  input.addEventListener("keydown", e=>{
+    if(e.key==="Enter"){ e.preventDefault(); clearTimeout(searchTimer); doSearch(); }
+    if(e.key==="Escape") close();
+  });
+})();
+
+/* ============================================================
    RAIN RADAR MAP · expandable panel under the nowcast tile
    Tap the header to expand and lazy-load a DWD radar map; tap
    the map to collapse. Animates now → +2h.
@@ -2021,6 +2208,158 @@ boot();
     });
   }
 
+  // ---- approach analysis ----------------------------------------------------
+  // From the DWD forecast frames, work out (a) the rain field's drift, (b) when
+  // (if at all) rain reaches the user's pixel, and (c) the bearing it comes
+  // from. All distances are in grid cells (= km on the DWD RV grid).
+  let analysis=null;
+  const WET_CELL=0.3;            // mm/h counted as "raining" for a cell
+  function cellMMH(grid,x,y){
+    const row=grid[y]; if(!row) return 0;
+    let v=row[x]; if(v==null||v<0) v=0;
+    return (v/100)*12;
+  }
+  function frameCentroid(grid,w,h){
+    let sx=0,sy=0,m=0;
+    for(let y=0;y<h;y++){const row=grid[y];if(!row)continue;
+      for(let x=0;x<w;x++){let v=row[x];if(v==null||v<=0)continue;
+        const mmh=(v/100)*12; if(mmh<WET_CELL)continue;
+        sx+=x*mmh; sy+=y*mmh; m+=mmh;}}
+    return m>0 ? {x:sx/m, y:sy/m, mass:m} : null;
+  }
+  function userWet(grid,ux,uy,w,h){
+    // sample the user cell + 8-neighbourhood, take the max
+    let mx=0;
+    const cx=Math.round(ux),cy=Math.round(uy);
+    for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
+      const x=cx+dx,y=cy+dy; if(x<0||y<0||x>=w||y>=h)continue;
+      mx=Math.max(mx, cellMMH(grid,x,y));
+    }
+    return mx;
+  }
+  function bearingLabel(dx,dy){
+    // Input vector points FROM the user TOWARD the rain source (east-positive x,
+    // south-positive y on the DWD grid). That is exactly the "rain comes from"
+    // direction. Convert to a compass label (0°=N, 90°=E).
+    const ang=(Math.atan2(dx, -dy)*180/Math.PI+360)%360;
+    const dirs=["N","NO","O","SO","S","SW","W","NW"];
+    return dirs[Math.round(ang/45)%8];
+  }
+  function analyse(){
+    analysis=null;
+    if(!map||!map.frames.length) return;
+    const {w,h,userX,userY,frames}=map;
+    // centroids over time (only frames with enough rain)
+    const cs=[];
+    frames.forEach((f,i)=>{const c=frameCentroid(f.grid,w,h); if(c&&c.mass>20) cs.push({i,t:f.time,x:c.x,y:c.y,mass:c.mass});});
+    // arrival at user: first frame at/after "now" where the user cell is wet
+    const nowMs=Date.now();
+    let arrival=null;
+    for(let i=0;i<frames.length;i++){
+      if(frames[i].time.getTime()<nowMs-3*60000) continue;     // ignore past
+      if(userWet(frames[i].grid,userX,userY,w,h)>=WET_CELL){ arrival={i,t:frames[i].time}; break; }
+    }
+    // bearing rain comes from: centroid of nearby rain in the frame before arrival,
+    // else the overall drift direction from centroid track.
+    let fromDir=null, vec=null;
+    if(arrival){
+      const fr=frames[Math.max(0,arrival.i-1)] || frames[arrival.i];
+      // nearest significant rain to the user within ~120 cells
+      let bx=0,by=0,bm=0;
+      for(let y=0;y<h;y++){const row=fr.grid[y];if(!row)continue;
+        for(let x=0;x<w;x++){let v=row[x];if(v==null||v<=0)continue;
+          const mmh=(v/100)*12; if(mmh<WET_CELL)continue;
+          const dx=x-userX,dy=y-userY; const d2=dx*dx+dy*dy; if(d2>120*120)continue;
+          bx+=x*mmh; by+=y*mmh; bm+=mmh;}}
+      if(bm>0){ const rx=bx/bm-userX, ry=by/bm-userY; vec={x:rx,y:ry}; fromDir=bearingLabel(rx,ry); }
+    }
+    if(!fromDir && cs.length>=2){
+      const a=cs[0], b=cs[cs.length-1];
+      const dx=b.x-a.x, dy=b.y-a.y;       // drift vector (where rain moves TO)
+      // the "from" direction and the arrow tail point opposite the drift
+      if(Math.hypot(dx,dy)>3){ vec={x:-dx, y:-dy}; fromDir=bearingLabel(-dx,-dy); }
+    }
+    analysis={ centroids:cs, arrival, fromDir, vec };
+  }
+
+  function isLightTheme(){ return document.documentElement.getAttribute("data-theme")==="light"; }
+
+  // ---- Germany + Bundesländer borders ---------------------------------------
+  // RADOLAN/RV polar-stereographic projection (validated against the DWD grid
+  // corners). We project both the user's lat/lon and each border vertex, then
+  // place borders relative to the user pixel — so they line up with the radar
+  // grid regardless of the bbox the API returned.
+  const RAD_R=6370.04, RAD_PHI0=60*Math.PI/180, RAD_LAM0=10*Math.PI/180;
+  function radProj(latDeg,lonDeg){
+    const phi=latDeg*Math.PI/180, lam=lonDeg*Math.PI/180;
+    const M=(1+Math.sin(RAD_PHI0))/(1+Math.sin(phi));
+    return { x:RAD_R*M*Math.cos(phi)*Math.sin(lam-RAD_LAM0),
+             y:-RAD_R*M*Math.cos(phi)*Math.cos(lam-RAD_LAM0) };
+  }
+  // lat/lon → grid cell coords (col,row) anchored at the user pixel
+  function lonLatToCell(lon,lat){
+    if(!map || map.userLon==null) return null;
+    const pu=map._projUser, pp=radProj(lat,lon);
+    // 1 km = 1 cell. col = +east, row = +south (grid rows increase southward)
+    return { gx: map.userX + (pp.x-pu.x), gy: map.userY + (pu.y-pp.y) };
+  }
+
+  // Border geometry, loaded once and cached as flattened polylines in lon/lat.
+  let borderRings=null;          // array of arrays of [lon,lat]
+  let bordersTried=false;
+  const BORDER_URLS=[
+    "https://raw.githubusercontent.com/isellsoap/deutschlandGeoJSON/main/2_bundeslaender/4_niedrig.geo.json",
+    "https://cdn.jsdelivr.net/gh/isellsoap/deutschlandGeoJSON@main/2_bundeslaender/4_niedrig.geo.json"
+  ];
+  function flattenGeo(geo){
+    const rings=[];
+    (geo.features||[]).forEach(f=>{
+      const g=f.geometry; if(!g) return;
+      const polys = g.type==="MultiPolygon" ? g.coordinates
+                  : g.type==="Polygon" ? [g.coordinates] : [];
+      polys.forEach(poly=> poly.forEach(ring=> rings.push(ring) ));
+    });
+    return rings;
+  }
+  async function loadBorders(){
+    if(borderRings || bordersTried) return;
+    bordersTried=true;
+    // try localStorage cache first
+    try{
+      const c=localStorage.getItem("weath3r_borders_v1");
+      if(c){ borderRings=JSON.parse(c); return; }
+    }catch(e){}
+    for(const url of BORDER_URLS){
+      try{
+        const r=await fetch(url);
+        if(!r.ok) continue;
+        const geo=await r.json();
+        borderRings=flattenGeo(geo);
+        try{ localStorage.setItem("weath3r_borders_v1", JSON.stringify(borderRings)); }catch(e){}
+        return;
+      }catch(e){ /* try next */ }
+    }
+  }
+
+  function drawBorders(ctx, G, light){
+    if(!borderRings || !map || map.userLon==null) return;
+    ctx.save();
+    ctx.strokeStyle = light ? "rgba(30,45,70,.42)" : "rgba(255,255,255,.34)";
+    ctx.lineWidth=1; ctx.lineJoin="round";
+    borderRings.forEach(ring=>{
+      ctx.beginPath();
+      let started=false;
+      for(let i=0;i<ring.length;i++){
+        const c=lonLatToCell(ring[i][0], ring[i][1]);
+        if(!c) continue;
+        const p=G(c.gx, c.gy);
+        if(!started){ ctx.moveTo(p.x,p.y); started=true; } else ctx.lineTo(p.x,p.y);
+      }
+      ctx.stroke();
+    });
+    ctx.restore();
+  }
+
   function fmtTime(dt){
     return dt.getHours()+":"+String(dt.getMinutes()).padStart(2,"0");
   }
@@ -2038,24 +2377,127 @@ boot();
     ctx.setTransform(DPR,0,0,DPR,0,0);
     ctx.clearRect(0,0,cssW,cssH);
 
-    // scale grid → square canvas (cover)
+    // scale grid → canvas, but anchor so the USER pixel sits at canvas centre
     const scale=Math.max(cssW/map.w, cssH/map.h);
     const dw=map.w*scale, dh=map.h*scale;
-    const ox=(cssW-dw)/2, oy=(cssH-dh)/2;
-    ctx.imageSmoothingEnabled=true;
-    ctx.globalAlpha=1;
+    // offset so (userX,userY) maps to (cssW/2, cssH/2)
+    let ox=cssW/2 - map.userX*scale;
+    let oy=cssH/2 - map.userY*scale;
+    // don't let the grid pull away from the canvas edges (avoid empty gaps)
+    ox=Math.min(0, Math.max(cssW-dw, ox));
+    oy=Math.min(0, Math.max(cssH-dh, oy));
+    const G=(gx,gy)=>({x:ox+gx*scale, y:oy+gy*scale}); // grid → canvas
+    const kmPx=scale/(map.kmPerCell||1);                // canvas px per km
+
+    // rain heatmap (current frame)
+    ctx.imageSmoothingEnabled=true; ctx.globalAlpha=1;
     ctx.drawImage(pre[idx], ox, oy, dw, dh);
 
-    // user location marker (center of grid → mapped to canvas)
-    const ux=ox + map.userX*scale, uy=oy + map.userY*scale;
-    ctx.beginPath();ctx.arc(ux,uy,5,0,7);
-    ctx.fillStyle="rgba(255,90,77,.95)";ctx.fill();
-    ctx.lineWidth=2;ctx.strokeStyle="rgba(255,255,255,.9)";ctx.stroke();
-    // subtle range ring
-    ctx.beginPath();ctx.arc(ux,uy,Math.min(dw,dh)*0.18,0,7);
-    ctx.strokeStyle="rgba(255,255,255,.12)";ctx.lineWidth=1;ctx.stroke();
+    // borders overlay (Germany + states), if loaded
+    drawBorders(ctx, G, isLightTheme());
 
-    // time labels
+    const u=G(map.userX, map.userY);
+    const isLight=document.documentElement.getAttribute("data-theme")==="light";
+    const ringCol=isLight?"rgba(20,30,50,.16)":"rgba(255,255,255,.16)";
+    const ringTxt=isLight?"rgba(20,30,50,.45)":"rgba(255,255,255,.5)";
+
+    // ---- radar scope: range rings + km labels + cardinal directions ----
+    ctx.lineWidth=1;
+    ctx.font="9px "+getComputedStyle(document.body).fontFamily;
+    ctx.textAlign="left";ctx.textBaseline="middle";
+    [50,100].forEach(km=>{
+      const r=km*kmPx;
+      ctx.strokeStyle=ringCol;
+      ctx.beginPath();ctx.arc(u.x,u.y,r,0,7);ctx.stroke();
+      ctx.fillStyle=ringTxt;
+      ctx.fillText(km+" km", u.x+4, u.y-r-1);
+    });
+    // crosshair + cardinal letters
+    ctx.strokeStyle=ringCol;
+    ctx.beginPath();ctx.moveTo(u.x-7,u.y);ctx.lineTo(u.x+7,u.y);
+    ctx.moveTo(u.x,u.y-7);ctx.lineTo(u.x,u.y+7);ctx.stroke();
+    const rOuter=100*kmPx;
+    ctx.fillStyle=ringTxt;ctx.textAlign="center";
+    ctx.fillText("N", u.x, u.y-rOuter-7);
+    ctx.fillText("S", u.x, u.y+rOuter+7);
+    ctx.textBaseline="middle";
+    ctx.fillText("O", u.x+rOuter+8, u.y);
+    ctx.fillText("W", u.x-rOuter-8, u.y);
+
+    // ---- approach arrow + time markers (from forecast analysis) ----
+    if(analysis){
+      const A=analysis;
+      // motion trail through rain centroids (where the rain blob travels)
+      if(A.centroids && A.centroids.length>=2){
+        ctx.strokeStyle=isLight?"rgba(40,55,80,.55)":"rgba(255,255,255,.55)";
+        ctx.lineWidth=2;ctx.setLineDash([1,4]);ctx.lineCap="round";
+        ctx.beginPath();
+        A.centroids.forEach((c,k)=>{const p=G(c.x,c.y);k?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y);});
+        ctx.stroke();ctx.setLineDash([]);
+        // up to 3 time ticks along the trail
+        const picks=[0, Math.floor(A.centroids.length/2), A.centroids.length-1]
+          .filter((v,i,a)=>a.indexOf(v)===i);
+        ctx.font="600 10px "+getComputedStyle(document.body).fontFamily;
+        picks.forEach(k=>{
+          const c=A.centroids[k]; const p=G(c.x,c.y);
+          const lbl=fmtTime(c.t);
+          const tw=ctx.measureText(lbl).width+8;
+          ctx.fillStyle=isLight?"rgba(255,255,255,.92)":"rgba(10,14,20,.82)";
+          roundRect(ctx, p.x+6, p.y-8, tw, 15, 7); ctx.fill();
+          ctx.fillStyle=isLight?"#1a2230":"#eef2f7";
+          ctx.textAlign="left";ctx.textBaseline="middle";
+          ctx.fillText(lbl, p.x+10, p.y-0.5);
+        });
+      }
+      // arrival arrow pointing at the user, from the incoming bearing
+      if(A.arrival && A.vec){
+        const v=A.vec; const len=Math.hypot(v.x,v.y)||1;
+        // tail sits out along the incoming direction (cap to ring)
+        const tailLen=Math.min(95, Math.max(40, len)) ; // grid cells
+        const tx=map.userX - v.x/len*tailLen, ty=map.userY - v.y/len*tailLen;
+        const tail=G(tx,ty);
+        ctx.strokeStyle="rgba(255,90,77,.95)";ctx.lineWidth=3;ctx.lineCap="round";
+        ctx.beginPath();ctx.moveTo(tail.x,tail.y);ctx.lineTo(u.x,u.y);ctx.stroke();
+        // arrowhead at user
+        const ang=Math.atan2(u.y-tail.y, u.x-tail.x);
+        const hl=9;
+        ctx.beginPath();
+        ctx.moveTo(u.x,u.y);
+        ctx.lineTo(u.x-hl*Math.cos(ang-0.4), u.y-hl*Math.sin(ang-0.4));
+        ctx.lineTo(u.x-hl*Math.cos(ang+0.4), u.y-hl*Math.sin(ang+0.4));
+        ctx.closePath();ctx.fillStyle="rgba(255,90,77,.95)";ctx.fill();
+        // arrival label near the tail
+        const lbl=`Regen ~${fmtTime(A.arrival.t)}`+(A.fromDir?` · aus ${A.fromDir}`:"");
+        ctx.font="700 11px "+getComputedStyle(document.body).fontFamily;
+        const tw=ctx.measureText(lbl).width+12;
+        let lx=tail.x-tw/2, ly=tail.y-20;
+        lx=Math.max(4, Math.min(cssW-tw-4, lx)); ly=Math.max(4, ly);
+        ctx.fillStyle="rgba(255,90,77,.95)";
+        roundRect(ctx, lx, ly, tw, 18, 9); ctx.fill();
+        ctx.fillStyle="#fff";ctx.textAlign="center";ctx.textBaseline="middle";
+        ctx.fillText(lbl, lx+tw/2, ly+9);
+      }
+    }
+
+    // user marker on top + label
+    ctx.beginPath();ctx.arc(u.x,u.y,5,0,7);
+    ctx.fillStyle="rgba(255,90,77,.95)";ctx.fill();
+    ctx.lineWidth=2;ctx.strokeStyle="rgba(255,255,255,.95)";ctx.stroke();
+    // location name label
+    const locName=(map.userName||"Mein Standort");
+    ctx.font="700 11px "+getComputedStyle(document.body).fontFamily;
+    const lw=ctx.measureText(locName).width+12;
+    let llx=u.x+9, lly=u.y-7;                       // default: to the right of the dot
+    if(llx+lw>cssW-4) llx=u.x-9-lw;                 // flip left near the right edge
+    const light2=isLightTheme();
+    ctx.fillStyle=light2?"rgba(255,255,255,.92)":"rgba(10,14,20,.82)";
+    roundRect(ctx, llx, lly, lw, 17, 8); ctx.fill();
+    ctx.strokeStyle="rgba(255,90,77,.55)";ctx.lineWidth=1;roundRect(ctx, llx, lly, lw, 17, 8);ctx.stroke();
+    ctx.fillStyle=light2?"#1a2230":"#eef2f7";
+    ctx.textAlign="center";ctx.textBaseline="middle";
+    ctx.fillText(locName, llx+lw/2, lly+8.5);
+
+    // time labels in the control row
     const t=map.frames[idx].time;
     if(timeEl){
       const first=timeEl.firstChild;
@@ -2090,16 +2532,23 @@ boot();
       const m=AURORA.buildRadarMap(raw);
       if(!m){ statusEl.textContent="Regenradar für diesen Standort nicht verfügbar."; loading=false; return; }
       map=m; idx=0;
+      // anchor for the border overlay: the user's true lat/lon + its projection
+      map.userLat=geo.lat; map.userLon=geo.lon;
+      map.userName=geo.name||"Mein Standort";
+      map._projUser=radProj(geo.lat, geo.lon);
       // start at the frame nearest "now"
       let best=0,bd=1e9;
       map.frames.forEach((f,i)=>{const d=Math.abs(f.time.getTime()-Date.now());if(d<bd){bd=d;best=i;}});
       idx=best;
       prerender();
+      analyse();
       buildLegend();
       if(scrub){ scrub.max=String(map.frames.length-1); scrub.value=String(idx); }
       statusEl.style.display="none";
       loaded=true;
       drawFrame();
+      // borders load in the background; redraw when ready
+      loadBorders().then(()=>{ if(loaded) drawFrame(); }).catch(()=>{});
     }catch(e){
       statusEl.textContent="Regenradar konnte nicht geladen werden.";
       console.warn("radar map:", e);
@@ -2119,6 +2568,15 @@ boot();
     setPlaying(false);
   }
   function toggle(){ card.classList.contains("open") ? collapse() : expand(); }
+
+  // allow other modules (e.g. the location picker) to invalidate the loaded
+  // map so it re-fetches for the new location next time it's opened
+  window.__radarReset=function(){
+    setPlaying(false);
+    collapse();
+    map=null; pre=[]; analysis=null; loaded=false; loading=false; idx=0;
+    if(statusEl){ statusEl.style.display=""; statusEl.textContent="Tippen zum Laden…"; }
+  };
 
   head.addEventListener("click", toggle);
   head.addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); toggle(); } });
