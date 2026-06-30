@@ -11,14 +11,14 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="WEATH3R">
-<title>WEATH3R v7.3</title>
+<title>WEATH3R v7.4</title>
 <script>
 /* ============================================================
    WEATH3R · global config + UI-mode detection
    Runs synchronously in <head> BEFORE the body renders so the
    correct GUI is shown immediately (no layout flash).
    ============================================================ */
-window.APP_VERSION = "v7.3";
+window.APP_VERSION = "v7.4";
 
 function getUiMode(){
   var mode=null, explicit=false;
@@ -159,14 +159,14 @@ getUiMode();
   /* ---------- Header ---------- */
   .topbar{
     position:sticky;top:0;z-index:30;
-    padding:calc(env(safe-area-inset-top) + 14px) 2px 18px;
+    padding:calc(env(safe-area-inset-top) + 14px) 4px 18px;
     background:var(--topbar-bg);
     backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
     /* fade the blur itself out toward the bottom so the glass edge is invisible */
     -webkit-mask-image:linear-gradient(180deg, #000 0%, #000 62%, transparent 100%);
     mask-image:linear-gradient(180deg, #000 0%, #000 62%, transparent 100%);
   }
-  .topbar-row{display:flex;align-items:center;gap:12px}
+  .topbar-row{display:flex;align-items:center;gap:10px;min-width:0}
   .loc{flex:1;min-width:0}
   .loc .eyebrow{
     font-size:11px;letter-spacing:.14em;text-transform:uppercase;
@@ -424,6 +424,14 @@ getUiMode();
     background:#ff5a4d;color:#fff;font-size:10px;font-weight:700;
     display:grid;place-items:center;line-height:1;
   }
+  /* ---------- Hero weather icon ---------- */
+  .wx-icon{
+    flex:none;width:46px;height:46px;border-radius:50%;
+    border:1px solid var(--stroke);background:rgba(255,255,255,.04);
+    display:grid;place-items:center;margin:0 4px;padding:0;cursor:default;
+    transition:.2s;
+  }
+  .wx-icon svg{width:30px;height:30px;display:block}
 
   /* ---------- Modal ---------- */
   .modal-overlay{
@@ -655,6 +663,7 @@ getUiMode();
         <div class="now-range" id="now-range">–</div>
         <div class="now-feels" id="now-feels"></div>
       </div>
+      <button class="wx-icon" id="wx-icon" aria-label="Aktuelles Wetter" style="display:none"></button>
       <button class="warn-btn" id="warn-btn" aria-label="Wetterwarnung anzeigen" style="display:none">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.6 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.6a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
         <span class="warn-count" id="warn-count"></span>
@@ -721,7 +730,7 @@ getUiMode();
     <b>Multi-Modell-Ansicht.</b> Drei unabhängige Wettermodelle laufen parallel — AROME (durchgezogen), ICON-D2 (gestrichelt), ECMWF (gepunktet). Liegen die Linien nah beieinander, ist die Prognose sicher; spreizen sie sich, ist sie unsicher. Farbe codiert die Wärme, das Linienmuster die Modell-Identität.<br>
     <span id="data-status"></span> Wetterdaten: <b>Open-Meteo.com</b> (CC BY 4.0). Regenradar &amp; Warnungen: <b>DWD</b> via Bright Sky.<br>
     <button class="ui-toggle" id="to-watch">⌚ Watch-Ansicht</button>
-    <span class="app-version" id="ver-desktop" style="margin-left:10px">WEATH3R v7.3</span>
+    <span class="app-version" id="ver-desktop" style="margin-left:10px">WEATH3R v7.4</span>
   </p>
 
 </div>
@@ -777,7 +786,7 @@ getUiMode();
     <span id="wstatus"></span><br>
     <button class="ui-toggle" id="to-desktop">↗ volle Ansicht</button><br>
     Daten: Open-Meteo · DWD (Bright Sky)<br>
-    <span class="app-version">WEATH3R v7.3</span>
+    <span class="app-version">WEATH3R v7.4</span>
   </p>
 </div><!-- /#watch-ui -->
 
@@ -1694,7 +1703,7 @@ function drawChart(canvasId, day, opts){
   // Models now run close together, so labelling all three would collide.
   // Label only the primary (solid) model; the dashed/dotted lines plus the
   // shaded spread band below already communicate the inter-model uncertainty.
-  if(day.temp[0]) labelModel(ctx, day.temp[0], Y, X, true);
+  if(day.temp[0]) labelModel(ctx, day.temp[0], Y, X, true, W);
 
   /* --- NOW marker --- */
   if(day.now!=null){
@@ -1709,7 +1718,7 @@ function drawChart(canvasId, day, opts){
   }
 }
 
-function labelModel(ctx, model, Y, X, above){
+function labelModel(ctx, model, Y, X, above, W){
   const pts=model.pts;
   // pick well-separated labels
   const chosen=[];
@@ -1724,12 +1733,15 @@ function labelModel(ctx, model, Y, X, above){
     const txt=Math.round(p.y)+"°";
     const w=ctx.measureText(txt).width+10;
     const ly = above ? y-13 : y+15;
+    // keep the pill fully inside the canvas so the edge labels aren't clipped
+    let cx=x;
+    if(W){ cx=Math.max(w/2+2, Math.min(W-w/2-2, x)); }
     // pill
     ctx.fillStyle=cssVar("--c-pill-bg");
-    roundRect(ctx, x-w/2, ly-9, w, 16, 8); ctx.fill();
+    roundRect(ctx, cx-w/2, ly-9, w, 16, 8); ctx.fill();
     ctx.fillStyle=rgb(tempColor(p.y));
     ctx.textBaseline="middle";
-    ctx.fillText(txt, x, ly-0.5);
+    ctx.fillText(txt, cx, ly-0.5);
     ctx.textBaseline="alphabetic";
   });
 }
@@ -2085,6 +2097,48 @@ function dayLabelFromOffset(off){
   const d=new Date(); d.setDate(d.getDate()+off);
   return `${WD_FULL[d.getDay()]} ${d.getDate()}. ${MO_SHORT[d.getMonth()]}`;
 }
+
+/* ---------- Dynamic weather icon (driven by WMO weather code) ---------- */
+function weatherIconSVG(code, cloud, precip, isDay){
+  const sun='#ffcf4a', moon='#ccd6e6', cl='#9aa6b6', cl2='#7b8694', rain='#3d9be9', snow='#bfe3ff', bolt='#b07bff';
+  const S=(inner)=>`<svg viewBox="0 0 32 32" fill="none" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`;
+  const sunC=`<circle cx="16" cy="13" r="6" fill="${sun}"/>`+
+    [0,45,90,135,180,225,270,315].map(a=>{const r=a*Math.PI/180,x=16+Math.cos(r)*10,y=13+Math.sin(r)*10,x2=16+Math.cos(r)*12.5,y2=13+Math.sin(r)*12.5;return `<line x1="${x.toFixed(1)}" y1="${y.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="${sun}" stroke-width="2"/>`;}).join('');
+  const moonC=`<path d="M22 14.5A7 7 0 1 1 13.5 6 5.6 5.6 0 0 0 22 14.5z" fill="${moon}"/>`;
+  const cloudC=(cx,cy,c)=>`<path d="M${cx-8} ${cy+3} a4.5 4.5 0 0 1 0-9 6 6 0 0 1 11.5-1.6 4 4 0 0 1 .5 8 z" fill="${c}"/>`;
+  let inner;
+  const c = code;
+  if(precip>0.1 || (c>=51&&c<=67) || c===80||c===81||c===82){
+    inner=cloudC(18,12,cl)+`<line x1="11" y1="22" x2="9.5" y2="26" stroke="${rain}" stroke-width="2"/><line x1="16" y1="22" x2="14.5" y2="26" stroke="${rain}" stroke-width="2"/><line x1="21" y1="22" x2="19.5" y2="26" stroke="${rain}" stroke-width="2"/>`;
+  } else if(c>=95){
+    inner=cloudC(18,11,cl2)+`<path d="M16 20 l-3 5 h3 l-2 4" stroke="${bolt}" stroke-width="2" fill="none"/>`;
+  } else if((c>=71&&c<=77)||c===85||c===86){
+    inner=cloudC(18,12,cl)+`<g stroke="${snow}" stroke-width="1.8">`+[10,16,22].map(x=>`<line x1="${x}" y1="22" x2="${x}" y2="27"/><line x1="${x-2}" y1="23.5" x2="${x+2}" y2="25.5"/><line x1="${x+2}" y1="23.5" x2="${x-2}" y2="25.5"/>`).join('')+`</g>`;
+  } else if(c>=45&&c<=48){
+    inner=cloudC(18,9,cl)+`<g stroke="${cl2}" stroke-width="2"><line x1="7" y1="23" x2="25" y2="23"/><line x1="9" y1="27" x2="23" y2="27"/></g>`;
+  } else if(c===0 || (cloud!=null && cloud<25)){
+    inner = isDay? sunC : moonC;
+  } else if(c<=2 || (cloud!=null && cloud<60)){
+    // partly cloudy
+    inner=(isDay?`<circle cx="12" cy="11" r="5" fill="${sun}"/>`+[0,45,90,315].map(a=>{const r=a*Math.PI/180;return `<line x1="${(12+Math.cos(r)*8).toFixed(1)}" y1="${(11+Math.sin(r)*8).toFixed(1)}" x2="${(12+Math.cos(r)*10).toFixed(1)}" y2="${(11+Math.sin(r)*10).toFixed(1)}" stroke="${sun}" stroke-width="2"/>`;}).join(''):`<path d="M16 12.5A5 5 0 1 1 10 6 4 4 0 0 0 16 12.5z" fill="${moon}"/>`)+cloudC(20,15,cl);
+  } else {
+    inner=cloudC(16,13,cl);
+  }
+  return S(inner);
+}
+
+// Set the hero weather icon from current conditions, respecting day/night.
+function updateWeatherIcon(h){
+  const el=document.getElementById("wx-icon");
+  if(!el || !h) return;
+  const hr=new Date().getHours();
+  const isDay = hr>=6 && hr<21;
+  el.innerHTML=weatherIconSVG(h.code, h.cloud, h.precip, isDay);
+  el.title=weatherWord(h.code,h.cloud,h.precip);
+  // visibility is decided in applyAlerts (warning takes over the slot)
+  if(!__alerts.length) el.style.display="grid";
+}
+
 function rangeLabel(day){
   // collect min/max across model temp lines
   let lo=Infinity,hi=-Infinity;
@@ -2140,6 +2194,7 @@ function applyData(data){
     document.getElementById("chip-rain").textContent=h.precip>0.05?`${f(h.precip)} mm`:"0 mm";
     document.getElementById("chip-wind").textContent=`${h.wind} km/h`;
     applyExtremeChip(h);
+    updateWeatherIcon(h);
   }
   // chart labels
   const now=new Date();
@@ -2180,11 +2235,15 @@ function applyAlerts(alerts){
   __alerts=alerts||[];
   const btn=document.getElementById("warn-btn");
   const cnt=document.getElementById("warn-count");
+  const wx=document.getElementById("wx-icon");
   if(!btn) return;
   if(!__alerts.length){
     btn.style.display="none";
+    if(wx && wx.innerHTML.trim()) wx.style.display="grid";  // restore weather icon
     return;
   }
+  // a warning is active → the warning icon takes over the hero slot
+  if(wx) wx.style.display="none";
   btn.style.display="grid";
   const maxSev=Math.max(...__alerts.map(a=>a.sev));
   btn.classList.toggle("sev-3", maxSev>=3);
@@ -2449,37 +2508,48 @@ if(document.documentElement.dataset.uiMode!=="watch") boot();
     analysis=null;
     if(!map||!map.frames.length) return;
     const {w,h,userX,userY,frames}=map;
-    // centroids over time (only frames with enough rain)
-    const cs=[];
-    frames.forEach((f,i)=>{const c=frameCentroid(f.grid,w,h); if(c&&c.mass>20) cs.push({i,t:f.time,x:c.x,y:c.y,mass:c.mass});});
-    // arrival at user: first frame at/after "now" where the user cell is wet
     const nowMs=Date.now();
+
+    // 1) rain-field drift: track the precip-weighted centroid over time and fit
+    //    a velocity (cells per minute). 1 cell = 1 km on the DWD grid.
+    const cs=[];
+    frames.forEach((f)=>{const c=frameCentroid(f.grid,w,h); if(c&&c.mass>20) cs.push({t:f.time.getTime(),x:c.x,y:c.y});});
+    let vel=null; // {vx,vy} cells per minute (direction rain MOVES toward)
+    if(cs.length>=2){
+      const a=cs[0], b=cs[cs.length-1];
+      const dtMin=(b.t-a.t)/60000;
+      if(dtMin>1){ vel={ vx:(b.x-a.x)/dtMin, vy:(b.y-a.y)/dtMin }; }
+    }
+
+    // 2) arrival at the user's own cell (authoritative — straight from the forecast)
     let arrival=null;
     for(let i=0;i<frames.length;i++){
-      if(frames[i].time.getTime()<nowMs-3*60000) continue;     // ignore past
+      if(frames[i].time.getTime()<nowMs-3*60000) continue;
       if(userWet(frames[i].grid,userX,userY,w,h)>=WET_CELL){ arrival={i,t:frames[i].time}; break; }
     }
-    // bearing rain comes from: centroid of nearby rain in the frame before arrival,
-    // else the overall drift direction from centroid track.
-    let fromDir=null, vec=null;
-    if(arrival){
-      const fr=frames[Math.max(0,arrival.i-1)] || frames[arrival.i];
-      // nearest significant rain to the user within ~120 cells
-      let bx=0,by=0,bm=0;
-      for(let y=0;y<h;y++){const row=fr.grid[y];if(!row)continue;
-        for(let x=0;x<w;x++){let v=row[x];if(v==null||v<=0)continue;
-          const mmh=(v/100)*12; if(mmh<WET_CELL)continue;
-          const dx=x-userX,dy=y-userY; const d2=dx*dx+dy*dy; if(d2>120*120)continue;
-          bx+=x*mmh; by+=y*mmh; bm+=mmh;}}
-      if(bm>0){ const rx=bx/bm-userX, ry=by/bm-userY; vec={x:rx,y:ry}; fromDir=bearingLabel(rx,ry); }
+
+    // 3) build the "approach axis": a line from the user pointing UPWIND
+    //    (where incoming rain comes from = opposite the drift), and sample the
+    //    CURRENT rain field at the positions that would advect onto the user at
+    //    +30/+60/+90/+120 min. Each sample → does rain there reach the user, when.
+    let upwind=null, samples=[], fromDir=null;
+    const speed = vel? Math.hypot(vel.vx,vel.vy) : 0;   // cells per minute
+    const nowFrame = frames.reduce((best,f,i)=>Math.abs(f.time-Date.now())<Math.abs(frames[best].time-Date.now())?i:best,0);
+    const curGrid = frames[nowFrame].grid;
+    if(vel && speed>0.02){                               // need a usable drift (>~1.2 km/h)
+      const ux=-vel.vx/speed, uy=-vel.vy/speed;          // unit vector pointing upwind
+      upwind={x:ux,y:uy};
+      fromDir=bearingLabel(ux,uy);
+      [30,60,90,120].forEach(min=>{
+        const dist=speed*min;                            // cells the rain travels in `min`
+        const gx=userX+ux*dist, gy=userY+uy*dist;        // where that rain sits now
+        if(gx<0||gy<0||gx>=w||gy>=h) return;             // off the map → skip
+        const wetMMH=userWet(curGrid,gx,gy,w,h);
+        samples.push({ min, gx, gy, t:new Date(nowMs+min*60000), wet:wetMMH>=WET_CELL, mmh:wetMMH });
+      });
     }
-    if(!fromDir && cs.length>=2){
-      const a=cs[0], b=cs[cs.length-1];
-      const dx=b.x-a.x, dy=b.y-a.y;       // drift vector (where rain moves TO)
-      // the "from" direction and the arrow tail point opposite the drift
-      if(Math.hypot(dx,dy)>3){ vec={x:-dx, y:-dy}; fromDir=bearingLabel(-dx,-dy); }
-    }
-    analysis={ centroids:cs, arrival, fromDir, vec };
+
+    analysis={ vel, speed, arrival, fromDir, upwind, samples, userX, userY };
   }
 
   function isLightTheme(){ return document.documentElement.getAttribute("data-theme")==="light"; }
@@ -2624,59 +2694,64 @@ if(document.documentElement.dataset.uiMode!=="watch") boot();
     ctx.fillText("O", u.x+rOuter+8, u.y);
     ctx.fillText("W", u.x-rOuter-8, u.y);
 
-    // ---- approach arrow + time markers (from forecast analysis) ----
-    if(analysis){
+    // ---- approach line: upwind axis ending at the user, with arrival-time
+    //      markers showing when (and whether) incoming rain reaches the user ----
+    if(analysis && analysis.upwind){
       const A=analysis;
-      // motion trail through rain centroids (where the rain blob travels)
-      if(A.centroids && A.centroids.length>=2){
-        ctx.strokeStyle=isLight?"rgba(40,55,80,.55)":"rgba(255,255,255,.55)";
-        ctx.lineWidth=2;ctx.setLineDash([1,4]);ctx.lineCap="round";
-        ctx.beginPath();
-        A.centroids.forEach((c,k)=>{const p=G(c.x,c.y);k?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y);});
-        ctx.stroke();ctx.setLineDash([]);
-        // up to 3 time ticks along the trail
-        const picks=[0, Math.floor(A.centroids.length/2), A.centroids.length-1]
-          .filter((v,i,a)=>a.indexOf(v)===i);
-        ctx.font="600 10px "+getComputedStyle(document.body).fontFamily;
-        picks.forEach(k=>{
-          const c=A.centroids[k]; const p=G(c.x,c.y);
-          const lbl=fmtTime(c.t);
-          const tw=ctx.measureText(lbl).width+8;
-          ctx.fillStyle=isLight?"rgba(255,255,255,.92)":"rgba(10,14,20,.82)";
-          roundRect(ctx, p.x+6, p.y-8, tw, 15, 7); ctx.fill();
-          ctx.fillStyle=isLight?"#1a2230":"#eef2f7";
-          ctx.textAlign="left";ctx.textBaseline="middle";
-          ctx.fillText(lbl, p.x+10, p.y-0.5);
-        });
-      }
-      // arrival arrow pointing at the user, from the incoming bearing
-      if(A.arrival && A.vec){
-        const v=A.vec; const len=Math.hypot(v.x,v.y)||1;
-        // tail sits out along the incoming direction (cap to ring)
-        const tailLen=Math.min(95, Math.max(40, len)) ; // grid cells
-        const tx=map.userX - v.x/len*tailLen, ty=map.userY - v.y/len*tailLen;
-        const tail=G(tx,ty);
-        ctx.strokeStyle="rgba(255,90,77,.95)";ctx.lineWidth=3;ctx.lineCap="round";
-        ctx.beginPath();ctx.moveTo(tail.x,tail.y);ctx.lineTo(u.x,u.y);ctx.stroke();
-        // arrowhead at user
-        const ang=Math.atan2(u.y-tail.y, u.x-tail.x);
-        const hl=9;
-        ctx.beginPath();
-        ctx.moveTo(u.x,u.y);
-        ctx.lineTo(u.x-hl*Math.cos(ang-0.4), u.y-hl*Math.sin(ang-0.4));
-        ctx.lineTo(u.x-hl*Math.cos(ang+0.4), u.y-hl*Math.sin(ang+0.4));
-        ctx.closePath();ctx.fillStyle="rgba(255,90,77,.95)";ctx.fill();
-        // arrival label near the tail
-        const lbl=`Regen ~${fmtTime(A.arrival.t)}`+(A.fromDir?` · aus ${A.fromDir}`:"");
-        ctx.font="700 11px "+getComputedStyle(document.body).fontFamily;
-        const tw=ctx.measureText(lbl).width+12;
-        let lx=tail.x-tw/2, ly=tail.y-20;
-        lx=Math.max(4, Math.min(cssW-tw-4, lx)); ly=Math.max(4, ly);
-        ctx.fillStyle="rgba(255,90,77,.95)";
-        roundRect(ctx, lx, ly, tw, 18, 9); ctx.fill();
-        ctx.fillStyle="#fff";ctx.textAlign="center";ctx.textBaseline="middle";
-        ctx.fillText(lbl, lx+tw/2, ly+9);
-      }
+      const uw=A.upwind;
+      // line endpoint: out to the last on-map sample, else a sensible length
+      const maxDist = A.samples.length ? A.samples[A.samples.length-1].min*A.speed
+                                       : 100/(map.kmPerCell||1);
+      const endG=G(A.userX+uw.x*maxDist, A.userY+uw.y*maxDist);
+      const anyRainComing = A.samples.some(s=>s.wet);
+      const lineCol = anyRainComing ? "rgba(255,90,77,.9)"
+                     : (isLight?"rgba(40,55,80,.4)":"rgba(255,255,255,.4)");
+
+      // the approach axis (user → upwind)
+      ctx.strokeStyle=lineCol;ctx.lineWidth=2.5;ctx.lineCap="round";
+      ctx.setLineDash(anyRainComing?[]:[2,5]);
+      ctx.beginPath();ctx.moveTo(u.x,u.y);ctx.lineTo(endG.x,endG.y);ctx.stroke();
+      ctx.setLineDash([]);
+      // arrowhead AT the user (rain flows down the axis toward the user)
+      const ang=Math.atan2(u.y-endG.y, u.x-endG.x), hl=10;
+      ctx.beginPath();ctx.moveTo(u.x,u.y);
+      ctx.lineTo(u.x-hl*Math.cos(ang-0.4), u.y-hl*Math.sin(ang-0.4));
+      ctx.lineTo(u.x-hl*Math.cos(ang+0.4), u.y-hl*Math.sin(ang+0.4));
+      ctx.closePath();ctx.fillStyle=lineCol;ctx.fill();
+
+      // time markers along the axis (each = when rain at that spot reaches you)
+      ctx.font="700 10px "+getComputedStyle(document.body).fontFamily;
+      A.samples.forEach(s=>{
+        const p=G(s.gx,s.gy);
+        const lbl=fmtTime(s.t);
+        const tw=ctx.measureText(lbl).width+10;
+        // tick dot
+        ctx.beginPath();ctx.arc(p.x,p.y,s.wet?3.4:2.4,0,7);
+        ctx.fillStyle=s.wet?"rgba(255,90,77,.95)":(isLight?"rgba(40,55,80,.5)":"rgba(255,255,255,.5)");
+        ctx.fill();
+        // label pill (clamped on-canvas)
+        let lx=p.x+7; if(lx+tw>cssW-3) lx=p.x-7-tw;
+        let ly=p.y-7; ly=Math.max(2, Math.min(cssH-17, ly));
+        ctx.fillStyle = s.wet ? "rgba(255,90,77,.95)"
+                       : (isLight?"rgba(255,255,255,.9)":"rgba(10,14,20,.82)");
+        roundRect(ctx, lx, ly, tw, 15, 7); ctx.fill();
+        ctx.fillStyle = s.wet ? "#fff" : (isLight?"#1a2230":"#cfd8e3");
+        ctx.textAlign="center";ctx.textBaseline="middle";
+        ctx.fillText(lbl, lx+tw/2, ly+8);
+      });
+
+      // headline pill near the user: arrival time or "kein Regen"
+      const head = A.arrival ? `Regen ~${fmtTime(A.arrival.t)}`+(A.fromDir?` · aus ${A.fromDir}`:"")
+                 : (A.fromDir?`kein Regen · Zug aus ${A.fromDir}`:"kein Regen am Standort");
+      ctx.font="700 11px "+getComputedStyle(document.body).fontFamily;
+      const hw=ctx.measureText(head).width+12;
+      let hx=u.x-hw/2, hy=u.y+12;
+      hx=Math.max(4, Math.min(cssW-hw-4, hx)); hy=Math.min(cssH-21, hy);
+      ctx.fillStyle = A.arrival ? "rgba(255,90,77,.95)" : (isLight?"rgba(255,255,255,.92)":"rgba(10,14,20,.85)");
+      roundRect(ctx, hx, hy, hw, 18, 9); ctx.fill();
+      ctx.fillStyle = A.arrival ? "#fff" : (isLight?"#1a2230":"#eef2f7");
+      ctx.textAlign="center";ctx.textBaseline="middle";
+      ctx.fillText(head, hx+hw/2, hy+9);
     }
 
     // user marker on top + label
