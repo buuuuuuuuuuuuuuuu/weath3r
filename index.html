@@ -193,6 +193,8 @@
   .nowcast-head{display:flex;align-items:baseline;gap:10px;margin-bottom:2px}
   .nowcast-title{font-size:13px;font-weight:600;letter-spacing:.02em;color:var(--ink)}
   .nowcast-summary{margin-left:auto;font-size:12px;color:var(--ink-2);font-weight:500;text-align:right}
+  .nowcast-src{font-size:10px;font-weight:600;letter-spacing:.03em;color:var(--ink-3);
+    border:1px solid var(--stroke-2);border-radius:999px;padding:1px 6px;margin-left:6px;vertical-align:middle}
   #cv-nowcast{min-height:96px}
 
   /* ---------- Section ---------- */
@@ -381,7 +383,7 @@
   <!-- NOWCAST · next 2h -->
   <section class="nowcast">
     <div class="nowcast-head">
-      <div class="nowcast-title">Nächste 2 Stunden</div>
+      <div class="nowcast-title">Nächste 2 Stunden <span id="nowcast-src" class="nowcast-src"></span></div>
       <div class="nowcast-summary" id="nowcast-summary">–</div>
     </div>
     <canvas id="cv-nowcast"></canvas>
@@ -409,7 +411,7 @@
 
   <p class="footnote">
     <b>Multi-Modell-Ansicht.</b> Drei unabhängige Wettermodelle laufen parallel — AROME (durchgezogen), ICON-D2 (gestrichelt), ECMWF (gepunktet). Liegen die Linien nah beieinander, ist die Prognose sicher; spreizen sie sich, ist sie unsicher. Farbe codiert die Wärme, das Linienmuster die Modell-Identität.<br>
-    <span id="data-status"></span> Wetterdaten: <b>Open-Meteo.com</b> (CC BY 4.0). Warnungen: <b>DWD</b> via Bright Sky.
+    <span id="data-status"></span> Wetterdaten: <b>Open-Meteo.com</b> (CC BY 4.0). Regenradar &amp; Warnungen: <b>DWD</b> via Bright Sky.
   </p>
 
 </div>
@@ -704,6 +706,77 @@ const AURORA = (function(){
     return { start:pts[0].t, end:pts[pts.length-1].t, pts, summary };
   }
 
+  // ---- DWD radar nowcast (Bright Sky /radar) ----
+  // Real measured rainfall radar (RADOLAN/RV composite), 5-min steps,
+  // including DWD's own 2h extrapolation forecast. Values are 0.01 mm / 5 min
+  // per 1 km² pixel. We request a tiny bbox around the user so the payload
+  // stays small, then read the pixel at the returned latlon_position.
+  async function fetchRadar(geo){
+    const now=new Date();
+    const end=new Date(now.getTime()+125*60*1000); // +2h05
+    const u=new URL("https://api.brightsky.dev/radar");
+    u.searchParams.set("lat", geo.lat);
+    u.searchParams.set("lon", geo.lon);
+    u.searchParams.set("distance", 1000);      // ~small grid around us
+    u.searchParams.set("format", "plain");      // nested int arrays (tiny bbox → cheap)
+    u.searchParams.set("date", now.toISOString());
+    u.searchParams.set("last_date", end.toISOString());
+    const res=await fetch(u.toString());
+    if(!res.ok) throw new Error("Radar "+res.status);
+    return res.json();
+  }
+
+  // Perceptual intensity mapping shared with the renderer:
+  //   intensity 1.0  ↔  8 mm/h   (heavy)
+  //   intensity 0.5  ↔  2 mm/h   (moderate)
+  function radarInten(mmh){ return Math.max(0, Math.min(1, Math.sqrt(mmh/8))); }
+
+  function buildRadarNowcast(j, now){
+    if(!j || !Array.isArray(j.radar) || !j.radar.length) return null;
+    const pos=j.latlon_position||{x:0,y:0};
+    const px=Math.max(0,Math.round(pos.x)), py=Math.max(0,Math.round(pos.y));
+    const frames=[];
+    j.radar.forEach(fr=>{
+      const t=new Date(fr.timestamp);
+      let v=0;
+      try{
+        const grid=fr.precipitation_5;
+        const row=grid[py]!=null?grid[py]:grid[0];
+        v=row[px]!=null?row[px]:row[0];
+      }catch(e){ v=0; }
+      if(v==null||v<0) v=0;
+      frames.push({ time:t, mmh:(v/100)*12 }); // 0.01mm/5min → mm/h
+    });
+    if(!frames.length) return null;
+
+    // anchor: keep the frame just before "now", then everything forward
+    let startIdx=frames.length-1;
+    for(let i=0;i<frames.length;i++){ if(frames[i].time>=now){ startIdx=Math.max(0,i-1); break; } }
+    const slice=frames.slice(startIdx);
+    if(!slice.length) return null;
+
+    const t0ms=slice[0].time.getTime();
+    const pts=slice.map(p=>{
+      const mins=Math.round((p.time.getTime()-t0ms)/60000);
+      const hh=p.time.getHours(), mm=p.time.getMinutes();
+      return { mins, mmh:p.mmh, inten:radarInten(p.mmh), label:hh+":"+pad(mm) };
+    });
+    const totalMins=pts[pts.length-1].mins||120;
+
+    // textual summary (threshold ~0.1 mm/h = just-about-noticeable)
+    const WET=0.1;
+    let summary;
+    const fmt=p=>p.label;
+    if(pts[0].mmh>=WET){
+      const stop=pts.find((p,i)=>i>0 && p.mmh<WET);
+      summary = stop ? `Regen lässt gegen ${fmt(stop)} nach` : "Regen hält die nächste Stunde an";
+    } else {
+      const begin=pts.find(p=>p.mmh>=WET);
+      summary = begin ? `Regen ab ca. ${fmt(begin)}` : "Kein Niederschlag in den nächsten 2 Std.";
+    }
+    return { radar:true, totalMins, pts, summary, ts:slice[0].time.toISOString() };
+  }
+
   // ---- network ----
   function buildURL(geo){
     const u=new URL("https://api.open-meteo.com/v1/forecast");
@@ -869,6 +942,14 @@ const AURORA = (function(){
           };
         }
       }catch(e){ data.alerts=[]; }
+      // DWD radar nowcast (best-effort): replaces the model-based nowcast
+      // when available. Falls back silently to Open-Meteo minutely_15 outside
+      // German radar coverage or on any error.
+      try{
+        const radar=await fetchRadar(geo);
+        const rn=buildRadarNowcast(radar, new Date());
+        if(rn) data.nowcast=rn;
+      }catch(e){ /* keep model nowcast */ }
       saveCache(data);
       return { data, stale:false };
     }catch(err){
@@ -1404,8 +1485,114 @@ function drawNowcast(canvasId){
   ctx.beginPath();ctx.arc(x0+slotW/2,padT-1,2.6,0,7);ctx.fill();
 }
 
+/* ---------- Nowcast renderer · DWD radar variant ----------
+   Driven by measured rainfall intensity (mm/h) rather than model probability.
+   Bars + envelope line share one perceptual scale:
+     full height ↔ 8 mm/h (heavy) · mid ↔ 2 mm/h (moderate).            */
+function drawNowcastRadar(canvasId){
+  const cv=document.getElementById(canvasId);
+  if(!cv) return;
+  const ctx=cv.getContext("2d");
+  let W=cv.clientWidth;
+  if(!W){const p=cv.parentElement;W=(p&&p.clientWidth?p.clientWidth-32:0);}
+  if(!W) W=Math.min(document.documentElement.clientWidth||360,460)-66;
+  if(!W||W<60) W=326;
+  const H=96;
+  cv.width=W*DPR; cv.height=H*DPR; cv.style.height=H+"px";
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  ctx.clearRect(0,0,W,H);
+
+  const padL=40,padR=4,padB=18,padT=12;
+  const x0=padL,x1=W-padR,plotW=x1-x0;
+  const total=NOWCAST.totalMins||120;
+  const X = mins => x0 + (mins/total)*plotW;
+  const baseY=H-padB;
+  const barMax=H-padB-padT;
+
+  // y-axis: mm/h reference lines (match the sqrt scale in radarInten)
+  ctx.font="9px "+getComputedStyle(document.body).fontFamily;
+  ctx.textAlign="right";ctx.textBaseline="middle";
+  [[1.0,"8 mm/h"],[0.5,"2 mm/h"]].forEach(([frac,lbl])=>{
+    const y=padT+(1-frac)*barMax;
+    ctx.strokeStyle=cssVar("--c-grid");ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(x0,y);ctx.lineTo(x1,y);ctx.stroke();
+    ctx.fillStyle=cssVar("--c-axis");
+    ctx.fillText(lbl, x0-4, Math.max(y, 7));
+  });
+
+  function inColor(v){
+    const stops=[[0,[46,204,113]],[.5,[26,160,170]],[1,[40,110,230]]];
+    for(let i=0;i<stops.length-1;i++){
+      const[a,ca]=stops[i],[b,cb]=stops[i+1];
+      if(v>=a&&v<=b){const k=(v-a)/(b-a);return [0,1,2].map(j=>Math.round(ca[j]+(cb[j]-ca[j])*k));}
+    }
+    return stops[stops.length-1][1];
+  }
+
+  const pts=NOWCAST.pts;
+  const n=pts.length;
+  const slotW=plotW/Math.max(1,n);
+  const anyRain=pts.some(p=>p.mmh>=0.05);
+
+  // intensity bars (positioned by real time, not slot index)
+  pts.forEach(p=>{
+    if(p.inten<=0.005) return;
+    const cx=X(p.mins);
+    const bw=Math.max(3, slotW*0.7);
+    const bh=Math.max(2,p.inten*barMax);
+    const c=inColor(p.inten);
+    roundRect(ctx,cx-bw/2,baseY-bh,bw,bh,Math.min(bw/2,3));
+    ctx.fillStyle=rgb(c);ctx.fill();
+  });
+
+  // intensity envelope line over the bars
+  ctx.beginPath();
+  pts.forEach((p,i)=>{
+    const x=X(p.mins);
+    const y=padT+(1-Math.max(0,Math.min(1,p.inten)))*barMax;
+    i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+  });
+  ctx.strokeStyle="#5aa8ff";ctx.lineWidth=2.2;ctx.lineJoin="round";ctx.lineCap="round";
+  ctx.stroke();
+  ctx.lineTo(X(pts[pts.length-1].mins),padT+barMax);ctx.lineTo(X(pts[0].mins),padT+barMax);ctx.closePath();
+  ctx.fillStyle="rgba(90,168,255,.08)";ctx.fill();
+
+  // dry-window hint
+  if(!anyRain){
+    ctx.fillStyle=cssVar("--c-axis");
+    ctx.font="11px "+getComputedStyle(document.body).fontFamily;
+    ctx.textAlign="center";ctx.textBaseline="middle";
+    ctx.fillText("kein Niederschlag", (x0+x1)/2, padT+barMax*0.42);
+  }
+
+  // time ticks every 30 min, labelled from real timestamps
+  ctx.font="10px "+getComputedStyle(document.body).fontFamily;
+  ctx.textAlign="center";ctx.textBaseline="alphabetic";ctx.fillStyle=cssVar("--c-axis");
+  for(let m=0;m<=total;m+=30){
+    const x=X(m);
+    if(x < x0+18) continue;
+    // nearest point label to this minute mark
+    let best=pts[0],bd=1e9;
+    pts.forEach(p=>{const d=Math.abs(p.mins-m);if(d<bd){bd=d;best=p;}});
+    ctx.fillText(best.label, Math.min(x1-14,x), H-5);
+  }
+  // "jetzt" marker
+  ctx.fillStyle="rgba(255,90,77,.9)";
+  ctx.beginPath();ctx.arc(X(0),padT-1,2.6,0,7);ctx.fill();
+}
+
+function renderNowcast(canvasId){
+  if(!NOWCAST || !NOWCAST.pts || !NOWCAST.pts.length){
+    const cv=document.getElementById(canvasId);
+    if(cv){ const c=cv.getContext("2d"); if(cv.width) c.clearRect(0,0,cv.width,cv.height); }
+    return;
+  }
+  if(NOWCAST.radar) drawNowcastRadar(canvasId);
+  else drawNowcast(canvasId);
+}
+
 function renderAll(){
-  drawNowcast("cv-nowcast");
+  renderNowcast("cv-nowcast");
   drawChart("cv-today", DATA.today, {bands:true, height:268});
   drawChart("cv-thu", DATA.thu, {bands:true, height:236});
   drawChart("cv-fri", DATA.fri, {bands:true, height:240});
@@ -1504,6 +1691,7 @@ function applyExtremeChip(h){
 }
 
 
+function applyData(data){
   // location
   if(data.geo && data.geo.name) document.getElementById("loc-name").textContent=data.geo.name;
   // hero
@@ -1528,6 +1716,8 @@ function applyExtremeChip(h){
   document.getElementById("meta-fri").textContent=rangeLabel(data.fri);
   // nowcast summary
   if(data.nowcast) document.getElementById("nowcast-summary").textContent=data.nowcast.summary||"";
+  const srcEl=document.getElementById("nowcast-src");
+  if(srcEl) srcEl.textContent=(data.nowcast&&data.nowcast.radar)?"DWD Radar":"";
   // weather warnings
   applyAlerts(data.alerts||[]);
   // assign render data
