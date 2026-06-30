@@ -11,7 +11,42 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="WEATH3R">
-<title>WEATH3R</title>
+<title>WEATH3R v7.2</title>
+<script>
+/* ============================================================
+   WEATH3R · global config + UI-mode detection
+   Runs synchronously in <head> BEFORE the body renders so the
+   correct GUI is shown immediately (no layout flash).
+   ============================================================ */
+window.APP_VERSION = "v7.2";
+
+function getUiMode(){
+  var mode=null, explicit=false;
+  try{
+    var p=new URLSearchParams(location.search);
+    if(p.get("watch")==="1"){ mode="watch"; explicit=true; }
+    else if(p.get("desktop")==="1"){ mode="desktop"; explicit=true; }
+    else {
+      var saved=localStorage.getItem("uiMode");
+      if(saved==="watch"||saved==="desktop"){ mode=saved; explicit=true; }
+    }
+  }catch(e){}
+  if(!mode){
+    // Auto-detect only as a fallback. A watch is small in BOTH dimensions
+    // (~396×484); a phone is narrow but tall, so we require width AND height
+    // to be small — otherwise normal phones would wrongly get the watch UI.
+    var w=window.innerWidth||0, h=window.innerHeight||0;
+    mode=(w<=430 && h<=500) ? "watch" : "desktop";
+    // NOTE: auto-detected mode is intentionally NOT persisted, so resizing /
+    // opening on a different device re-evaluates cleanly. Only explicit
+    // choices (URL param or a prior toggle) are stored.
+  }
+  document.documentElement.dataset.uiMode = mode;
+  if(explicit){ try{ localStorage.setItem("uiMode", mode); }catch(e){} }
+  return mode;
+}
+getUiMode();
+</script>
 <style>
   :root{
     /* ----- DARK (default) ----- */
@@ -441,9 +476,119 @@
   }
 
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+  /* ============================================================
+     UI-MODE SWITCHING (desktop ⇄ watch, single file)
+     ============================================================ */
+  [data-ui-mode="watch"] #desktop-ui{display:none}
+  [data-ui-mode="desktop"] #watch-ui{display:none}
+  /* in watch mode, force the compact black theme on the root, beating
+     :root and [data-theme] via the higher-specificity html[...] selector */
+  html[data-ui-mode="watch"]{
+    --bg:#000;
+    --card:#0e131b;
+    --card-2:#141b25;
+    --stroke:rgba(255,255,255,.10);
+    --ink:#fff;
+    --ink-2:#aab4c2;
+    --ink-3:#6b7480;
+    --rain:#3d9be9;
+    --feels:#ff6b5e;
+    --warn:#ffb020;
+  }
+  [data-ui-mode="watch"] body{
+    padding:calc(env(safe-area-inset-top) + 6px) 10px calc(env(safe-area-inset-bottom) + 14px);
+    max-width:430px;margin:0 auto;background:#000;
+  }
+
+  /* ---------- Watch UI components (unique .w* class names) ---------- */
+  #watch-ui .wloc{display:flex;align-items:center;gap:6px;justify-content:center;margin-bottom:8px}
+  #watch-ui .wloc h1{font-size:14px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis;max-width:80%}
+  #watch-ui .wloc .time{font-size:12px;color:var(--ink-3);font-weight:600;font-variant-numeric:tabular-nums}
+  #watch-ui .whero{
+    background:linear-gradient(160deg,var(--card-2),var(--card));
+    border:1px solid var(--stroke);border-radius:20px;
+    padding:14px 16px 16px;text-align:center;position:relative;overflow:hidden;
+  }
+  #watch-ui .whero .temp{font-size:72px;font-weight:600;letter-spacing:-.04em;line-height:.92}
+  #watch-ui .whero .temp sup{font-size:26px;font-weight:500;vertical-align:top;top:.18em;position:relative;color:var(--ink-2)}
+  #watch-ui .whero .cond{font-size:16px;font-weight:600;margin-top:2px}
+  #watch-ui .whero .sub{font-size:13px;color:var(--ink-2);margin-top:3px}
+  #watch-ui .whero .feels{color:var(--feels)}
+  #watch-ui .wstats{display:flex;gap:8px;margin-top:10px}
+  #watch-ui .wstat{flex:1;background:var(--card);border:1px solid var(--stroke);border-radius:14px;
+    padding:9px 6px;text-align:center}
+  #watch-ui .wstat .k{font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
+  #watch-ui .wstat .v{font-size:16px;font-weight:600;margin-top:3px;font-variant-numeric:tabular-nums}
+  #watch-ui .wsection{margin-top:14px}
+  #watch-ui .wsection .h{font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+    color:var(--ink-2);margin:0 4px 7px}
+  #watch-ui .wrain{background:var(--card);border:1px solid var(--stroke);border-radius:16px;padding:12px 14px}
+  #watch-ui .wrain .summary{font-size:14px;font-weight:600;margin-bottom:9px;line-height:1.3}
+  #watch-ui .wrain.dry .summary{color:var(--ink-2)}
+  #watch-ui #wcv-rain{display:block;width:100%;height:62px}
+  #watch-ui .wdaily{background:var(--card);border:1px solid var(--stroke);border-radius:16px;overflow:hidden}
+  #watch-ui .wdrow{display:flex;align-items:center;gap:10px;padding:11px 14px;border-top:1px solid rgba(255,255,255,.06)}
+  #watch-ui .wdrow:first-child{border-top:none}
+  #watch-ui .wdrow .d{font-size:14px;font-weight:600;width:64px}
+  #watch-ui .wdrow .d small{display:block;font-size:10px;color:var(--ink-3);font-weight:500}
+  #watch-ui .wdrow .pr{font-size:12px;color:var(--rain);font-variant-numeric:tabular-nums;margin-left:auto;font-weight:600}
+  #watch-ui .wdrow .pr.dry{color:var(--ink-3)}
+  #watch-ui .wdrow .tr{display:flex;align-items:center;gap:8px;min-width:78px;justify-content:flex-end}
+  #watch-ui .wdrow .lo{font-size:13px;color:var(--ink-2);width:24px;text-align:right;font-variant-numeric:tabular-nums}
+  #watch-ui .wdrow .hi{font-size:14px;font-weight:700;width:24px;font-variant-numeric:tabular-nums}
+  #watch-ui .wdrow .bar{width:34px;height:4px;border-radius:2px;background:linear-gradient(90deg,var(--c1),var(--c2))}
+  #watch-ui .wfoot{margin:14px 6px 0;font-size:10px;color:var(--ink-3);line-height:1.5;text-align:center}
+  #watch-ui .wfoot a{color:var(--ink-2)}
+  #watch-ui .werr{color:var(--feels);font-size:13px;text-align:center;padding:18px 8px;line-height:1.5}
+  @media (max-width:330px){
+    #watch-ui .whero .temp{font-size:62px}
+    #watch-ui .wstat .v{font-size:14px}
+  }
+
+  /* ---------- UI toggle button (both UIs) ---------- */
+  .ui-toggle{
+    display:inline-flex;align-items:center;gap:5px;cursor:pointer;
+    background:none;border:1px solid var(--stroke);border-radius:999px;
+    color:var(--ink-2);font:inherit;font-size:11px;font-weight:600;
+    padding:5px 11px;transition:.15s;font-family:var(--font);
+  }
+  .ui-toggle:hover{color:var(--ink);border-color:rgba(255,255,255,.22)}
+  #watch-ui .ui-toggle{margin:2px auto 0}
+
+  /* ---------- app version stamp ---------- */
+  .app-version{opacity:.4;font-size:10px;font-weight:600;letter-spacing:.04em}
+
+  /* ---------- update banner (works in both UIs) ---------- */
+  .update-banner{
+    position:fixed;left:50%;transform:translateX(-50%) translateY(20px);
+    bottom:calc(env(safe-area-inset-bottom) + 16px);z-index:80;
+    display:flex;align-items:center;gap:12px;
+    background:var(--card-2);border:1px solid var(--stroke);
+    border-radius:14px;padding:10px 12px 10px 16px;
+    box-shadow:0 12px 40px rgba(0,0,0,.5);
+    opacity:0;pointer-events:none;transition:opacity .25s ease, transform .25s ease;
+    max-width:calc(100vw - 28px);
+  }
+  .update-banner.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}
+  .update-banner .ub-txt{font-size:13px;font-weight:600;color:var(--ink)}
+  .update-banner .ub-btn{
+    flex:none;font-size:12px;font-weight:700;color:#fff;background:var(--rain);
+    border:none;border-radius:9px;padding:7px 12px;cursor:pointer;font-family:var(--font);
+  }
+  .update-banner .ub-btn:hover{filter:brightness(1.08)}
 </style>
 </head>
 <body>
+<!-- Update banner (shared by both UIs) -->
+<div class="update-banner" id="update-banner">
+  <span class="ub-txt">Neue Version verfügbar</span>
+  <button class="ub-btn" id="ub-reload">Jetzt laden</button>
+</div>
+
+<!-- ============================ DESKTOP / iPhone UI ============================ -->
+<div id="desktop-ui">
 <div class="ptr" id="ptr">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v5h-5"/></svg>
 </div>
@@ -564,7 +709,8 @@
   <p class="footnote">
     <b>Multi-Modell-Ansicht.</b> Drei unabhängige Wettermodelle laufen parallel — AROME (durchgezogen), ICON-D2 (gestrichelt), ECMWF (gepunktet). Liegen die Linien nah beieinander, ist die Prognose sicher; spreizen sie sich, ist sie unsicher. Farbe codiert die Wärme, das Linienmuster die Modell-Identität.<br>
     <span id="data-status"></span> Wetterdaten: <b>Open-Meteo.com</b> (CC BY 4.0). Regenradar &amp; Warnungen: <b>DWD</b> via Bright Sky.<br>
-    <a href="./watch.html" style="color:var(--ink-2)">⌚︎ Apple-Watch-Ansicht</a>
+    <button class="ui-toggle" id="to-watch">⌚ Watch-Ansicht</button>
+    <span class="app-version" id="ver-desktop" style="margin-left:10px">WEATH3R v7.2</span>
   </p>
 
 </div>
@@ -581,6 +727,48 @@
     <div class="modal-body" id="warn-body"></div>
   </div>
 </div>
+</div><!-- /#desktop-ui -->
+
+<!-- ============================ APPLE WATCH UI ============================ -->
+<div id="watch-ui">
+  <div class="wloc">
+    <h1 id="wloc">WEATH3R</h1>
+    <span class="time" id="wtime"></span>
+  </div>
+
+  <div class="whero">
+    <div class="temp" id="wtemp">–<sup>°</sup></div>
+    <div class="cond" id="wcond">Lädt…</div>
+    <div class="sub" id="wrange">–</div>
+    <div class="sub feels" id="wfeels"></div>
+  </div>
+
+  <div class="wstats">
+    <div class="wstat"><div class="k">Regen</div><div class="v" id="wrain-mm">–</div></div>
+    <div class="wstat"><div class="k">Wind</div><div class="v" id="wwind">–</div></div>
+    <div class="wstat"><div class="k">Gefühlt</div><div class="v" id="wfeels2">–</div></div>
+  </div>
+
+  <div class="wsection">
+    <div class="h">Nächste 2 Stunden</div>
+    <div class="wrain" id="wrain-box">
+      <div class="summary" id="wrain-summary">–</div>
+      <canvas id="wcv-rain"></canvas>
+    </div>
+  </div>
+
+  <div class="wsection">
+    <div class="h">Vorschau</div>
+    <div class="wdaily" id="wdaily"></div>
+  </div>
+
+  <p class="wfoot">
+    <span id="wstatus"></span><br>
+    <button class="ui-toggle" id="to-desktop">↗ volle Ansicht</button><br>
+    Daten: Open-Meteo · DWD (Bright Sky)<br>
+    <span class="app-version">WEATH3R v7.2</span>
+  </p>
+</div><!-- /#watch-ui -->
 
 <script>
 /* ============================================================
@@ -1827,6 +2015,7 @@ function renderNowcast(canvasId){
 }
 
 function renderAll(){
+  if(document.documentElement.dataset.uiMode==="watch") return;
   renderNowcast("cv-nowcast");
   drawChart("cv-today", DATA.today, {bands:true, height:268});
   drawChart("cv-thu", DATA.thu, {bands:true, height:236});
@@ -2045,7 +2234,7 @@ async function boot(manual){
     if(rb) rb.classList.remove("spinning");
   }
 }
-boot();
+if(document.documentElement.dataset.uiMode!=="watch") boot();
 
 /* ============================================================
    LOCATION PICKER · pin button → search / GPS
@@ -2656,14 +2845,302 @@ document.addEventListener("DOMContentLoaded",()=>{
   });
 })();
 
-/* ---------- PWA: register service worker ---------- */
-if("serviceWorker" in navigator){
+/* ============================================================
+   APPLE WATCH UI  (self-contained; runs only in watch mode)
+   ============================================================ */
+(function watchUI(){
+  if(document.documentElement.dataset.uiMode!=="watch") return;
+  "use strict";
+  const DPR=Math.min(window.devicePixelRatio||1,2.5);
+  const DEFAULT_LOC={lat:52.45,lon:13.57,name:"Treptow-Köpenick"};
+  const WD=["So.","Mo.","Di.","Mi.","Do.","Fr.","Sa."];
+  const MO=["Jan.","Feb.","März","Apr.","Mai","Juni","Juli","Aug.","Sep.","Okt.","Nov.","Dez."];
+  const pad=n=>String(n).padStart(2,"0");
+
+  const RAMP=[[4,[74,168,255]],[12,[95,208,196]],[18,[155,212,90]],[23,[244,196,48]],[28,[255,138,61]],[33,[255,90,77]]];
+  function tempColor(t){
+    if(t<=RAMP[0][0])return RAMP[0][1];
+    if(t>=RAMP[RAMP.length-1][0])return RAMP[RAMP.length-1][1];
+    for(let i=0;i<RAMP.length-1;i++){const[a,ca]=RAMP[i],[b,cb]=RAMP[i+1];
+      if(t>=a&&t<=b){const k=(t-a)/(b-a);return[0,1,2].map(j=>Math.round(ca[j]+(cb[j]-ca[j])*k));}}
+    return RAMP[RAMP.length-1][1];
+  }
+  const rgb=c=>`rgb(${c[0]},${c[1]},${c[2]})`;
+
+  function weatherWord(code,cloud,precip){
+    if(precip>0.1)return "Regen";
+    if(code!=null){
+      if(code>=95)return "Gewitter";
+      if(code>=71&&code<=77)return "Schnee";
+      if(code>=51&&code<=67)return "Regen";
+      if(code>=45&&code<=48)return "Nebel";
+      if(code>=1&&code<=3)return cloud>60?"Bewölkt":"Heiter";
+      if(code===0)return "Klar";
+    }
+    if(cloud!=null)return cloud>70?"Bewölkt":cloud>30?"Heiter":"Klar";
+    return "–";
+  }
+
+  function getLocation(){
+    return new Promise(resolve=>{
+      // honour the same manual override the desktop UI uses
+      try{ const r=localStorage.getItem("weath3r_loc_override"); if(r){ const o=JSON.parse(r); if(o&&o.lat!=null){ resolve(o); return; } } }catch(e){}
+      if(!navigator.geolocation){resolve(DEFAULT_LOC);return;}
+      navigator.geolocation.getCurrentPosition(
+        p=>resolve({lat:+p.coords.latitude.toFixed(3),lon:+p.coords.longitude.toFixed(3),name:null}),
+        ()=>resolve(DEFAULT_LOC),
+        {timeout:6000,maximumAge:10*60*1000}
+      );
+    });
+  }
+  async function resolveName(geo){
+    if(geo.name)return geo;
+    try{
+      const r=await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${geo.lat}&longitude=${geo.lon}&localityLanguage=de`);
+      if(r.ok){const j=await r.json();geo.name=(j.locality||j.city||j.principalSubdivision||"Mein Standort");}
+    }catch(e){geo.name="Mein Standort";}
+    return geo;
+  }
+  async function fetchWeather(geo){
+    const u=new URL("https://api.open-meteo.com/v1/forecast");
+    u.searchParams.set("latitude",geo.lat);
+    u.searchParams.set("longitude",geo.lon);
+    u.searchParams.set("current",["temperature_2m","apparent_temperature","precipitation","weather_code","cloud_cover","wind_speed_10m"].join(","));
+    u.searchParams.set("daily",["temperature_2m_max","temperature_2m_min","precipitation_sum","weather_code"].join(","));
+    u.searchParams.set("timezone","auto");
+    u.searchParams.set("forecast_days","5");
+    u.searchParams.set("wind_speed_unit","kmh");
+    const res=await fetch(u.toString());
+    if(!res.ok)throw new Error("OM "+res.status);
+    return res.json();
+  }
+  function radarInten(mmh){return Math.max(0,Math.min(1,Math.sqrt(mmh/8)));}
+  async function fetchRadar(geo){
+    const now=new Date(),end=new Date(now.getTime()+125*60*1000);
+    const u=new URL("https://api.brightsky.dev/radar");
+    u.searchParams.set("lat",geo.lat);u.searchParams.set("lon",geo.lon);
+    u.searchParams.set("distance",1000);u.searchParams.set("format","plain");
+    u.searchParams.set("date",now.toISOString());u.searchParams.set("last_date",end.toISOString());
+    const res=await fetch(u.toString());
+    if(!res.ok)throw new Error("Radar "+res.status);
+    return res.json();
+  }
+  function buildRadarNowcast(j,now){
+    if(!j||!Array.isArray(j.radar)||!j.radar.length)return null;
+    const pos=j.latlon_position||{x:0,y:0};
+    const px=Math.max(0,Math.round(pos.x)),py=Math.max(0,Math.round(pos.y));
+    const frames=[];
+    j.radar.forEach(fr=>{
+      const t=new Date(fr.timestamp);let v=0;
+      try{const g=fr.precipitation_5;const row=g[py]!=null?g[py]:g[0];v=row[px]!=null?row[px]:row[0];}catch(e){v=0;}
+      if(v==null||v<0)v=0;
+      frames.push({time:t,mmh:(v/100)*12});
+    });
+    if(!frames.length)return null;
+    let s=frames.length-1;
+    for(let i=0;i<frames.length;i++){if(frames[i].time>=now){s=Math.max(0,i-1);break;}}
+    const slice=frames.slice(s);if(!slice.length)return null;
+    const t0=slice[0].time.getTime();
+    const pts=slice.map(p=>({mins:Math.round((p.time.getTime()-t0)/60000),mmh:p.mmh,inten:radarInten(p.mmh),
+      label:p.time.getHours()+":"+pad(p.time.getMinutes())}));
+    const total=pts[pts.length-1].mins||120;
+    const WET=0.1;let summary;
+    if(pts[0].mmh>=WET){const stop=pts.find((p,i)=>i>0&&p.mmh<WET);
+      summary=stop?`Regen lässt gegen ${stop.label} nach`:"Regen hält an";}
+    else{const b=pts.find(p=>p.mmh>=WET);summary=b?`Regen ab ca. ${b.label}`:"Kein Regen in den nächsten 2 Std.";}
+    return {radar:true,totalMins:total,pts,summary};
+  }
+  async function fetchMinutely(geo){
+    const u=new URL("https://api.open-meteo.com/v1/forecast");
+    u.searchParams.set("latitude",geo.lat);u.searchParams.set("longitude",geo.lon);
+    u.searchParams.set("minutely_15",["precipitation","precipitation_probability"].join(","));
+    u.searchParams.set("timezone","auto");u.searchParams.set("forecast_minutely_15","12");
+    const res=await fetch(u.toString());if(!res.ok)throw new Error("min15 "+res.status);
+    return res.json();
+  }
+  function buildMinutelyNowcast(j,now){
+    const M=j&&j.minutely_15;if(!M||!M.time)return null;
+    const t=M.time,pr=M.precipitation||[];
+    let s=0;for(let i=0;i<t.length;i++){if(new Date(t[i])>=now){s=Math.max(0,i-1);break;}}
+    const slice=[];for(let i=s;i<t.length&&slice.length<12;i++)slice.push({time:new Date(t[i]),mmh:(pr[i]||0)*4});
+    if(!slice.length)return null;
+    const t0=slice[0].time.getTime();
+    const pts=slice.map(p=>({mins:Math.round((p.time.getTime()-t0)/60000),mmh:p.mmh,inten:radarInten(p.mmh),
+      label:p.time.getHours()+":"+pad(p.time.getMinutes())}));
+    const total=pts[pts.length-1].mins||120;
+    const WET=0.1;let summary;
+    if(pts[0].mmh>=WET){const stop=pts.find((p,i)=>i>0&&p.mmh<WET);summary=stop?`Regen lässt gegen ${stop.label} nach`:"Regen hält an";}
+    else{const b=pts.find(p=>p.mmh>=WET);summary=b?`Regen ab ca. ${b.label}`:"Kein Regen in den nächsten 2 Std.";}
+    return {radar:false,totalMins:total,pts,summary};
+  }
+  function drawRainStrip(nc){
+    const cv=document.getElementById("wcv-rain");if(!cv)return;
+    const ctx=cv.getContext("2d");
+    let W=cv.clientWidth||document.body.clientWidth-60;if(W<60)W=300;
+    const H=62;cv.width=W*DPR;cv.height=H*DPR;cv.style.height=H+"px";
+    ctx.setTransform(DPR,0,0,DPR,0,0);ctx.clearRect(0,0,W,H);
+    if(!nc||!nc.pts||!nc.pts.length)return;
+    const padB=14,padT=4,x0=2,x1=W-2,plotW=x1-x0;
+    const total=nc.totalMins||120;
+    const X=m=>x0+(m/total)*plotW;
+    const baseY=H-padB,barMax=H-padB-padT;
+    function inColor(v){const stops=[[0,[46,204,113]],[.5,[26,160,170]],[1,[40,110,230]]];
+      for(let i=0;i<stops.length-1;i++){const[a,ca]=stops[i],[b,cb]=stops[i+1];
+        if(v>=a&&v<=b){const k=(v-a)/(b-a);return[0,1,2].map(j=>Math.round(ca[j]+(cb[j]-ca[j])*k));}}
+      return stops[2][1];}
+    const slotW=plotW/Math.max(1,nc.pts.length);
+    let anyRain=false;
+    nc.pts.forEach(p=>{
+      if(p.inten<=0.005)return;anyRain=true;
+      const cx=X(p.mins),bw=Math.max(3,slotW*0.7),bh=Math.max(2,p.inten*barMax);
+      const c=inColor(p.inten);
+      ctx.fillStyle=rgb(c);
+      const x=cx-bw/2,y=baseY-bh,r=Math.min(bw/2,3);
+      ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+bw,y,x+bw,y+bh,r);ctx.arcTo(x+bw,y+bh,x,y+bh,r);
+      ctx.arcTo(x,y+bh,x,y,r);ctx.arcTo(x,y,x+bw,y,r);ctx.closePath();ctx.fill();
+    });
+    ctx.font="9px "+getComputedStyle(document.body).fontFamily;
+    ctx.fillStyle="#6b7480";ctx.textAlign="center";ctx.textBaseline="alphabetic";
+    for(let m=0;m<=total;m+=30){
+      const x=X(m);
+      let best=nc.pts[0],bd=1e9;nc.pts.forEach(p=>{const d=Math.abs(p.mins-m);if(d<bd){bd=d;best=p;}});
+      ctx.fillText(best.label,Math.max(12,Math.min(W-12,x)),H-3);
+    }
+    if(!anyRain){
+      ctx.fillStyle="#6b7480";ctx.font="11px "+getComputedStyle(document.body).fontFamily;
+      ctx.textAlign="center";ctx.textBaseline="middle";
+      ctx.fillText("trocken",W/2,barMax*0.5+padT);
+    }
+  }
+  function fmtMM(sum){
+    if(sum==null||sum<0.05)return "trocken";
+    const f=x=>(Math.round(x*10)/10).toString().replace(".",",");
+    return f(sum)+" mm";
+  }
+  function renderDaily(daily){
+    const el=document.getElementById("wdaily");if(!el||!daily||!daily.time)return;
+    el.innerHTML="";
+    const n=Math.min(4,daily.time.length);
+    for(let d=0;d<n;d++){
+      const dt=new Date(daily.time[d]);
+      const lo=daily.temperature_2m_min?Math.round(daily.temperature_2m_min[d]):null;
+      const hi=daily.temperature_2m_max?Math.round(daily.temperature_2m_max[d]):null;
+      const pr=daily.precipitation_sum?daily.precipitation_sum[d]:null;
+      const prTxt=fmtMM(pr);const dry=prTxt==="trocken";
+      const loC=lo!=null?rgb(tempColor(lo)):"var(--ink-2)";
+      const hiC=hi!=null?rgb(tempColor(hi)):"var(--ink)";
+      const dayName=d===0?"Heute":WD[dt.getDay()];
+      const row=document.createElement("div");row.className="wdrow";
+      row.innerHTML=`
+        <div class="d">${dayName}<small>${dt.getDate()}. ${MO[dt.getMonth()]}</small></div>
+        <div class="pr ${dry?'dry':''}">${prTxt}</div>
+        <div class="tr">
+          <span class="lo">${lo!=null?lo+'°':'–'}</span>
+          <span class="bar" style="--c1:${loC};--c2:${hiC}"></span>
+          <span class="hi" style="color:${hiC}">${hi!=null?hi+'°':'–'}</span>
+        </div>`;
+      el.appendChild(row);
+    }
+  }
+  function tick(){
+    const now=new Date();
+    const el=document.getElementById("wtime");
+    if(el)el.textContent=now.getHours()+":"+pad(now.getMinutes());
+  }
+  let _nc=null;
+  async function boot(){
+    tick();setInterval(tick,30000);
+    const geo=await getLocation();
+    try{
+      const wx=await fetchWeather(geo);
+      try{await resolveName(geo);}catch(e){}
+      document.getElementById("wloc").textContent=geo.name||"Mein Standort";
+      const cur=wx.current||{};
+      const code=cur.weather_code,cloud=cur.cloud_cover,precip=cur.precipitation;
+      document.getElementById("wtemp").innerHTML=`${Math.round(cur.temperature_2m)}<sup>°</sup>`;
+      document.getElementById("wcond").textContent=weatherWord(code,cloud,precip);
+      if(wx.daily&&wx.daily.temperature_2m_max){
+        const hi=Math.round(wx.daily.temperature_2m_max[0]),lo=Math.round(wx.daily.temperature_2m_min[0]);
+        document.getElementById("wrange").textContent=`${lo}° / ${hi}°`;
+      }
+      const feels=cur.apparent_temperature!=null?Math.round(cur.apparent_temperature):null;
+      document.getElementById("wfeels").textContent=feels!=null?`Gefühlt ${feels}°`:"";
+      const f=x=>(Math.round(x*10)/10).toString().replace(".",",");
+      document.getElementById("wrain-mm").textContent=(precip!=null&&precip>0.05)?`${f(precip)}`:"0";
+      document.getElementById("wwind").textContent=cur.wind_speed_10m!=null?`${Math.round(cur.wind_speed_10m)}`:"–";
+      document.getElementById("wfeels2").textContent=feels!=null?`${feels}°`:"–";
+      renderDaily(wx.daily);
+      const now=new Date();
+      try{ const r=await fetchRadar(geo);_nc=buildRadarNowcast(r,now); }catch(e){_nc=null;}
+      if(!_nc){try{const m=await fetchMinutely(geo);_nc=buildMinutelyNowcast(m,now);}catch(e){}}
+      if(_nc){
+        document.getElementById("wrain-summary").textContent=_nc.summary;
+        const box=document.getElementById("wrain-box");
+        const dry=!_nc.pts.some(p=>p.mmh>=0.1);
+        box.classList.toggle("dry",dry);
+        drawRainStrip(_nc);
+      } else {
+        document.getElementById("wrain-summary").textContent="Regenvorschau nicht verfügbar";
+      }
+      document.getElementById("wstatus").textContent="";
+    }catch(err){
+      document.getElementById("wcond").textContent="Keine Verbindung";
+      document.getElementById("wstatus").textContent="Fehler beim Laden";
+      console.error(err);
+    }
+  }
+  window.addEventListener("resize",()=>{if(_nc)drawRainStrip(_nc);});
+  window.addEventListener("load",()=>{if(_nc)drawRainStrip(_nc);});
+  boot();
+})();
+
+/* ============================================================
+   UI MODE TOGGLES (desktop ⇄ watch)
+   ============================================================ */
+(function uiToggles(){
+  function setUiMode(mode){
+    try{ localStorage.setItem("uiMode", mode); }catch(e){}
+    const p=new URLSearchParams(location.search);
+    if(mode==="watch"){ p.set("watch","1"); p.delete("desktop"); }
+    else { p.set("desktop","1"); p.delete("watch"); }
+    location.search=p.toString();      // navigates → head script re-evaluates
+  }
+  const tw=document.getElementById("to-watch");
+  const td=document.getElementById("to-desktop");
+  if(tw) tw.addEventListener("click", ()=>setUiMode("watch"));
+  if(td) td.addEventListener("click", ()=>setUiMode("desktop"));
+})();
+
+/* ============================================================
+   PWA: service worker + update banner (both UIs)
+   ============================================================ */
+(function swAndUpdates(){
+  if(!("serviceWorker" in navigator)) return;
+  // remember whether a SW already controlled this page at load time, so we
+  // only show the "new version" banner on real updates (not first install)
+  const hadController = !!navigator.serviceWorker.controller;
+
+  const banner=document.getElementById("update-banner");
+  const reloadBtn=document.getElementById("ub-reload");
+  let dismissTimer=null;
+  function showBanner(){
+    if(!banner) { window.location.reload(); return; }
+    banner.classList.add("show");
+    clearTimeout(dismissTimer);
+    dismissTimer=setTimeout(()=>banner.classList.remove("show"), 10000); // auto-hide 10s
+  }
+  if(reloadBtn) reloadBtn.addEventListener("click", ()=>window.location.reload());
+
+  navigator.serviceWorker.addEventListener("message", e=>{
+    if(e.data && e.data.type==="SW_UPDATED" && hadController){ showBanner(); }
+  });
+
   window.addEventListener("load", ()=>{
     navigator.serviceWorker.register("./sw.js").catch(err=>{
       console.warn("SW registration failed:", err);
     });
   });
-}
+})();
 
 </script>
 </body>

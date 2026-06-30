@@ -1,7 +1,9 @@
 {
   "name": "WEATH3R",
   "short_name": "WEATH3R",
-  "description": "Multi-Modell-Wettervorhersage mit AROME, ICON-D2 und ECMWF.",
+  "version": "7.2",
+  "description": "WEATH3R v7.2 – Multi-Modell-Wettervorhersage",
+  "_note_watch_start_url": "Für eine separate Watch-PWA-Installation kann start_url auf \"./?watch=1\" gesetzt werden.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
