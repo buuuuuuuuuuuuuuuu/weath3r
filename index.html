@@ -11,14 +11,14 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="WEATH3R">
-<title>WEATH3R v9.1</title>
+<title>WEATH3R v9.2</title>
 <script>
 /* ============================================================
    WEATH3R · global config + UI-mode detection
    Runs synchronously in <head> BEFORE the body renders so the
    correct GUI is shown immediately (no layout flash).
    ============================================================ */
-window.APP_VERSION = "v9.1";
+window.APP_VERSION = "v9.2";
 
 function getUiMode(){
   var mode=null, explicit=false;
@@ -299,8 +299,10 @@ getUiMode();
   .nowcast-head{display:flex;align-items:center;flex-wrap:wrap;row-gap:8px;column-gap:10px;margin-bottom:2px}
   .nowcast-title{font-size:13px;font-weight:600;letter-spacing:.02em;color:var(--ink);flex:1 1 auto;min-width:0}
   .nowcast-head-right{display:flex;align-items:center;gap:10px;margin-left:auto;flex:none}
+  .nowcast-meta{margin:2px 0 4px}
+  .nowcast-meta:has(.nowcast-src:empty){display:none}
   .nowcast-src{font-size:10px;font-weight:600;letter-spacing:.03em;color:var(--ink-3);
-    border:1px solid var(--stroke-2);border-radius:999px;padding:1px 6px;margin-left:6px;vertical-align:middle}
+    border:1px solid var(--stroke-2);border-radius:999px;padding:2px 8px;display:inline-block}
   #cv-nowcast{min-height:96px}
   /* tappable header → expand radar map */
   .nowcast-head{cursor:pointer;user-select:none;-webkit-user-select:none}
@@ -739,7 +741,7 @@ getUiMode();
   <!-- NOWCAST · next 2h -->
   <section class="nowcast" id="nowcast-card">
     <div class="nowcast-head" id="nowcast-toggle" role="button" tabindex="0" aria-expanded="false" aria-controls="nowcast-map">
-      <div class="nowcast-title">Nächste 2 Stunden <span id="nowcast-src" class="nowcast-src"></span></div>
+      <div class="nowcast-title">Nächste 2 Stunden</div>
       <div class="nowcast-head-right">
         <button class="notify-btn" id="notify-btn" type="button" aria-pressed="false">
           <svg class="notify-icon" id="notify-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -751,6 +753,7 @@ getUiMode();
         <svg class="nowcast-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
       </div>
     </div>
+    <div class="nowcast-meta"><span id="nowcast-src" class="nowcast-src"></span></div>
     <div class="notify-hint" id="notify-hint" hidden></div>
 
     <canvas id="cv-nowcast"></canvas>
@@ -800,7 +803,7 @@ getUiMode();
     <b>Multi-Modell-Ansicht.</b> Drei unabhängige Wettermodelle laufen parallel — AROME (durchgezogen), ICON-D2 (gestrichelt), ECMWF (gepunktet). Liegen die Linien nah beieinander, ist die Prognose sicher; spreizen sie sich, ist sie unsicher. Farbe codiert die Wärme, das Linienmuster die Modell-Identität.<br>
     <span id="data-status"></span> Wetterdaten: <b>Open-Meteo.com</b> (CC BY 4.0). Regenradar &amp; Warnungen: <b>DWD</b> via Bright Sky.<br>
     <button class="ui-toggle" id="to-watch">⌚ Watch-Ansicht</button>
-    <span class="app-version" id="ver-desktop" style="margin-left:10px">WEATH3R v9.1</span>
+    <span class="app-version" id="ver-desktop" style="margin-left:10px">WEATH3R v9.2</span>
   </p>
 
 </div>
@@ -855,7 +858,7 @@ getUiMode();
     <span id="wstatus"></span><br>
     <button class="ui-toggle" id="to-desktop">↗ volle Ansicht</button><br>
     Daten: Open-Meteo · DWD (Bright Sky)<br>
-    <span class="app-version">WEATH3R v9.1</span>
+    <span class="app-version">WEATH3R v9.2</span>
   </p>
 </div><!-- /#watch-ui -->
 
