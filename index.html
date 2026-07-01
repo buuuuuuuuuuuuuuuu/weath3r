@@ -4,21 +4,21 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="color-scheme" content="dark light">
-<meta name="theme-color" content="#0a0e14" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#150f1f" media="(prefers-color-scheme: dark)">
 <meta name="theme-color" content="#eef1f6" media="(prefers-color-scheme: light)">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="WEATH3R">
-<title>WEATH3R v8.5</title>
+<title>WEATH3R v8.6</title>
 <script>
 /* ============================================================
    WEATH3R · global config + UI-mode detection
    Runs synchronously in <head> BEFORE the body renders so the
    correct GUI is shown immediately (no layout flash).
    ============================================================ */
-window.APP_VERSION = "v8.5";
+window.APP_VERSION = "v8.6";
 
 function getUiMode(){
   var mode=null, explicit=false;
@@ -49,20 +49,20 @@ getUiMode();
 </script>
 <style>
   :root{
-    /* ----- DARK (default) ----- */
-    --bg:#0a0e14;
-    --bg-grad-top:#11161f;
-    --bg-grad-bot:#070a0f;
-    --bg-radial:#1a2230;
-    --card:#121821;
-    --card-2:#161d28;
-    --stroke:rgba(255,255,255,.07);
-    --stroke-2:rgba(255,255,255,.04);
-    --grid:rgba(255,255,255,.05);
+    /* ----- DARK (default) — noble deep purple ----- */
+    --bg:#150f1f;
+    --bg-grad-top:#1c1329;
+    --bg-grad-bot:#0b0712;
+    --bg-radial:#2e1f45;
+    --card:#1e1530;
+    --card-2:#241a3a;
+    --stroke:rgba(216,180,255,.10);
+    --stroke-2:rgba(216,180,255,.06);
+    --grid:rgba(216,180,255,.07);
 
-    --ink:#eef2f7;
-    --ink-2:#9aa6b6;
-    --ink-3:#5e6b7d;
+    --ink:#f1ecf9;
+    --ink-2:#a99bc4;
+    --ink-3:#786a94;
 
     /* Temperature ramp (semantic warmth) — shared by both themes */
     --t-cold:#4aa8ff;
@@ -75,27 +75,27 @@ getUiMode();
     /* Domain accents — shared */
     --rain:#3d9be9;
     --rain-2:#1f6fb8;
-    --storm:#b07bff;
+    --storm:#e35bff;
     --feels:#ff6b5e;
     --wind:#34d3a6;
-    --cloud:#7b8694;
+    --cloud:#96899f;
     --sun:#ffcf4a;
 
     /* Canvas-specific tokens (read by JS via getComputedStyle) */
-    --c-grid:rgba(255,255,255,.05);
-    --c-grid-soft:rgba(255,255,255,.04);
-    --c-pill-bg:rgba(10,14,20,.78);
-    --c-spread:rgba(255,255,255,.045);
-    --c-axis:#5e6b7d;
-    --c-sky-cloud:#6b7585;
-    --c-night:rgba(10,14,20,.55);
+    --c-grid:rgba(216,180,255,.08);
+    --c-grid-soft:rgba(216,180,255,.05);
+    --c-pill-bg:rgba(21,15,31,.82);
+    --c-spread:rgba(216,180,255,.06);
+    --c-axis:#786a94;
+    --c-sky-cloud:#8a7ea3;
+    --c-night:rgba(21,15,31,.55);
     /* Sky state colours — softened, still easy to tell apart */
     --c-sky-sun:#ffd166;
-    --c-sky-cloud2:#8a95a6;
+    --c-sky-cloud2:#8a7ea3;
     --c-sky-rain:#4ca6e8;
-    --c-sky-nodata:#0a0e14;
-    --topbar-solid:rgb(17,22,31);
-    --topbar-skirt:linear-gradient(180deg, rgba(17,22,31,.92) 0%, rgba(17,22,31,.55) 45%, rgba(17,22,31,0) 100%);
+    --c-sky-nodata:#150f1f;
+    --topbar-solid:rgb(28,19,41);
+    --topbar-skirt:linear-gradient(180deg, rgba(28,19,41,.92) 0%, rgba(28,19,41,.55) 45%, rgba(28,19,41,0) 100%);
 
     --radius:20px;
     --radius-sm:14px;
@@ -316,7 +316,7 @@ getUiMode();
   .nowcast.open .nowcast-map{max-height:560px;opacity:1;margin-top:10px}
   .radarmap-wrap{
     position:relative;border-radius:var(--radius-sm);overflow:hidden;
-    border:1px solid var(--stroke);background:#0c1118;cursor:pointer;
+    border:1px solid var(--stroke);background:#160f21;cursor:pointer;
     aspect-ratio:1/1;width:100%;touch-action:none;
   }
   [data-theme="light"] .radarmap-wrap{background:#dde6f1}
@@ -770,7 +770,7 @@ getUiMode();
     <b>Multi-Modell-Ansicht.</b> Drei unabhängige Wettermodelle laufen parallel — AROME (durchgezogen), ICON-D2 (gestrichelt), ECMWF (gepunktet). Liegen die Linien nah beieinander, ist die Prognose sicher; spreizen sie sich, ist sie unsicher. Farbe codiert die Wärme, das Linienmuster die Modell-Identität.<br>
     <span id="data-status"></span> Wetterdaten: <b>Open-Meteo.com</b> (CC BY 4.0). Regenradar &amp; Warnungen: <b>DWD</b> via Bright Sky.<br>
     <button class="ui-toggle" id="to-watch">⌚ Watch-Ansicht</button>
-    <span class="app-version" id="ver-desktop" style="margin-left:10px">WEATH3R v8.5</span>
+    <span class="app-version" id="ver-desktop" style="margin-left:10px">WEATH3R v8.6</span>
   </p>
 
 </div>
@@ -825,7 +825,7 @@ getUiMode();
     <span id="wstatus"></span><br>
     <button class="ui-toggle" id="to-desktop">↗ volle Ansicht</button><br>
     Daten: Open-Meteo · DWD (Bright Sky)<br>
-    <span class="app-version">WEATH3R v8.5</span>
+    <span class="app-version">WEATH3R v8.6</span>
   </p>
 </div><!-- /#watch-ui -->
 
@@ -1678,7 +1678,7 @@ function drawChart(canvasId, day, opts){
       day.storm.forEach(seg=>{
         const a=seg[0], b=seg[1], inten=seg[2]!=null?seg[2]:.7;
         const th = minTh + (maxTh-minTh)*inten;
-        roundBar(ctx, X(a)+1, sy - th/2, X(b)-X(a)-2, th, '#b07bff');
+        roundBar(ctx, X(a)+1, sy - th/2, X(b)-X(a)-2, th, '#e35bff');
       });
     }
   }
@@ -1841,7 +1841,7 @@ const SVG = {
   cloud:'<svg viewBox="0 0 24 24" fill="none"><path d="M7 17a4.2 4.2 0 010-8.4 5.2 5.2 0 0110-1.4A3.7 3.7 0 0117 17H7z" fill="#8a95a6"/></svg>',
   rain:'<svg viewBox="0 0 24 24" fill="none"><path d="M7 14a4 4 0 010-8 5 5 0 019.6-1.3A3.5 3.5 0 0117 14H7z" fill="#8a95a6"/><path d="M8 16l-1 3M12 16l-1 3M16 16l-1 3" stroke="#4ca6e8" stroke-width="1.7" stroke-linecap="round"/></svg>',
   snow:'<svg viewBox="0 0 24 24" fill="none"><path d="M7 14a4 4 0 010-8 5 5 0 019.6-1.3A3.5 3.5 0 0117 14H7z" fill="#8a95a6"/><g fill="#cfe6ff"><circle cx="8" cy="18" r="1"/><circle cx="12" cy="19.5" r="1"/><circle cx="16" cy="18" r="1"/></g></svg>',
-  storm:'<svg viewBox="0 0 24 24" fill="none"><path d="M7 13a4 4 0 010-8 5 5 0 019.6-1.3A3.5 3.5 0 0117 13H7z" fill="#8a95a6"/><path d="M12 13l-2.5 4.5h2L11 22l4-5.5h-2L13.5 13z" fill="#b07bff"/></svg>',
+  storm:'<svg viewBox="0 0 24 24" fill="none"><path d="M7 13a4 4 0 010-8 5 5 0 019.6-1.3A3.5 3.5 0 0117 13H7z" fill="#8a95a6"/><path d="M12 13l-2.5 4.5h2L11 22l4-5.5h-2L13.5 13z" fill="#e35bff"/></svg>',
   fog:'<svg viewBox="0 0 24 24" fill="none" stroke="#8a95a6" stroke-width="1.8" stroke-linecap="round"><path d="M4 9h16M4 13h16M6 17h12"/></svg>',
 };
 // WMO weather_code → icon key
@@ -2176,7 +2176,13 @@ function dayLabelFromOffset(off){
 
 /* ---------- Dynamic weather icon (driven by WMO weather code) ---------- */
 function weatherIconSVG(code, cloud, precip, isDay){
-  const SUN='#ffce4d', SUNL='#ffdf87', MOON='#cfd8ea', CLOUD='#9aa6b6', CLOUD2='#c3ccd8', RAIN='#46a6ea', SNOW='#dcefff', BOLT='#b98cff';
+  const isLight = document.documentElement.getAttribute("data-theme")==="light";
+  const SUN='#ffce4d', SUNL='#ffdf87', RAIN='#46a6ea', SNOW='#dcefff';
+  // cloud/moon/bolt tones: neutral grey in light mode (unchanged), violet-tinted in the new dark mode
+  const MOON  = isLight ? '#cfd8ea' : '#cbbfe0';
+  const CLOUD = isLight ? '#9aa6b6' : '#9c8fb0';
+  const CLOUD2= isLight ? '#c3ccd8' : '#c4b8d4';
+  const BOLT  = isLight ? '#b98cff' : '#e35bff';
   const S=(inner)=>`<svg class="wxi" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">${inner}</svg>`;
   // sun: pulsing disc + gently breathing rays
   const sun=(cx,cy,r,cls)=>{
@@ -2989,9 +2995,9 @@ if(document.documentElement.dataset.uiMode!=="watch") boot();
         let lx=p.x+7; if(lx+tw>cssW-3) lx=p.x-7-tw;
         let ly=p.y-7; ly=Math.max(2, Math.min(cssH-17, ly));
         ctx.fillStyle = s.wet ? "rgba(255,90,77,.95)"
-                       : (isLight?"rgba(255,255,255,.9)":"rgba(10,14,20,.82)");
+                       : (isLight?"rgba(255,255,255,.9)":"rgba(21,15,31,.82)");
         roundRect(ctx, lx, ly, tw, 15, 7); ctx.fill();
-        ctx.fillStyle = s.wet ? "#fff" : (isLight?"#1a2230":"#cfd8e3");
+        ctx.fillStyle = s.wet ? "#fff" : (isLight?"#1a2230":"#d9cfe6");
         ctx.textAlign="center";ctx.textBaseline="middle";
         ctx.fillText(lbl, lx+tw/2, ly+8);
       });
@@ -3003,9 +3009,9 @@ if(document.documentElement.dataset.uiMode!=="watch") boot();
       const hw=ctx.measureText(head).width+12;
       let hx=u.x-hw/2, hy=u.y+12;
       hx=Math.max(4, Math.min(cssW-hw-4, hx)); hy=Math.min(cssH-21, hy);
-      ctx.fillStyle = A.arrival ? "rgba(255,90,77,.95)" : (isLight?"rgba(255,255,255,.92)":"rgba(10,14,20,.85)");
+      ctx.fillStyle = A.arrival ? "rgba(255,90,77,.95)" : (isLight?"rgba(255,255,255,.92)":"rgba(21,15,31,.85)");
       roundRect(ctx, hx, hy, hw, 18, 9); ctx.fill();
-      ctx.fillStyle = A.arrival ? "#fff" : (isLight?"#1a2230":"#eef2f7");
+      ctx.fillStyle = A.arrival ? "#fff" : (isLight?"#1a2230":"#f1ecf9");
       ctx.textAlign="center";ctx.textBaseline="middle";
       ctx.fillText(head, hx+hw/2, hy+9);
     }
@@ -3021,10 +3027,10 @@ if(document.documentElement.dataset.uiMode!=="watch") boot();
     let llx=u.x+9, lly=u.y-7;                       // default: to the right of the dot
     if(llx+lw>cssW-4) llx=u.x-9-lw;                 // flip left near the right edge
     const light2=isLightTheme();
-    ctx.fillStyle=light2?"rgba(255,255,255,.92)":"rgba(10,14,20,.82)";
+    ctx.fillStyle=light2?"rgba(255,255,255,.92)":"rgba(21,15,31,.82)";
     roundRect(ctx, llx, lly, lw, 17, 8); ctx.fill();
     ctx.strokeStyle="rgba(255,90,77,.55)";ctx.lineWidth=1;roundRect(ctx, llx, lly, lw, 17, 8);ctx.stroke();
-    ctx.fillStyle=light2?"#1a2230":"#eef2f7";
+    ctx.fillStyle=light2?"#1a2230":"#f1ecf9";
     ctx.textAlign="center";ctx.textBaseline="middle";
     ctx.fillText(locName, llx+lw/2, lly+8.5);
 
