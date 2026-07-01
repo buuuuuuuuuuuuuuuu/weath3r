@@ -11,14 +11,14 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="WEATH3R">
-<title>WEATH3R v7.4</title>
+<title>WEATH3R v7.5</title>
 <script>
 /* ============================================================
    WEATH3R · global config + UI-mode detection
    Runs synchronously in <head> BEFORE the body renders so the
    correct GUI is shown immediately (no layout flash).
    ============================================================ */
-window.APP_VERSION = "v7.4";
+window.APP_VERSION = "v7.5";
 
 function getUiMode(){
   var mode=null, explicit=false;
@@ -94,11 +94,8 @@ getUiMode();
     --c-sky-cloud2:#8a95a6;
     --c-sky-rain:#4ca6e8;
     --c-sky-nodata:#0a0e14;
-    --topbar-bg:linear-gradient(180deg,
-      rgba(17,22,31,.95) 0%,
-      rgba(17,22,31,.92) 45%,
-      rgba(17,22,31,.55) 78%,
-      rgba(17,22,31,0) 100%);
+    --topbar-solid:rgb(17,22,31);
+    --topbar-skirt:linear-gradient(180deg, rgba(17,22,31,.92) 0%, rgba(17,22,31,.55) 45%, rgba(17,22,31,0) 100%);
 
     --radius:20px;
     --radius-sm:14px;
@@ -133,11 +130,8 @@ getUiMode();
     --c-sky-cloud2:#aab4c2;
     --c-sky-rain:#3d9be9;
     --c-sky-nodata:#1a2230;
-    --topbar-bg:linear-gradient(180deg,
-      rgba(247,249,252,.95) 0%,
-      rgba(247,249,252,.92) 45%,
-      rgba(247,249,252,.55) 78%,
-      rgba(247,249,252,0) 100%);
+    --topbar-solid:rgb(247,249,252);
+    --topbar-skirt:linear-gradient(180deg, rgba(247,249,252,.94) 0%, rgba(247,249,252,.55) 45%, rgba(247,249,252,0) 100%);
   }
 
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -159,14 +153,19 @@ getUiMode();
   /* ---------- Header ---------- */
   .topbar{
     position:sticky;top:0;z-index:30;
-    padding:calc(env(safe-area-inset-top) + 14px) 4px 18px;
-    background:var(--topbar-bg);
-    backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
-    /* fade the blur itself out toward the bottom so the glass edge is invisible */
-    -webkit-mask-image:linear-gradient(180deg, #000 0%, #000 62%, transparent 100%);
-    mask-image:linear-gradient(180deg, #000 0%, #000 62%, transparent 100%);
+    padding:calc(env(safe-area-inset-top) + 14px) 4px 14px;
+    /* solid-enough backing that fully hides content scrolling underneath the
+       title/buttons; the soft fade lives in ::after below so the glass edge
+       stays invisible without letting content bleed through */
+    background:var(--topbar-solid);
+    backdrop-filter:blur(20px) saturate(1.4);-webkit-backdrop-filter:blur(20px) saturate(1.4);
   }
-  .topbar-row{display:flex;align-items:center;gap:10px;min-width:0}
+  /* gradient skirt under the bar → smooth transition into the page without a hard edge */
+  .topbar::after{
+    content:"";position:absolute;left:0;right:0;top:100%;height:22px;pointer-events:none;
+    background:var(--topbar-skirt);
+  }
+  .topbar-row{display:flex;align-items:center;gap:10px;min-width:0;position:relative;z-index:1}
   .loc{flex:1;min-width:0}
   .loc .eyebrow{
     font-size:11px;letter-spacing:.14em;text-transform:uppercase;
@@ -300,7 +299,7 @@ getUiMode();
   .radarmap-wrap{
     position:relative;border-radius:var(--radius-sm);overflow:hidden;
     border:1px solid var(--stroke);background:#0c1118;cursor:pointer;
-    aspect-ratio:1/1;width:100%;
+    aspect-ratio:1/1;width:100%;touch-action:none;
   }
   [data-theme="light"] .radarmap-wrap{background:#dde6f1}
   #cv-radarmap{display:block;width:100%;height:100%}
@@ -527,22 +526,25 @@ getUiMode();
   #watch-ui .wloc .time{font-size:12px;color:var(--ink-3);font-weight:600;font-variant-numeric:tabular-nums}
   #watch-ui .whero{
     background:linear-gradient(160deg,var(--card-2),var(--card));
-    border:1px solid var(--stroke);border-radius:20px;
-    padding:14px 16px 16px;text-align:center;position:relative;overflow:hidden;
+    border:1px solid var(--stroke);border-radius:18px;
+    padding:10px 14px 12px;text-align:center;position:relative;overflow:hidden;
   }
-  #watch-ui .whero .temp{font-size:72px;font-weight:600;letter-spacing:-.04em;line-height:.92}
-  #watch-ui .whero .temp sup{font-size:26px;font-weight:500;vertical-align:top;top:.18em;position:relative;color:var(--ink-2)}
-  #watch-ui .whero .cond{font-size:16px;font-weight:600;margin-top:2px}
-  #watch-ui .whero .sub{font-size:13px;color:var(--ink-2);margin-top:3px}
+  #watch-ui .whero-main{display:flex;align-items:center;justify-content:center;gap:6px}
+  #watch-ui .whero .temp{font-size:104px;font-weight:650;letter-spacing:-.05em;line-height:.86}
+  #watch-ui .whero .temp sup{font-size:34px;font-weight:500;vertical-align:top;top:.16em;position:relative;color:var(--ink-2)}
+  #watch-ui .whero .wicon{flex:none;width:52px;height:52px}
+  #watch-ui .whero .wicon svg{width:52px;height:52px;display:block}
+  #watch-ui .whero .cond{font-size:17px;font-weight:600;margin-top:1px}
+  #watch-ui .whero .sub{font-size:14px;color:var(--ink-2);margin-top:2px}
   #watch-ui .whero .feels{color:var(--feels)}
-  #watch-ui .wstats{display:flex;gap:8px;margin-top:10px}
-  #watch-ui .wstat{flex:1;background:var(--card);border:1px solid var(--stroke);border-radius:14px;
-    padding:9px 6px;text-align:center}
+  #watch-ui .wstats{display:flex;gap:8px;margin-top:12px}
+  #watch-ui .wstat{flex:1;background:var(--card);border:1px solid var(--stroke);border-radius:15px;
+    padding:11px 6px;text-align:center}
   #watch-ui .wstat .k{font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
-  #watch-ui .wstat .v{font-size:16px;font-weight:600;margin-top:3px;font-variant-numeric:tabular-nums}
-  #watch-ui .wsection{margin-top:14px}
-  #watch-ui .wsection .h{font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
-    color:var(--ink-2);margin:0 4px 7px}
+  #watch-ui .wstat .v{font-size:19px;font-weight:650;margin-top:4px;font-variant-numeric:tabular-nums}
+  #watch-ui .wsection{margin-top:16px}
+  #watch-ui .wsection .h{font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+    color:var(--ink-2);margin:0 4px 8px}
   #watch-ui .wrain{background:var(--card);border:1px solid var(--stroke);border-radius:16px;padding:12px 14px}
   #watch-ui .wrain .summary{font-size:14px;font-weight:600;margin-bottom:9px;line-height:1.3}
   #watch-ui .wrain.dry .summary{color:var(--ink-2)}
@@ -562,8 +564,9 @@ getUiMode();
   #watch-ui .wfoot a{color:var(--ink-2)}
   #watch-ui .werr{color:var(--feels);font-size:13px;text-align:center;padding:18px 8px;line-height:1.5}
   @media (max-width:330px){
-    #watch-ui .whero .temp{font-size:62px}
-    #watch-ui .wstat .v{font-size:14px}
+    #watch-ui .whero .temp{font-size:88px}
+    #watch-ui .whero .wicon,#watch-ui .whero .wicon svg{width:44px;height:44px}
+    #watch-ui .wstat .v{font-size:17px}
   }
 
   /* ---------- UI toggle button (both UIs) ---------- */
@@ -730,7 +733,7 @@ getUiMode();
     <b>Multi-Modell-Ansicht.</b> Drei unabhängige Wettermodelle laufen parallel — AROME (durchgezogen), ICON-D2 (gestrichelt), ECMWF (gepunktet). Liegen die Linien nah beieinander, ist die Prognose sicher; spreizen sie sich, ist sie unsicher. Farbe codiert die Wärme, das Linienmuster die Modell-Identität.<br>
     <span id="data-status"></span> Wetterdaten: <b>Open-Meteo.com</b> (CC BY 4.0). Regenradar &amp; Warnungen: <b>DWD</b> via Bright Sky.<br>
     <button class="ui-toggle" id="to-watch">⌚ Watch-Ansicht</button>
-    <span class="app-version" id="ver-desktop" style="margin-left:10px">WEATH3R v7.4</span>
+    <span class="app-version" id="ver-desktop" style="margin-left:10px">WEATH3R v7.5</span>
   </p>
 
 </div>
@@ -757,7 +760,10 @@ getUiMode();
   </div>
 
   <div class="whero">
-    <div class="temp" id="wtemp">–<sup>°</sup></div>
+    <div class="whero-main">
+      <div class="temp" id="wtemp">–<sup>°</sup></div>
+      <div class="wicon" id="wicon" aria-hidden="true"></div>
+    </div>
     <div class="cond" id="wcond">Lädt…</div>
     <div class="sub" id="wrange">–</div>
     <div class="sub feels" id="wfeels"></div>
@@ -786,7 +792,7 @@ getUiMode();
     <span id="wstatus"></span><br>
     <button class="ui-toggle" id="to-desktop">↗ volle Ansicht</button><br>
     Daten: Open-Meteo · DWD (Bright Sky)<br>
-    <span class="app-version">WEATH3R v7.4</span>
+    <span class="app-version">WEATH3R v7.5</span>
   </p>
 </div><!-- /#watch-ui -->
 
@@ -2407,6 +2413,8 @@ if(document.documentElement.dataset.uiMode!=="watch") boot();
   let map=null;          // parsed radar map {w,h,userX,userY,frames}
   let pre=[];            // pre-rendered offscreen canvases per frame
   let idx=0, timer=null, loaded=false, loading=false;
+  // user pinch-zoom / pan state (1 = fit; >1 zoomed in). panX/panY in CSS px.
+  let userZoom=1, panX=0, panY=0;
 
   // ---- precipitation colour ramp (mm/h → rgba) ----
   const STOPS=[
@@ -2496,6 +2504,86 @@ if(document.documentElement.dataset.uiMode!=="watch") boot();
     }
     return mx;
   }
+
+  // ---- drift by cross-correlation (matches the visible motion in the loop) ---
+  // Down-sample a frame's rain field to a coarse intensity grid.
+  function coarsen(grid,w,h,D){
+    const cw=Math.ceil(w/D), ch=Math.ceil(h/D);
+    const out=new Float32Array(cw*ch);
+    for(let y=0;y<h;y++){const row=grid[y];if(!row)continue;
+      for(let x=0;x<w;x++){let v=row[x];if(v==null||v<0)v=0;const mmh=(v/100)*12;
+        if(mmh<WET_CELL)continue;
+        out[((y/D)|0)*cw+((x/D)|0)]+=mmh;}}
+    let sum=0; for(let i=0;i<out.length;i++) sum+=out[i];
+    return {data:out,cw,ch,sum};
+  }
+  // Best integer shift s (coarse cells) s.t. B(p) ≈ A(p−s): i.e. the pattern in
+  // B is A moved by +s. Returns the displacement (where the rain moved TO).
+  // For smooth bands the correlation is ambiguous ALONG the band (aperture
+  // problem), so among all near-optimal shifts we keep the smallest-magnitude
+  // one — that recovers the true perpendicular (front) motion and suppresses
+  // spurious slide along the band.
+  function bestShift(A,B,cw,ch,maxS){
+    let bestScore=-1; const scored=[];
+    for(let sy=-maxS;sy<=maxS;sy++){
+      for(let sx=-maxS;sx<=maxS;sx++){
+        let dot=0,na=0,nb=0;
+        for(let y=0;y<ch;y++){
+          const by=y+sy; if(by<0||by>=ch)continue;
+          for(let x=0;x<cw;x++){
+            const bx=x+sx; if(bx<0||bx>=cw)continue;
+            const a=A[y*cw+x], b=B[by*cw+bx];
+            dot+=a*b; na+=a*a; nb+=b*b;
+          }
+        }
+        if(na>0&&nb>0){
+          const nc=dot/Math.sqrt(na*nb);
+          scored.push({sx,sy,nc});
+          if(nc>bestScore) bestScore=nc;
+        }
+      }
+    }
+    if(bestScore<0) return null;
+    // keep shifts within a small tolerance of the best, take the smallest |s|
+    const tol=0.02;
+    let pick=null, pickMag=Infinity;
+    scored.forEach(s=>{
+      if(s.nc>=bestScore-tol){
+        const mag=s.sx*s.sx+s.sy*s.sy;
+        if(mag<pickMag){ pickMag=mag; pick=s; }
+      }
+    });
+    return pick ? {sx:pick.sx, sy:pick.sy, score:bestScore} : null;
+  }
+  // Estimate drift velocity (fine cells per minute, direction rain MOVES to).
+  function estimateDrift(frames,w,h){
+    const nowMs=Date.now();
+    // frames at/after "now" with meaningful rain
+    const cand=[];
+    frames.forEach(f=>{ if(f.time.getTime()>=nowMs-6*60000){ cand.push(f); } });
+    const use = cand.length>=2 ? cand : frames;
+    if(use.length<2) return null;
+    const D = Math.max(1, Math.round(Math.max(w,h)/64));   // ~64px coarse grid
+    const maxS = 12;                                        // ≤ ~48 fine cells of shift
+    // pair the earliest rainy frame with one ~30 min later (≥ 4 frames apart)
+    let A=null, B=null, ai=0, bi=0;
+    for(let i=0;i<use.length;i++){ const c=coarsen(use[i].grid,w,h,D); if(c.sum>40){ A=c; ai=i; break; } }
+    if(!A) return null;
+    for(let j=use.length-1;j>ai;j--){
+      const dtMin=(use[j].time-use[ai].time)/60000;
+      if(dtMin<15||dtMin>75) continue;
+      const c=coarsen(use[j].grid,w,h,D); if(c.sum>40){ B=c; bi=j; break; }
+    }
+    if(!B){ // fall back to the last rainy frame
+      for(let j=use.length-1;j>ai;j--){ const c=coarsen(use[j].grid,w,h,D); if(c.sum>40){ B=c; bi=j; break; } }
+    }
+    if(!B) return null;
+    const dtMin=(use[bi].time-use[ai].time)/60000; if(dtMin<1) return null;
+    const s=bestShift(A.data,B.data,A.cw,A.ch,maxS);
+    if(!s || s.score<0.3) return null;                     // no confident motion
+    // coarse shift → fine cells → per minute
+    return { vx:(s.sx*D)/dtMin, vy:(s.sy*D)/dtMin, score:s.score };
+  }
   function bearingLabel(dx,dy){
     // Input vector points FROM the user TOWARD the rain source (east-positive x,
     // south-positive y on the DWD grid). That is exactly the "rain comes from"
@@ -2510,15 +2598,17 @@ if(document.documentElement.dataset.uiMode!=="watch") boot();
     const {w,h,userX,userY,frames}=map;
     const nowMs=Date.now();
 
-    // 1) rain-field drift: track the precip-weighted centroid over time and fit
-    //    a velocity (cells per minute). 1 cell = 1 km on the DWD grid.
-    const cs=[];
-    frames.forEach((f)=>{const c=frameCentroid(f.grid,w,h); if(c&&c.mass>20) cs.push({t:f.time.getTime(),x:c.x,y:c.y});});
-    let vel=null; // {vx,vy} cells per minute (direction rain MOVES toward)
-    if(cs.length>=2){
-      const a=cs[0], b=cs[cs.length-1];
-      const dtMin=(b.t-a.t)/60000;
-      if(dtMin>1){ vel={ vx:(b.x-a.x)/dtMin, vy:(b.y-a.y)/dtMin }; }
+    // 1) rain-field drift. Primary: cross-correlation between frames (matches
+    //    the motion you see when playing the loop). Fallback: centroid track.
+    let vel = estimateDrift(frames,w,h);   // {vx,vy} fine cells/min, or null
+    if(!vel){
+      const cs=[];
+      frames.forEach((f)=>{const c=frameCentroid(f.grid,w,h); if(c&&c.mass>20) cs.push({t:f.time.getTime(),x:c.x,y:c.y});});
+      if(cs.length>=2){
+        const a=cs[0], b=cs[cs.length-1];
+        const dtMin=(b.t-a.t)/60000;
+        if(dtMin>1){ vel={ vx:(b.x-a.x)/dtMin, vy:(b.y-a.y)/dtMin }; }
+      }
     }
 
     // 2) arrival at the user's own cell (authoritative — straight from the forecast)
@@ -2648,14 +2738,18 @@ if(document.documentElement.dataset.uiMode!=="watch") boot();
     ctx.clearRect(0,0,cssW,cssH);
 
     // scale grid → canvas, but anchor so the USER pixel sits at canvas centre
-    const scale=Math.max(cssW/map.w, cssH/map.h);
+    const baseScale=Math.max(cssW/map.w, cssH/map.h);
+    const scale=baseScale*userZoom;                     // pinch-zoom factor
     const dw=map.w*scale, dh=map.h*scale;
-    // offset so (userX,userY) maps to (cssW/2, cssH/2)
-    let ox=cssW/2 - map.userX*scale;
-    let oy=cssH/2 - map.userY*scale;
-    // don't let the grid pull away from the canvas edges (avoid empty gaps)
-    ox=Math.min(0, Math.max(cssW-dw, ox));
-    oy=Math.min(0, Math.max(cssH-dh, oy));
+    // offset so (userX,userY) maps to centre, then apply user pan
+    let ox=cssW/2 - map.userX*scale + panX;
+    let oy=cssH/2 - map.userY*scale + panY;
+    // don't let the grid pull away from the canvas edges (avoid empty gaps);
+    // also fold the clamped pan back into panX/panY so gestures feel anchored
+    const oxC=Math.min(0, Math.max(cssW-dw, ox));
+    const oyC=Math.min(0, Math.max(cssH-dh, oy));
+    panX += (oxC-ox); panY += (oyC-oy);
+    ox=oxC; oy=oyC;
     const G=(gx,gy)=>({x:ox+gx*scale, y:oy+gy*scale}); // grid → canvas
     const kmPx=scale/(map.kmPerCell||1);                // canvas px per km
 
@@ -2841,6 +2935,7 @@ if(document.documentElement.dataset.uiMode!=="watch") boot();
     card.classList.remove("open");
     head.setAttribute("aria-expanded","false");
     setPlaying(false);
+    userZoom=1; panX=0; panY=0;   // reset zoom when closing
   }
   function toggle(){ card.classList.contains("open") ? collapse() : expand(); }
 
@@ -2850,13 +2945,70 @@ if(document.documentElement.dataset.uiMode!=="watch") boot();
     setPlaying(false);
     collapse();
     map=null; pre=[]; analysis=null; loaded=false; loading=false; idx=0;
+    userZoom=1; panX=0; panY=0;
     if(statusEl){ statusEl.style.display=""; statusEl.textContent="Tippen zum Laden…"; }
   };
 
   head.addEventListener("click", toggle);
   head.addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); toggle(); } });
-  // tapping the map collapses (per spec); clicks on controls handled separately
-  wrap.addEventListener("click", collapse);
+
+  // ---- pinch-to-zoom + pan (two-finger), with double-tap to reset ----
+  const MIN_ZOOM=1, MAX_ZOOM=6;
+  let gesture=null;        // active pinch/pan state
+  let didGesture=false;    // suppress the collapse-click after a gesture
+  function ptDist(t0,t1){ return Math.hypot(t0.clientX-t1.clientX, t0.clientY-t1.clientY); }
+  function ptMid(t0,t1,rect){ return { x:(t0.clientX+t1.clientX)/2-rect.left, y:(t0.clientY+t1.clientY)/2-rect.top }; }
+
+  wrap.addEventListener("touchstart",e=>{
+    if(e.touches.length===2){
+      e.preventDefault();
+      const r=wrap.getBoundingClientRect();
+      gesture={ d0:ptDist(e.touches[0],e.touches[1]), z0:userZoom,
+                mid:ptMid(e.touches[0],e.touches[1],r),
+                px0:panX, py0:panY };
+      didGesture=true;
+    }
+  }, {passive:false});
+
+  wrap.addEventListener("touchmove",e=>{
+    if(gesture && e.touches.length===2){
+      e.preventDefault();
+      const r=wrap.getBoundingClientRect();
+      const d=ptDist(e.touches[0],e.touches[1]);
+      const mid=ptMid(e.touches[0],e.touches[1],r);
+      const newZoom=Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, gesture.z0 * (d/gesture.d0)));
+      // keep the pinch midpoint anchored: scale the offset of mid from centre,
+      // and add the finger drag of the midpoint as pan
+      const cx=r.width/2, cy=r.height/2;
+      const ratio=newZoom/gesture.z0;
+      panX = gesture.px0 - (gesture.mid.x-cx)*(ratio-1) + (mid.x-gesture.mid.x);
+      panY = gesture.py0 - (gesture.mid.y-cy)*(ratio-1) + (mid.y-gesture.mid.y);
+      userZoom=newZoom;
+      if(loaded) drawFrame();
+    }
+  }, {passive:false});
+
+  wrap.addEventListener("touchend",e=>{
+    if(gesture && e.touches.length<2){ gesture=null; }
+    // let the suppression flag clear shortly after the fingers lift
+    if(e.touches.length===0) setTimeout(()=>{ didGesture=false; }, 80);
+  });
+
+  // double-tap resets the zoom (nice escape hatch)
+  let lastTap=0;
+  wrap.addEventListener("touchend",e=>{
+    if(e.touches.length>0) return;
+    const now=Date.now();
+    if(now-lastTap<300 && userZoom>1.01){
+      userZoom=1; panX=0; panY=0; didGesture=true;
+      if(loaded) drawFrame();
+      setTimeout(()=>{ didGesture=false; }, 120);
+    }
+    lastTap=now;
+  });
+
+  // tapping the map collapses (per spec) — but NOT right after a zoom/pan gesture
+  wrap.addEventListener("click", ()=>{ if(!didGesture && userZoom<=1.01) collapse(); });
 
   playBtn.addEventListener("click", e=>{
     e.stopPropagation();
@@ -3145,6 +3297,11 @@ document.addEventListener("DOMContentLoaded",()=>{
       const code=cur.weather_code,cloud=cur.cloud_cover,precip=cur.precipitation;
       document.getElementById("wtemp").innerHTML=`${Math.round(cur.temperature_2m)}<sup>°</sup>`;
       document.getElementById("wcond").textContent=weatherWord(code,cloud,precip);
+      try{
+        const wic=document.getElementById("wicon");
+        const hr=new Date().getHours(); const isDay=hr>=6&&hr<21;
+        if(wic && typeof weatherIconSVG==="function") wic.innerHTML=weatherIconSVG(code,cloud,precip,isDay);
+      }catch(e){}
       if(wx.daily&&wx.daily.temperature_2m_max){
         const hi=Math.round(wx.daily.temperature_2m_max[0]),lo=Math.round(wx.daily.temperature_2m_min[0]);
         document.getElementById("wrange").textContent=`${lo}° / ${hi}°`;
