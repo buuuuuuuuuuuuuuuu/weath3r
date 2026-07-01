@@ -11,14 +11,14 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="WEATH3R">
-<title>WEATH3R v9.0</title>
+<title>WEATH3R v9.1</title>
 <script>
 /* ============================================================
    WEATH3R · global config + UI-mode detection
    Runs synchronously in <head> BEFORE the body renders so the
    correct GUI is shown immediately (no layout flash).
    ============================================================ */
-window.APP_VERSION = "v9.0";
+window.APP_VERSION = "v9.1";
 
 function getUiMode(){
   var mode=null, explicit=false;
@@ -296,9 +296,9 @@ getUiMode();
     position:relative;overflow:hidden;
     box-shadow:var(--shadow-card);
   }
-  .nowcast-head{display:flex;align-items:baseline;gap:10px;margin-bottom:2px}
-  .nowcast-title{font-size:13px;font-weight:600;letter-spacing:.02em;color:var(--ink)}
-  .nowcast-summary{margin-left:auto;font-size:12px;color:var(--ink-2);font-weight:500;text-align:right}
+  .nowcast-head{display:flex;align-items:center;flex-wrap:wrap;row-gap:8px;column-gap:10px;margin-bottom:2px}
+  .nowcast-title{font-size:13px;font-weight:600;letter-spacing:.02em;color:var(--ink);flex:1 1 auto;min-width:0}
+  .nowcast-head-right{display:flex;align-items:center;gap:10px;margin-left:auto;flex:none}
   .nowcast-src{font-size:10px;font-weight:600;letter-spacing:.03em;color:var(--ink-3);
     border:1px solid var(--stroke-2);border-radius:999px;padding:1px 6px;margin-left:6px;vertical-align:middle}
   #cv-nowcast{min-height:96px}
@@ -308,25 +308,24 @@ getUiMode();
     transition:transform .25s ease;align-self:center}
   .nowcast.open .nowcast-chev{transform:rotate(180deg)}
 
-  /* ---------- Regen-Push-Benachrichtigung ---------- */
-  .notify-row{margin-top:8px}
+  /* ---------- Regen-Push-Benachrichtigung (im Kartenkopf, rechts) ---------- */
   .notify-btn{
-    display:inline-flex;align-items:center;gap:6px;
-    font-size:12px;font-weight:600;font-family:var(--font);
+    display:inline-flex;align-items:center;gap:5px;
+    font-size:11.5px;font-weight:600;font-family:var(--font);
     color:var(--ink-2);background:rgba(255,255,255,.04);
     border:1px solid var(--stroke-2);border-radius:var(--radius-pill);
-    padding:6px 12px 6px 10px;cursor:pointer;transition:.2s;
+    padding:5px 11px 5px 9px;cursor:pointer;transition:.2s;
+    white-space:nowrap;
   }
   .notify-btn:active{transform:scale(.97)}
-  .notify-icon{width:15px;height:15px;flex:none}
+  .notify-icon{width:14px;height:14px;flex:none}
   .notify-btn.is-on{
     color:#fff;background:var(--rain);border-color:transparent;
   }
   .notify-btn.is-on .notify-icon{fill:#fff}
   .notify-btn.is-blocked{color:var(--ink-3);border-style:dashed;opacity:.8}
   .notify-hint{
-    margin-top:7px;font-size:11.5px;line-height:1.5;color:var(--ink-3);
-    max-width:340px;
+    margin-top:2px;margin-bottom:6px;font-size:11.5px;line-height:1.5;color:var(--ink-3);
   }
   /* collapsible radar map panel */
   .nowcast-map{
@@ -741,20 +740,18 @@ getUiMode();
   <section class="nowcast" id="nowcast-card">
     <div class="nowcast-head" id="nowcast-toggle" role="button" tabindex="0" aria-expanded="false" aria-controls="nowcast-map">
       <div class="nowcast-title">Nächste 2 Stunden <span id="nowcast-src" class="nowcast-src"></span></div>
-      <div class="nowcast-summary" id="nowcast-summary">–</div>
-      <svg class="nowcast-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+      <div class="nowcast-head-right">
+        <button class="notify-btn" id="notify-btn" type="button" aria-pressed="false">
+          <svg class="notify-icon" id="notify-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 8a6 6 0 0 1 12 0c0 4 1.5 5.5 2 6H4c.5-.5 2-2 2-6Z"/>
+            <path d="M10 20a2 2 0 0 0 4 0"/>
+          </svg>
+          <span id="notify-label">Regen-Warnung aktivieren</span>
+        </button>
+        <svg class="nowcast-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
     </div>
-
-    <div class="notify-row">
-      <button class="notify-btn" id="notify-btn" type="button" aria-pressed="false">
-        <svg class="notify-icon" id="notify-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M6 8a6 6 0 0 1 12 0c0 4 1.5 5.5 2 6H4c.5-.5 2-2 2-6Z"/>
-          <path d="M10 20a2 2 0 0 0 4 0"/>
-        </svg>
-        <span id="notify-label">Regen-Warnung aktivieren</span>
-      </button>
-      <div class="notify-hint" id="notify-hint" hidden></div>
-    </div>
+    <div class="notify-hint" id="notify-hint" hidden></div>
 
     <canvas id="cv-nowcast"></canvas>
 
@@ -803,7 +800,7 @@ getUiMode();
     <b>Multi-Modell-Ansicht.</b> Drei unabhängige Wettermodelle laufen parallel — AROME (durchgezogen), ICON-D2 (gestrichelt), ECMWF (gepunktet). Liegen die Linien nah beieinander, ist die Prognose sicher; spreizen sie sich, ist sie unsicher. Farbe codiert die Wärme, das Linienmuster die Modell-Identität.<br>
     <span id="data-status"></span> Wetterdaten: <b>Open-Meteo.com</b> (CC BY 4.0). Regenradar &amp; Warnungen: <b>DWD</b> via Bright Sky.<br>
     <button class="ui-toggle" id="to-watch">⌚ Watch-Ansicht</button>
-    <span class="app-version" id="ver-desktop" style="margin-left:10px">WEATH3R v9.0</span>
+    <span class="app-version" id="ver-desktop" style="margin-left:10px">WEATH3R v9.1</span>
   </p>
 
 </div>
@@ -858,7 +855,7 @@ getUiMode();
     <span id="wstatus"></span><br>
     <button class="ui-toggle" id="to-desktop">↗ volle Ansicht</button><br>
     Daten: Open-Meteo · DWD (Bright Sky)<br>
-    <span class="app-version">WEATH3R v9.0</span>
+    <span class="app-version">WEATH3R v9.1</span>
   </p>
 </div><!-- /#watch-ui -->
 
@@ -2359,7 +2356,7 @@ function applyData(data){
   document.getElementById("lbl-fri").textContent=dayLabelFromOffset(2);
   document.getElementById("meta-fri").textContent=rangeLabel(data.fri);
   // nowcast summary
-  if(data.nowcast) document.getElementById("nowcast-summary").textContent=data.nowcast.summary||"";
+  // (Zusammenfassungs-Text entfernt — die Grafik/„kein Niederschlag"-Anzeige trägt diese Info bereits)
   const srcEl=document.getElementById("nowcast-src");
   if(srcEl) srcEl.textContent=(data.nowcast&&data.nowcast.radar)?"DWD Radar":"";
   // weather warnings
