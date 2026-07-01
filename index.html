@@ -11,14 +11,14 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="WEATH3R">
-<title>WEATH3R v7.6</title>
+<title>WEATH3R v8.0</title>
 <script>
 /* ============================================================
    WEATH3R · global config + UI-mode detection
    Runs synchronously in <head> BEFORE the body renders so the
    correct GUI is shown immediately (no layout flash).
    ============================================================ */
-window.APP_VERSION = "v7.6";
+window.APP_VERSION = "v8.0";
 
 function getUiMode(){
   var mode=null, explicit=false;
@@ -99,7 +99,14 @@ getUiMode();
 
     --radius:20px;
     --radius-sm:14px;
+    --radius-pill:999px;
     --pad:18px;
+    /* spacing scale (4px base) — one system everywhere */
+    --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:20px; --sp-6:24px; --sp-8:32px;
+    /* soft elevation — cards gently float above the background */
+    --shadow-sm:0 1px 2px rgba(0,0,0,.30);
+    --shadow-card:0 1px 2px rgba(0,0,0,.35), 0 8px 24px rgba(0,0,0,.22);
+    --shadow-pop:0 2px 6px rgba(0,0,0,.4), 0 16px 40px rgba(0,0,0,.5);
     --font:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     --mono:"SF Mono",ui-monospace,"Roboto Mono",Menlo,Consolas,monospace;
   }
@@ -111,9 +118,12 @@ getUiMode();
     --bg-radial:#dfe6f0;
     --card:#ffffff;
     --card-2:#f6f8fb;
-    --stroke:rgba(20,30,50,.10);
-    --stroke-2:rgba(20,30,50,.06);
+    --stroke:rgba(20,30,50,.08);
+    --stroke-2:rgba(20,30,50,.05);
     --grid:rgba(20,30,50,.06);
+    --shadow-sm:0 1px 2px rgba(30,45,75,.05);
+    --shadow-card:0 1px 2px rgba(30,45,75,.06), 0 8px 24px rgba(30,45,75,.08);
+    --shadow-pop:0 2px 8px rgba(30,45,75,.10), 0 16px 40px rgba(30,45,75,.14);
 
     --ink:#1a2230;
     --ink-2:#56627a;
@@ -241,11 +251,12 @@ getUiMode();
 
   /* ---------- Now hero ---------- */
   .hero{
-    margin-top:14px;
+    margin-top:var(--sp-4);
     border:1px solid var(--stroke);border-radius:var(--radius);
     background:linear-gradient(160deg, var(--card-2), var(--card));
-    padding:13px var(--pad) 12px;
+    padding:var(--sp-4) var(--pad);
     position:relative;overflow:hidden;
+    box-shadow:var(--shadow-card);
   }
   .hero::before{
     content:"";position:absolute;inset:0;pointer-events:none;
@@ -255,9 +266,15 @@ getUiMode();
   .now-temp{font-size:clamp(58px,17vw,74px);font-weight:600;letter-spacing:-.04em;line-height:.9;flex:none;align-self:center}
   .now-temp sup{font-size:26px;font-weight:500;vertical-align:top;top:.18em;position:relative;color:var(--ink-2)}
   .now-meta{text-align:left;flex:none;display:flex;flex-direction:column;justify-content:space-between}
-  .now-cond{font-size:15px;font-weight:500;color:var(--ink)}
-  .now-range{font-size:13px;color:var(--ink-2);margin-top:2px}
-  .now-feels{font-size:13px;color:var(--feels);margin-top:3px;font-weight:500}
+  .now-cond{font-size:17px;font-weight:600;color:var(--ink);letter-spacing:-.01em}
+  .now-range{font-size:13px;color:var(--ink-2);margin-top:3px;font-variant-numeric:tabular-nums;
+    display:flex;align-items:center;gap:8px}
+  .now-range .hl{display:inline-flex;align-items:center;gap:2px}
+  .now-range .arw{font-size:10px;color:var(--ink-3)}
+  .now-feels{font-size:12px;color:var(--feels);margin-top:4px;font-weight:600;
+    letter-spacing:.03em}
+  .now-feels .lbl{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);
+    font-weight:600;margin-right:5px}
   .chips{display:flex;flex-direction:column;justify-content:space-between;gap:5px;margin-left:auto;align-items:flex-end;position:relative}
   .chip{
     display:inline-flex;align-items:center;gap:4px;
@@ -272,11 +289,12 @@ getUiMode();
 
   /* ---------- Nowcast ---------- */
   .nowcast{
-    margin-top:14px;
+    margin-top:var(--sp-4);
     border:1px solid var(--stroke);border-radius:var(--radius);
     background:var(--card);
-    padding:13px 16px 8px;
+    padding:var(--sp-4) var(--sp-4) var(--sp-2);
     position:relative;overflow:hidden;
+    box-shadow:var(--shadow-card);
   }
   .nowcast-head{display:flex;align-items:baseline;gap:10px;margin-bottom:2px}
   .nowcast-title{font-size:13px;font-weight:600;letter-spacing:.02em;color:var(--ink)}
@@ -327,7 +345,7 @@ getUiMode();
   /* ---------- Section ---------- */
   .section-head{
     display:flex;align-items:baseline;gap:10px;
-    margin:26px 4px 10px;
+    margin:var(--sp-6) var(--sp-1) var(--sp-3);
   }
   .section-head h2{font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2)}
   .section-head .sub{font-size:12px;color:var(--ink-3);margin-left:auto}
@@ -335,9 +353,9 @@ getUiMode();
   /* ---------- Model legend ---------- */
   .legend{
     display:flex;gap:14px;flex-wrap:wrap;
-    padding:11px 14px;margin-bottom:10px;
+    padding:var(--sp-3) var(--sp-4);margin-bottom:var(--sp-3);
     border:1px solid var(--stroke);border-radius:var(--radius-sm);
-    background:var(--card);
+    background:var(--card);box-shadow:var(--shadow-sm);
   }
   .legend-item{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2);font-weight:500}
   .legend-line{width:26px;height:0;border-top-width:2.5px;border-top-style:solid;border-radius:2px}
@@ -350,10 +368,10 @@ getUiMode();
   .chart-card{
     border:1px solid var(--stroke);border-radius:var(--radius);
     background:var(--card);overflow:hidden;
-    margin-top:14px;
+    margin-top:var(--sp-4);box-shadow:var(--shadow-card);
   }
   .chart-daylabel{
-    padding:13px 16px 0;font-size:15px;font-weight:600;letter-spacing:-.01em;
+    padding:var(--sp-3) var(--sp-4) 0;font-size:15px;font-weight:600;letter-spacing:-.01em;
     display:flex;align-items:center;gap:8px;
   }
   .chart-daylabel .meta{margin-left:auto;font-size:12px;font-weight:500;color:var(--ink-3)}
@@ -363,7 +381,7 @@ getUiMode();
   .daily{
     border:1px solid var(--stroke);border-radius:var(--radius);
     background:var(--card);overflow:hidden;
-    margin-top:14px;
+    margin-top:var(--sp-4);box-shadow:var(--shadow-card);
   }
   .dgroup{border-top:1px solid var(--stroke-2)}
   .dgroup:first-child{border-top:none}
@@ -613,7 +631,7 @@ getUiMode();
     display:flex;align-items:center;gap:12px;
     background:var(--card-2);border:1px solid var(--stroke);
     border-radius:14px;padding:10px 12px 10px 16px;
-    box-shadow:0 12px 40px rgba(0,0,0,.5);
+    box-shadow:var(--shadow-pop);
     opacity:0;pointer-events:none;transition:opacity .25s ease, transform .25s ease;
     max-width:calc(100vw - 28px);
   }
@@ -757,7 +775,7 @@ getUiMode();
     <b>Multi-Modell-Ansicht.</b> Drei unabhängige Wettermodelle laufen parallel — AROME (durchgezogen), ICON-D2 (gestrichelt), ECMWF (gepunktet). Liegen die Linien nah beieinander, ist die Prognose sicher; spreizen sie sich, ist sie unsicher. Farbe codiert die Wärme, das Linienmuster die Modell-Identität.<br>
     <span id="data-status"></span> Wetterdaten: <b>Open-Meteo.com</b> (CC BY 4.0). Regenradar &amp; Warnungen: <b>DWD</b> via Bright Sky.<br>
     <button class="ui-toggle" id="to-watch">⌚ Watch-Ansicht</button>
-    <span class="app-version" id="ver-desktop" style="margin-left:10px">WEATH3R v7.6</span>
+    <span class="app-version" id="ver-desktop" style="margin-left:10px">WEATH3R v8.0</span>
   </p>
 
 </div>
@@ -816,7 +834,7 @@ getUiMode();
     <span id="wstatus"></span><br>
     <button class="ui-toggle" id="to-desktop">↗ volle Ansicht</button><br>
     Daten: Open-Meteo · DWD (Bright Sky)<br>
-    <span class="app-version">WEATH3R v7.6</span>
+    <span class="app-version">WEATH3R v8.0</span>
   </p>
 </div><!-- /#watch-ui -->
 
@@ -2206,6 +2224,14 @@ function rangeLabel(day){
   if(lo===Infinity) return "";
   return `${Math.round(lo)}° / ${Math.round(hi)}°`;
 }
+// Hero day range with subtle ↓/↑ arrows and tabular figures.
+function rangeHTML(day){
+  let lo=Infinity,hi=-Infinity;
+  (day.temp||[]).forEach(m=>m.pts.forEach(p=>{lo=Math.min(lo,p.y);hi=Math.max(hi,p.y);}));
+  if(lo===Infinity) return "";
+  return `<span class="hl"><span class="arw">↓</span>${Math.round(lo)}°</span>`+
+         `<span class="hl"><span class="arw">↑</span>${Math.round(hi)}°</span>`;
+}
 
 // Extreme-weather chip: a single slot that surfaces whichever hazard is
 // currently most relevant (thunderstorm, heavy rain, snow, high wind).
@@ -2248,8 +2274,8 @@ function applyData(data){
   if(h){
     document.getElementById("now-temp").innerHTML=`${h.temp}<sup>°</sup>`;
     document.getElementById("now-cond").textContent=weatherWord(h.code,h.cloud,h.precip);
-    document.getElementById("now-range").textContent=rangeLabel(data.today);
-    document.getElementById("now-feels").textContent=h.feels!=null?`Gefühlt ${h.feels}°`:"";
+    document.getElementById("now-range").innerHTML=rangeHTML(data.today);
+    document.getElementById("now-feels").innerHTML=h.feels!=null?`<span class="lbl">Gefühlt</span>${h.feels}°`:"";
     const f=x=>(Math.round(x*10)/10).toString().replace(".",",");
     document.getElementById("chip-rain").textContent=h.precip>0.05?`${f(h.precip)} mm`:"0 mm";
     document.getElementById("chip-wind").textContent=`${h.wind} km/h`;
@@ -2774,6 +2800,59 @@ if(document.documentElement.dataset.uiMode!=="watch") boot();
     ctx.restore();
   }
 
+  // --- major German rivers (embedded, slim polylines in [lon,lat]) ----------
+  // The 8 largest/most recognisable, simplified for orientation. Projected via
+  // the same radProj + user anchor as the borders, so they line up on the grid.
+  const RIVERS=[
+    {name:"Rhein",pts:[[7.59,47.56],[7.62,48.00],[8.18,48.78],[8.40,49.01],[8.30,49.40],[8.27,50.00],[7.60,50.36],[7.10,50.73],[6.96,50.94],[6.77,51.23],[6.73,51.43],[6.40,51.66],[6.24,51.83]]},
+    {name:"Elbe",pts:[[13.74,51.05],[13.29,51.31],[12.90,51.58],[12.65,51.87],[12.24,52.09],[11.63,52.13],[11.75,52.75],[11.75,52.99],[11.27,53.03],[10.60,53.37],[9.99,53.55],[9.20,53.55],[8.90,53.80],[8.70,53.87]]},
+    {name:"Donau",pts:[[8.50,47.95],[9.20,48.20],[9.99,48.40],[10.90,48.62],[11.42,48.76],[12.10,49.02],[12.58,48.88],[13.00,48.75],[13.43,48.57]]},
+    {name:"Main",pts:[[11.90,50.10],[11.00,50.05],[10.89,49.89],[10.20,49.80],[9.93,49.79],[9.51,49.76],[9.15,49.97],[8.90,50.00],[8.68,50.11],[8.45,50.02],[8.27,50.00]]},
+    {name:"Weser",pts:[[9.65,51.41],[9.50,51.70],[9.36,52.10],[9.10,52.20],[8.92,52.29],[9.10,52.45],[9.22,52.64],[8.98,52.85],[8.80,53.08],[8.62,53.30],[8.58,53.54]]},
+    {name:"Spree",pts:[[14.33,51.76],[14.05,51.85],[13.90,51.94],[14.06,52.20],[14.06,52.36],[13.75,52.40],[13.62,52.44],[13.50,52.48],[13.40,52.52],[13.20,52.53]]},
+    {name:"Havel",pts:[[13.03,53.00],[13.24,52.75],[13.20,52.53],[13.10,52.44],[13.06,52.40],[12.80,52.40],[12.55,52.41],[12.30,52.55],[12.08,52.83],[11.95,52.86]]},
+    {name:"Oder",pts:[[14.70,51.90],[14.60,52.06],[14.55,52.34],[14.64,52.60],[14.42,52.83],[14.28,53.06],[14.38,53.30],[14.55,53.43]]}
+  ];
+  function drawRivers(ctx, G, light){
+    if(!map || map.userLon==null) return;
+    ctx.save();
+    // subtle water-blue, clearly behind the rain but readable for orientation
+    ctx.strokeStyle = light ? "rgba(40,110,190,.40)" : "rgba(96,166,235,.42)";
+    ctx.lineWidth=1.6; ctx.lineJoin="round"; ctx.lineCap="round";
+    RIVERS.forEach(r=>{
+      ctx.beginPath();
+      let started=false;
+      for(let i=0;i<r.pts.length;i++){
+        const c=lonLatToCell(r.pts[i][0], r.pts[i][1]); if(!c) continue;
+        const p=G(c.gx, c.gy);
+        if(!started){ ctx.moveTo(p.x,p.y); started=true; } else ctx.lineTo(p.x,p.y);
+      }
+      ctx.stroke();
+    });
+    ctx.restore();
+  }
+
+  // Cache borders + rivers on a static offscreen layer; only re-render it when
+  // the transform (zoom/pan/resize) or theme actually changes — so the 12-frame
+  // playback just blits the layer instead of re-projecting every vertex.
+  let geoLayer=null, geoKey="";
+  function ensureGeoLayer(cssW,cssH,ox,oy,scale,light){
+    const key=[Math.round(ox),Math.round(oy),scale.toFixed(4),light?1:0,
+               map?map.userX:0, map?map.userY:0,
+               borderRings?borderRings.length:0].join("|");
+    if(geoLayer && geoKey===key) return geoLayer;
+    if(!geoLayer) geoLayer=document.createElement("canvas");
+    geoLayer.width=Math.round(cssW*DPR); geoLayer.height=Math.round(cssH*DPR);
+    const gctx=geoLayer.getContext("2d");
+    gctx.setTransform(DPR,0,0,DPR,0,0);
+    gctx.clearRect(0,0,cssW,cssH);
+    const G=(gx,gy)=>({x:ox+gx*scale, y:oy+gy*scale});
+    drawRivers(gctx, G, light);   // rivers first (under borders)
+    drawBorders(gctx, G, light);
+    geoKey=key;
+    return geoLayer;
+  }
+
   function fmtTime(dt){
     return dt.getHours()+":"+String(dt.getMinutes()).padStart(2,"0");
   }
@@ -2811,8 +2890,9 @@ if(document.documentElement.dataset.uiMode!=="watch") boot();
     ctx.imageSmoothingEnabled=true; ctx.globalAlpha=1;
     ctx.drawImage(pre[idx], ox, oy, dw, dh);
 
-    // borders overlay (Germany + states), if loaded
-    drawBorders(ctx, G, isLightTheme());
+    // rivers + borders overlay, rendered once to a cached layer and blitted
+    const geo=ensureGeoLayer(cssW,cssH,ox,oy,scale,isLightTheme());
+    if(geo) ctx.drawImage(geo, 0,0,cssW,cssH);
 
     const u=G(map.userX, map.userY);
     const isLight=document.documentElement.getAttribute("data-theme")==="light";
