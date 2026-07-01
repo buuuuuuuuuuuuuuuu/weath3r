@@ -1,8 +1,8 @@
 {
   "name": "WEATH3R",
   "short_name": "WEATH3R",
-  "version": "8.4",
-  "description": "WEATH3R v8.4 – Multi-Modell-Wettervorhersage",
+  "version": "8.5",
+  "description": "WEATH3R v8.5 – Multi-Modell-Wettervorhersage",
   "_note_watch_start_url": "Für eine separate Watch-PWA-Installation kann start_url auf \"./?watch=1\" gesetzt werden.",
   "start_url": "./index.html",
   "scope": "./",
