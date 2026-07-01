@@ -11,14 +11,14 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="WEATH3R">
-<title>WEATH3R v7.5</title>
+<title>WEATH3R v7.6</title>
 <script>
 /* ============================================================
    WEATH3R · global config + UI-mode detection
    Runs synchronously in <head> BEFORE the body renders so the
    correct GUI is shown immediately (no layout flash).
    ============================================================ */
-window.APP_VERSION = "v7.5";
+window.APP_VERSION = "v7.6";
 
 function getUiMode(){
   var mode=null, explicit=false;
@@ -425,12 +425,36 @@ getUiMode();
   }
   /* ---------- Hero weather icon ---------- */
   .wx-icon{
-    flex:none;width:46px;height:46px;border-radius:50%;
-    border:1px solid var(--stroke);background:rgba(255,255,255,.04);
-    display:grid;place-items:center;margin:0 4px;padding:0;cursor:default;
-    transition:.2s;
+    flex:none;width:62px;height:62px;
+    border:none;background:none;border-radius:0;
+    display:grid;place-items:center;margin:0 2px;padding:0;cursor:default;
   }
-  .wx-icon svg{width:30px;height:30px;display:block}
+  .wx-icon svg{width:62px;height:62px;display:block;overflow:visible}
+
+  /* ---------- Animated weather icon ---------- */
+  .wxi{overflow:visible}
+  .wxi .wx-sun{transform-box:fill-box;transform-origin:center;animation:wxSunPulse 3.2s ease-in-out infinite}
+  .wxi .wx-rays{transform-box:fill-box;transform-origin:center;animation:wxRays 3.2s ease-in-out infinite}
+  .wxi .wx-moon{transform-box:fill-box;transform-origin:center;animation:wxMoon 4.5s ease-in-out infinite}
+  .wxi .wx-cloud-front{transform-box:fill-box;transform-origin:center;animation:wxDriftA 6s ease-in-out infinite}
+  .wxi .wx-cloud-back{transform-box:fill-box;transform-origin:center;animation:wxDriftB 8s ease-in-out infinite}
+  .wxi .wx-drop{transform-box:fill-box;transform-origin:center;animation:wxDrop 1.5s ease-in infinite}
+  .wxi .wx-drop.d2{animation-delay:.5s}
+  .wxi .wx-drop.d3{animation-delay:1s}
+  .wxi .wx-flake{transform-box:fill-box;transform-origin:center;animation:wxFlake 2.8s ease-in-out infinite}
+  .wxi .wx-flake.f2{animation-delay:.9s}
+  .wxi .wx-flake.f3{animation-delay:1.8s}
+  .wxi .wx-bolt{transform-box:fill-box;transform-origin:center;animation:wxFlash 3.4s steps(1,end) infinite}
+  .wxi .wx-fog{transform-box:fill-box;transform-origin:center;animation:wxFog 4s ease-in-out infinite}
+  @keyframes wxSunPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
+  @keyframes wxRays{0%,100%{transform:scale(1);opacity:.95}50%{transform:scale(1.08);opacity:.6}}
+  @keyframes wxMoon{0%,100%{transform:scale(1) rotate(0)}50%{transform:scale(1.06) rotate(-4deg)}}
+  @keyframes wxDriftA{0%,100%{transform:translateX(-4.5px)}50%{transform:translateX(4.5px)}}
+  @keyframes wxDriftB{0%,100%{transform:translateX(4px)}50%{transform:translateX(-4px)}}
+  @keyframes wxDrop{0%{transform:translateY(-7px);opacity:0}25%{opacity:1}70%{opacity:1}100%{transform:translateY(9px);opacity:0}}
+  @keyframes wxFlake{0%{transform:translate(0,-6px);opacity:0}25%{opacity:1}100%{transform:translate(3px,9px);opacity:0}}
+  @keyframes wxFlash{0%,88%,100%{opacity:.28}90%,96%{opacity:1}}
+  @keyframes wxFog{0%,100%{transform:translateX(-3px)}50%{transform:translateX(3px)}}
 
   /* ---------- Modal ---------- */
   .modal-overlay{
@@ -532,8 +556,8 @@ getUiMode();
   #watch-ui .whero-main{display:flex;align-items:center;justify-content:center;gap:6px}
   #watch-ui .whero .temp{font-size:104px;font-weight:650;letter-spacing:-.05em;line-height:.86}
   #watch-ui .whero .temp sup{font-size:34px;font-weight:500;vertical-align:top;top:.16em;position:relative;color:var(--ink-2)}
-  #watch-ui .whero .wicon{flex:none;width:52px;height:52px}
-  #watch-ui .whero .wicon svg{width:52px;height:52px;display:block}
+  #watch-ui .whero .wicon{flex:none;width:56px;height:56px}
+  #watch-ui .whero .wicon svg{width:56px;height:56px;display:block;overflow:visible}
   #watch-ui .whero .cond{font-size:17px;font-weight:600;margin-top:1px}
   #watch-ui .whero .sub{font-size:14px;color:var(--ink-2);margin-top:2px}
   #watch-ui .whero .feels{color:var(--feels)}
@@ -733,7 +757,7 @@ getUiMode();
     <b>Multi-Modell-Ansicht.</b> Drei unabhängige Wettermodelle laufen parallel — AROME (durchgezogen), ICON-D2 (gestrichelt), ECMWF (gepunktet). Liegen die Linien nah beieinander, ist die Prognose sicher; spreizen sie sich, ist sie unsicher. Farbe codiert die Wärme, das Linienmuster die Modell-Identität.<br>
     <span id="data-status"></span> Wetterdaten: <b>Open-Meteo.com</b> (CC BY 4.0). Regenradar &amp; Warnungen: <b>DWD</b> via Bright Sky.<br>
     <button class="ui-toggle" id="to-watch">⌚ Watch-Ansicht</button>
-    <span class="app-version" id="ver-desktop" style="margin-left:10px">WEATH3R v7.5</span>
+    <span class="app-version" id="ver-desktop" style="margin-left:10px">WEATH3R v7.6</span>
   </p>
 
 </div>
@@ -792,7 +816,7 @@ getUiMode();
     <span id="wstatus"></span><br>
     <button class="ui-toggle" id="to-desktop">↗ volle Ansicht</button><br>
     Daten: Open-Meteo · DWD (Bright Sky)<br>
-    <span class="app-version">WEATH3R v7.5</span>
+    <span class="app-version">WEATH3R v7.6</span>
   </p>
 </div><!-- /#watch-ui -->
 
@@ -2106,29 +2130,59 @@ function dayLabelFromOffset(off){
 
 /* ---------- Dynamic weather icon (driven by WMO weather code) ---------- */
 function weatherIconSVG(code, cloud, precip, isDay){
-  const sun='#ffcf4a', moon='#ccd6e6', cl='#9aa6b6', cl2='#7b8694', rain='#3d9be9', snow='#bfe3ff', bolt='#b07bff';
-  const S=(inner)=>`<svg viewBox="0 0 32 32" fill="none" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`;
-  const sunC=`<circle cx="16" cy="13" r="6" fill="${sun}"/>`+
-    [0,45,90,135,180,225,270,315].map(a=>{const r=a*Math.PI/180,x=16+Math.cos(r)*10,y=13+Math.sin(r)*10,x2=16+Math.cos(r)*12.5,y2=13+Math.sin(r)*12.5;return `<line x1="${x.toFixed(1)}" y1="${y.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="${sun}" stroke-width="2"/>`;}).join('');
-  const moonC=`<path d="M22 14.5A7 7 0 1 1 13.5 6 5.6 5.6 0 0 0 22 14.5z" fill="${moon}"/>`;
-  const cloudC=(cx,cy,c)=>`<path d="M${cx-8} ${cy+3} a4.5 4.5 0 0 1 0-9 6 6 0 0 1 11.5-1.6 4 4 0 0 1 .5 8 z" fill="${c}"/>`;
+  const SUN='#ffce4d', SUNL='#ffdf87', MOON='#cfd8ea', CLOUD='#9aa6b6', CLOUD2='#c3ccd8', RAIN='#46a6ea', SNOW='#dcefff', BOLT='#b98cff';
+  const S=(inner)=>`<svg class="wxi" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">${inner}</svg>`;
+  // sun: pulsing disc + gently breathing rays
+  const sun=(cx,cy,r,cls)=>{
+    const rays=[0,45,90,135,180,225,270,315].map(a=>{const rad=a*Math.PI/180,
+      x1=cx+Math.cos(rad)*(r+3.5),y1=cy+Math.sin(rad)*(r+3.5),
+      x2=cx+Math.cos(rad)*(r+7.5),y2=cy+Math.sin(rad)*(r+7.5);
+      return `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="${SUN}" stroke-width="3" stroke-linecap="round"/>`;}).join('');
+    return `<g class="wx-rays ${cls||''}">${rays}</g>`+
+           `<circle class="wx-sun ${cls||''}" cx="${cx}" cy="${cy}" r="${r}" fill="${SUN}"/>`+
+           `<circle class="wx-sun ${cls||''}" cx="${cx}" cy="${cy}" r="${(r*0.62).toFixed(1)}" fill="${SUNL}"/>`;
+  };
+  const moon=(cx,cy,r,cls)=>`<g class="wx-moon ${cls||''}"><path d="M${cx+r} ${cy+2} A${r} ${r} 0 1 1 ${cx-2} ${cy-r} A${r*0.78} ${r*0.78} 0 0 0 ${cx+r} ${cy+2} Z" fill="${MOON}"/></g>`;
+  // cloud as a soft circle cluster; cls drives the drift animation
+  const cloudAt=(cx,cy,s,col,cls,op)=>`<g class="${cls||''}" fill="${col}"${op?` opacity="${op}"`:''}>`+
+      `<circle cx="${cx-11*s}" cy="${cy+4*s}" r="${8*s}"/>`+
+      `<circle cx="${cx}" cy="${cy-2*s}" r="${11*s}"/>`+
+      `<circle cx="${cx+12*s}" cy="${cy+4*s}" r="${8*s}"/>`+
+      `<rect x="${cx-19*s}" y="${cy+3*s}" width="${38*s}" height="${11*s}" rx="${5.5*s}"/></g>`;
+
+  const c=code, hasRain = precip>0.1 || (c>=51&&c<=67) || c===80||c===81||c===82;
   let inner;
-  const c = code;
-  if(precip>0.1 || (c>=51&&c<=67) || c===80||c===81||c===82){
-    inner=cloudC(18,12,cl)+`<line x1="11" y1="22" x2="9.5" y2="26" stroke="${rain}" stroke-width="2"/><line x1="16" y1="22" x2="14.5" y2="26" stroke="${rain}" stroke-width="2"/><line x1="21" y1="22" x2="19.5" y2="26" stroke="${rain}" stroke-width="2"/>`;
+
+  if(hasRain){
+    inner = cloudAt(32,26,1,CLOUD,'wx-cloud-front')+
+      `<g stroke="${RAIN}" stroke-width="3.2" stroke-linecap="round">`+
+      `<line class="wx-drop d1" x1="22" y1="42" x2="20" y2="48"/>`+
+      `<line class="wx-drop d2" x1="32" y1="42" x2="30" y2="48"/>`+
+      `<line class="wx-drop d3" x1="42" y1="42" x2="40" y2="48"/>`+
+      `</g>`;
   } else if(c>=95){
-    inner=cloudC(18,11,cl2)+`<path d="M16 20 l-3 5 h3 l-2 4" stroke="${bolt}" stroke-width="2" fill="none"/>`;
+    inner = cloudAt(32,24,1,'#8a95a6','wx-cloud-front')+
+      `<path class="wx-bolt" d="M34 40 l-8 12 h6 l-4 10 12 -15 h-7 l5 -7 z" fill="${BOLT}"/>`;
   } else if((c>=71&&c<=77)||c===85||c===86){
-    inner=cloudC(18,12,cl)+`<g stroke="${snow}" stroke-width="1.8">`+[10,16,22].map(x=>`<line x1="${x}" y1="22" x2="${x}" y2="27"/><line x1="${x-2}" y1="23.5" x2="${x+2}" y2="25.5"/><line x1="${x+2}" y1="23.5" x2="${x-2}" y2="25.5"/>`).join('')+`</g>`;
+    inner = cloudAt(32,24,1,CLOUD,'wx-cloud-front')+
+      `<g fill="${SNOW}">`+
+      `<circle class="wx-flake f1" cx="22" cy="44" r="2.4"/>`+
+      `<circle class="wx-flake f2" cx="32" cy="44" r="2.4"/>`+
+      `<circle class="wx-flake f3" cx="42" cy="44" r="2.4"/>`+
+      `</g>`;
   } else if(c>=45&&c<=48){
-    inner=cloudC(18,9,cl)+`<g stroke="${cl2}" stroke-width="2"><line x1="7" y1="23" x2="25" y2="23"/><line x1="9" y1="27" x2="23" y2="27"/></g>`;
+    inner = `<g class="wx-fog" stroke="${CLOUD}" stroke-width="3.4" stroke-linecap="round">`+
+      `<line x1="16" y1="26" x2="48" y2="26"/><line x1="12" y1="34" x2="46" y2="34"/>`+
+      `<line x1="18" y1="42" x2="44" y2="42"/></g>`;
   } else if(c===0 || (cloud!=null && cloud<25)){
-    inner = isDay? sunC : moonC;
+    inner = isDay ? sun(32,32,12) : moon(34,30,13);
   } else if(c<=2 || (cloud!=null && cloud<60)){
-    // partly cloudy
-    inner=(isDay?`<circle cx="12" cy="11" r="5" fill="${sun}"/>`+[0,45,90,315].map(a=>{const r=a*Math.PI/180;return `<line x1="${(12+Math.cos(r)*8).toFixed(1)}" y1="${(11+Math.sin(r)*8).toFixed(1)}" x2="${(12+Math.cos(r)*10).toFixed(1)}" y2="${(11+Math.sin(r)*10).toFixed(1)}" stroke="${sun}" stroke-width="2"/>`;}).join(''):`<path d="M16 12.5A5 5 0 1 1 10 6 4 4 0 0 0 16 12.5z" fill="${moon}"/>`)+cloudC(20,15,cl);
+    // partly cloudy: sun/moon peeking, cloud drifting in front
+    inner = (isDay ? sun(24,22,9) : moon(26,20,10)) + cloudAt(36,34,1,CLOUD,'wx-cloud-front');
   } else {
-    inner=cloudC(16,13,cl);
+    // overcast: two clouds, one drifting past the other
+    inner = cloudAt(30,22,0.72,CLOUD2,'wx-cloud-back',0.75)+
+            cloudAt(34,36,1,CLOUD,'wx-cloud-front');
   }
   return S(inner);
 }
