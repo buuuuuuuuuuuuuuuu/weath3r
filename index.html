@@ -11,14 +11,14 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="WEATH3R">
-<title>WEATH3R v8.0</title>
+<title>WEATH3R v8.1</title>
 <script>
 /* ============================================================
    WEATH3R · global config + UI-mode detection
    Runs synchronously in <head> BEFORE the body renders so the
    correct GUI is shown immediately (no layout flash).
    ============================================================ */
-window.APP_VERSION = "v8.0";
+window.APP_VERSION = "v8.1";
 
 function getUiMode(){
   var mode=null, explicit=false;
@@ -775,7 +775,7 @@ getUiMode();
     <b>Multi-Modell-Ansicht.</b> Drei unabhängige Wettermodelle laufen parallel — AROME (durchgezogen), ICON-D2 (gestrichelt), ECMWF (gepunktet). Liegen die Linien nah beieinander, ist die Prognose sicher; spreizen sie sich, ist sie unsicher. Farbe codiert die Wärme, das Linienmuster die Modell-Identität.<br>
     <span id="data-status"></span> Wetterdaten: <b>Open-Meteo.com</b> (CC BY 4.0). Regenradar &amp; Warnungen: <b>DWD</b> via Bright Sky.<br>
     <button class="ui-toggle" id="to-watch">⌚ Watch-Ansicht</button>
-    <span class="app-version" id="ver-desktop" style="margin-left:10px">WEATH3R v8.0</span>
+    <span class="app-version" id="ver-desktop" style="margin-left:10px">WEATH3R v8.1</span>
   </p>
 
 </div>
@@ -834,7 +834,7 @@ getUiMode();
     <span id="wstatus"></span><br>
     <button class="ui-toggle" id="to-desktop">↗ volle Ansicht</button><br>
     Daten: Open-Meteo · DWD (Bright Sky)<br>
-    <span class="app-version">WEATH3R v8.0</span>
+    <span class="app-version">WEATH3R v8.1</span>
   </p>
 </div><!-- /#watch-ui -->
 
@@ -1288,6 +1288,27 @@ const AURORA = (function(){
     return transform(per, geo);
   }
 
+  // ---- accurate "right now" snapshot (same call the Watch UI uses) ----
+  // The multi-model hourly arrays are bucketed to the top of each hour, so the
+  // desktop hero used to show the value for "this hour" rounded to the nearest
+  // hour from a single model — that can lag a few minutes to ~30min behind
+  // reality (e.g. rain that just started). Open-Meteo's dedicated `current`
+  // block is a true instantaneous reading, not tied to any one model, and is
+  // what the Watch already relies on. Fetching it here too keeps both UIs
+  // showing the identical, accurate "now" — this call intentionally omits
+  // &models= so it isn't split/suffixed like the forecast arrays.
+  async function fetchCurrent(geo){
+    const u=new URL("https://api.open-meteo.com/v1/forecast");
+    u.searchParams.set("latitude", geo.lat);
+    u.searchParams.set("longitude", geo.lon);
+    u.searchParams.set("current",["temperature_2m","apparent_temperature","precipitation","weather_code","cloud_cover","wind_speed_10m"].join(","));
+    u.searchParams.set("timezone","auto");
+    const res=await fetch(u.toString());
+    if(!res.ok) throw new Error("current "+res.status);
+    const json=await res.json();
+    return json.current||null;
+  }
+
   // ---- DWD warnings via Bright Sky (free, no key, CORS-enabled) ----
   // Returns array of {event, headline, description, severity, sev (0..3),
   //   onsetH, expiresH} where onsetH/expiresH are hour-of-day floats for
@@ -1409,6 +1430,22 @@ const AURORA = (function(){
     let geo=await getLocation();
     try{
       const data=await fetchData(geo);
+      // overlay a true "right now" snapshot onto the hero (see fetchCurrent
+      // above) so the desktop hero matches the Watch's accuracy; best-effort,
+      // falls back silently to the hourly-derived estimate if it fails
+      try{
+        const cur=await fetchCurrent(geo);
+        if(cur && data.hero){
+          if(cur.temperature_2m!=null) data.hero.temp=Math.round(cur.temperature_2m);
+          if(cur.apparent_temperature!=null) data.hero.feels=Math.round(cur.apparent_temperature);
+          if(cur.cloud_cover!=null) data.hero.cloud=cur.cloud_cover;
+          if(cur.precipitation!=null) data.hero.precip=cur.precipitation;
+          if(cur.wind_speed_10m!=null) data.hero.wind=Math.round(cur.wind_speed_10m);
+          if(cur.weather_code!=null) data.hero.code=cur.weather_code;
+          // prob (precipitation_probability) has no equivalent in `current` —
+          // keep the hourly-derived estimate for that one field
+        }
+      }catch(e){ /* keep hourly-derived hero values */ }
       // resolve place name AFTER weather succeeds; never let it block
       try{ await resolveName(geo); }catch(e){}
       data.geo=geo;
