@@ -2,7 +2,7 @@
    - offline shell + last-data cache
    - immediate activation, then notifies open clients of updates
    ← bump CACHE on every deploy (matches APP_VERSION) */
-const CACHE = "weath3r-v8.6";
+const CACHE = "weath3r-v9.0";
 const ASSETS = [
   "./",
   "./index.html",
@@ -52,4 +52,35 @@ self.addEventListener("fetch", e=>{
     );
   }
   // cross-origin: let the network handle it; no caching of API calls
+});
+
+// Incoming Web Push message (sent by the weath3r-push Cloudflare Worker) →
+// show a native notification. Falls back gracefully if the payload isn't JSON.
+self.addEventListener("push", e=>{
+  let data = { title:"WEATH3R", body:"Regen könnte bald eintreffen." };
+  try{ if(e.data) data = e.data.json(); }catch(err){
+    try{ if(e.data) data.body = e.data.text(); }catch(err2){}
+  }
+  const title = data.title || "WEATH3R";
+  const options = {
+    body: data.body || "",
+    icon: "./icon-192.png",
+    badge: "./icon-192.png",
+    tag: data.tag || "weath3r-rain-alert",
+    renotify: true,
+    data: { url: "./" },
+  };
+  e.waitUntil(self.registration.showNotification(title, options));
+});
+
+// Tapping the notification focuses an already-open tab, or opens a new one.
+self.addEventListener("notificationclick", e=>{
+  e.notification.close();
+  const targetUrl = (e.notification.data && e.notification.data.url) || "./";
+  e.waitUntil(
+    self.clients.matchAll({ type:"window", includeUncontrolled:true }).then(list=>{
+      for(const c of list){ if("focus" in c) return c.focus(); }
+      if(self.clients.openWindow) return self.clients.openWindow(targetUrl);
+    })
+  );
 });
