@@ -11,14 +11,14 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="WEATH3R">
-<title>WEATH3R v9.2</title>
+<title>WEATH3R v9.3</title>
 <script>
 /* ============================================================
    WEATH3R · global config + UI-mode detection
    Runs synchronously in <head> BEFORE the body renders so the
    correct GUI is shown immediately (no layout flash).
    ============================================================ */
-window.APP_VERSION = "v9.2";
+window.APP_VERSION = "v9.3";
 
 function getUiMode(){
   var mode=null, explicit=false;
@@ -265,13 +265,8 @@ getUiMode();
   .hero-top{display:flex;align-items:stretch;gap:12px;position:relative}
   .now-temp{font-size:clamp(58px,17vw,74px);font-weight:600;letter-spacing:-.04em;line-height:.9;flex:none;align-self:center}
   .now-temp sup{font-size:26px;font-weight:500;vertical-align:top;top:.18em;position:relative;color:var(--ink-2)}
-  .now-meta{text-align:left;flex:none;display:flex;flex-direction:column;justify-content:space-between}
-  .now-cond{font-size:17px;font-weight:600;color:var(--ink);letter-spacing:-.01em}
-  .now-range{font-size:13px;color:var(--ink-2);margin-top:3px;font-variant-numeric:tabular-nums;
-    display:flex;align-items:center;gap:8px}
-  .now-range .hl{display:inline-flex;align-items:center;gap:2px}
-  .now-range .arw{font-size:10px;color:var(--ink-3)}
-  .now-feels{font-size:12px;color:var(--feels);margin-top:4px;font-weight:600;
+  .now-meta{text-align:left;flex:none;display:flex;flex-direction:column;justify-content:center;align-self:center}
+  .now-feels{font-size:13px;color:var(--feels);font-weight:600;
     letter-spacing:.03em}
   .now-feels .lbl{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);
     font-weight:600;margin-right:5px}
@@ -465,11 +460,12 @@ getUiMode();
   }
   /* ---------- Hero weather icon ---------- */
   .wx-icon{
-    flex:none;width:54px;height:54px;
+    flex:none;width:76px;height:76px;
     border:none;background:none;border-radius:0;
-    display:grid;place-items:center;margin:0;padding:0;cursor:default;
+    display:grid;place-items:center;margin:0 0 0 auto;padding:0;cursor:default;
+    align-self:center;
   }
-  .wx-icon svg{width:54px;height:54px;display:block;overflow:visible}
+  .wx-icon svg{width:76px;height:76px;display:block;overflow:visible}
 
   /* ---------- Animated weather icon ---------- */
   .wxi{overflow:visible}
@@ -537,8 +533,7 @@ getUiMode();
   @media (max-width:340px){
     .hero-top{gap:10px}
     .now-temp sup{font-size:22px}
-    .now-cond{font-size:14px}
-    .now-range,.now-feels{font-size:12px}
+    .now-feels{font-size:12px}
     .chip{font-size:9px;padding:3px 6px}
     .chip .dot{width:4px;height:4px}
     .loc h1{font-size:18px}
@@ -721,8 +716,6 @@ getUiMode();
     <div class="hero-top">
       <div class="now-temp" id="now-temp">–<sup>°</sup></div>
       <div class="now-meta">
-        <div class="now-cond" id="now-cond">Lädt…</div>
-        <div class="now-range" id="now-range">–</div>
         <div class="now-feels" id="now-feels"></div>
       </div>
       <button class="wx-icon" id="wx-icon" aria-label="Aktuelles Wetter" style="display:none"></button>
@@ -803,7 +796,7 @@ getUiMode();
     <b>Multi-Modell-Ansicht.</b> Drei unabhängige Wettermodelle laufen parallel — AROME (durchgezogen), ICON-D2 (gestrichelt), ECMWF (gepunktet). Liegen die Linien nah beieinander, ist die Prognose sicher; spreizen sie sich, ist sie unsicher. Farbe codiert die Wärme, das Linienmuster die Modell-Identität.<br>
     <span id="data-status"></span> Wetterdaten: <b>Open-Meteo.com</b> (CC BY 4.0). Regenradar &amp; Warnungen: <b>DWD</b> via Bright Sky.<br>
     <button class="ui-toggle" id="to-watch">⌚ Watch-Ansicht</button>
-    <span class="app-version" id="ver-desktop" style="margin-left:10px">WEATH3R v9.2</span>
+    <span class="app-version" id="ver-desktop" style="margin-left:10px">WEATH3R v9.3</span>
   </p>
 
 </div>
@@ -858,7 +851,7 @@ getUiMode();
     <span id="wstatus"></span><br>
     <button class="ui-toggle" id="to-desktop">↗ volle Ansicht</button><br>
     Daten: Open-Meteo · DWD (Bright Sky)<br>
-    <span class="app-version">WEATH3R v9.2</span>
+    <span class="app-version">WEATH3R v9.3</span>
   </p>
 </div><!-- /#watch-ui -->
 
@@ -2057,22 +2050,31 @@ function drawNowcastRadar(canvasId){
   ctx.setTransform(DPR,0,0,DPR,0,0);
   ctx.clearRect(0,0,W,H);
 
-  const padL=40,padR=4,padB=18,padT=12;
+  const padL=30,padR=30,padB=18,padT=17;
   const x0=padL,x1=W-padR,plotW=x1-x0;
   const total=NOWCAST.totalMins||120;
   const X = mins => x0 + (mins/total)*plotW;
   const baseY=H-padB;
   const barMax=H-padB-padT;
 
-  // y-axis: mm/h reference lines (match the sqrt scale in radarInten)
+  // left axis: relative intensity as % (0–100% of the same scale the bars/line use)
   ctx.font="9px "+getComputedStyle(document.body).fontFamily;
-  ctx.textAlign="right";ctx.textBaseline="middle";
-  [[1.0,"8 mm/h"],[0.5,"2 mm/h"]].forEach(([frac,lbl])=>{
+  ctx.textAlign="left";ctx.textBaseline="middle";
+  [[1.0,"100%"],[0.5,"50%"]].forEach(([frac,lbl])=>{
     const y=padT+(1-frac)*barMax;
     ctx.strokeStyle=cssVar("--c-grid");ctx.lineWidth=1;
     ctx.beginPath();ctx.moveTo(x0,y);ctx.lineTo(x1,y);ctx.stroke();
     ctx.fillStyle=cssVar("--c-axis");
-    ctx.fillText(lbl, x0-4, Math.max(y, 7));
+    ctx.fillText(lbl, 2, Math.max(y, 7));
+  });
+  // right axis: mm/h reference (rounded, smaller — same visual scale as the bars)
+  ctx.font="8px "+getComputedStyle(document.body).fontFamily;
+  ctx.textAlign="left";ctx.textBaseline="middle";
+  ctx.fillStyle=cssVar("--c-axis");
+  ctx.fillText("mm/h", x1+5, 6);
+  [[1.0,"10"],[0.5,"5"]].forEach(([frac,lbl])=>{
+    const y=padT+(1-frac)*barMax;
+    ctx.fillText(lbl, x1+5, Math.max(y, 7));
   });
 
   function inColor(v){
@@ -2341,8 +2343,6 @@ function applyData(data){
   const h=data.hero;
   if(h){
     document.getElementById("now-temp").innerHTML=`${h.temp}<sup>°</sup>`;
-    document.getElementById("now-cond").textContent=weatherWord(h.code,h.cloud,h.precip);
-    document.getElementById("now-range").innerHTML=rangeHTML(data.today);
     document.getElementById("now-feels").innerHTML=h.feels!=null?`<span class="lbl">Gefühlt</span>${h.feels}°`:"";
     const f=x=>(Math.round(x*10)/10).toString().replace(".",",");
     document.getElementById("chip-rain").textContent=h.precip>0.05?`${f(h.precip)} mm`:"0 mm";
@@ -2450,7 +2450,6 @@ async function boot(manual){
       setStatus("");
     }
   }catch(err){
-    document.getElementById("now-cond").textContent="Keine Verbindung";
     setStatus("Fehler: "+(err&&err.message?err.message:err)+" — Datei muss über http(s) geöffnet werden, nicht in einer Vorschau.");
     console.error(err);
   }finally{
