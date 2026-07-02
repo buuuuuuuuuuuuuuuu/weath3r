@@ -18,7 +18,7 @@
    Runs synchronously in <head> BEFORE the body renders so the
    correct GUI is shown immediately (no layout flash).
    ============================================================ */
-window.APP_VERSION = "v9.9";
+window.APP_VERSION = "v10.0";
 
 function getUiMode(){
   var mode=null, explicit=false;
@@ -99,10 +99,15 @@ getUiMode();
 
     --radius:20px;
     --radius-sm:14px;
+    --radius-xs:4px;
     --radius-pill:999px;
-    --pad:18px;
-    /* spacing scale (4px base) — one system everywhere */
+    --btn-round:34px;
+        /* spacing scale (4px base) — one system everywhere */
     --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:20px; --sp-6:24px; --sp-8:32px;
+    /* UI-Typo-Skala (Klein-/Fliesstext) */
+    --fs-xs:10px; --fs-sm:12px; --fs-base:14px; --fs-md:16px;
+    /* Display-Skala (Headlines/Hero) — bewusst separat von der UI-Skala */
+    --fd-sm:18px; --fd-md:21px; --fd-lg:26px; --fd-xl:54px;
     /* soft elevation — cards gently float above the background */
     --shadow-sm:0 1px 2px rgba(0,0,0,.30);
     --shadow-card:0 1px 2px rgba(0,0,0,.35), 0 8px 24px rgba(0,0,0,.22);
@@ -163,7 +168,7 @@ getUiMode();
   /* ---------- Header ---------- */
   .topbar{
     position:sticky;top:0;z-index:30;
-    padding:calc(env(safe-area-inset-top) + 14px) 4px 14px;
+    padding:calc(env(safe-area-inset-top) + var(--sp-4)) var(--sp-1) var(--sp-4);
     /* solid-enough backing that fully hides content scrolling underneath the
        title/buttons; the soft fade lives in ::after below so the glass edge
        stays invisible without letting content bleed through */
@@ -178,19 +183,19 @@ getUiMode();
   .topbar-row{display:flex;align-items:center;gap:10px;min-width:0;position:relative;z-index:1}
   .loc{flex:1;min-width:0}
   .loc .eyebrow{
-    font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+    font-size:var(--fs-xs);letter-spacing:.14em;text-transform:uppercase;
     color:var(--ink-3);font-weight:600;margin-bottom:3px;
   }
-  .loc h1{font-size:21px;font-weight:600;letter-spacing:-.01em;line-height:1.1;
+  .loc h1{font-size:var(--fd-md);font-weight:600;letter-spacing:-.01em;line-height:1.1;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .iconbtn{
-    width:38px;height:38px;border-radius:50%;flex:none;
+    width:var(--btn-round);height:var(--btn-round);border-radius:50%;flex:none;
     border:1px solid var(--stroke);background:var(--card);
     color:var(--ink-2);display:grid;place-items:center;cursor:pointer;
     transition:.2s;
   }
   .iconbtn:hover{color:var(--ink);border-color:rgba(255,255,255,.18)}
-  .iconbtn svg{width:17px;height:17px}
+  .iconbtn svg{width:50%;height:50%}
 
   /* refresh spin */
   @keyframes spin{to{transform:rotate(360deg)}}
@@ -210,33 +215,33 @@ getUiMode();
   }
   @keyframes locpop{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
   .locsheet-head{display:flex;align-items:center;margin-bottom:12px}
-  .locsheet-title{font-size:16px;font-weight:700;letter-spacing:-.01em}
-  .locsheet-close{margin-left:auto;width:32px;height:32px;border-radius:50%;border:1px solid var(--stroke);
+  .locsheet-title{font-size:var(--fs-md);font-weight:700;letter-spacing:-.01em}
+  .locsheet-close{margin-left:auto;width:var(--btn-round);height:var(--btn-round);border-radius:50%;border:1px solid var(--stroke);
     background:var(--card-2);color:var(--ink-2);display:grid;place-items:center;cursor:pointer}
-  .locsheet-close svg{width:15px;height:15px}
+  .locsheet-close svg{width:50%;height:50%}
   .locsearch-input{
-    width:100%;font-size:15px;color:var(--ink);background:var(--card-2);
-    border:1px solid var(--stroke);border-radius:12px;padding:11px 13px;outline:none;font-family:var(--font);
+    width:100%;font-size:var(--fs-md);color:var(--ink);background:var(--card-2);
+    border:1px solid var(--stroke);border-radius:var(--radius-sm);padding:var(--sp-3) var(--sp-3);outline:none;font-family:var(--font);
   }
   .locsearch-input:focus{border-color:rgba(120,160,220,.5)}
   .locgps-btn{
     width:100%;margin-top:10px;display:flex;align-items:center;gap:9px;justify-content:center;
-    font-size:13.5px;font-weight:600;color:var(--ink);background:var(--card-2);
-    border:1px solid var(--stroke);border-radius:12px;padding:11px;cursor:pointer;transition:.15s;
+    font-size:var(--fs-base);font-weight:600;color:var(--ink);background:var(--card-2);
+    border:1px solid var(--stroke);border-radius:var(--radius-sm);padding:var(--sp-3);cursor:pointer;transition:.15s;
   }
   .locgps-btn:hover{border-color:rgba(120,160,220,.45)}
   .locgps-btn svg{width:16px;height:16px;color:var(--rain)}
   .locresults{margin-top:10px;display:flex;flex-direction:column;gap:0}
   .locresult{
     text-align:left;background:none;border:none;border-top:1px solid var(--stroke-2);
-    padding:11px 4px;cursor:pointer;color:var(--ink);font-family:var(--font);
+    padding:var(--sp-3) var(--sp-1);cursor:pointer;color:var(--ink);font-family:var(--font);
     display:flex;flex-direction:column;gap:2px;
   }
   .locresult:first-child{border-top:none}
   .locresult:hover{background:var(--stroke-2)}
-  .locresult .lr-name{font-size:14px;font-weight:600}
-  .locresult .lr-sub{font-size:12px;color:var(--ink-3)}
-  .locsheet-hint{margin-top:10px;font-size:12px;color:var(--ink-3);line-height:1.5;min-height:16px}
+  .locresult .lr-name{font-size:var(--fs-base);font-weight:600}
+  .locresult .lr-sub{font-size:var(--fs-sm);color:var(--ink-3)}
+  .locsheet-hint{margin-top:10px;font-size:var(--fs-sm);color:var(--ink-3);line-height:1.5;min-height:16px}
   .locsheet-hint.err{color:var(--feels)}
 
   /* pull-to-refresh indicator */
@@ -254,7 +259,7 @@ getUiMode();
     margin-top:var(--sp-4);
     border:1px solid var(--stroke);border-radius:var(--radius);
     background:linear-gradient(160deg, var(--card-2), var(--card));
-    padding:var(--sp-4) var(--pad);
+    padding:var(--sp-4) var(--sp-4);
     position:relative;overflow:hidden;
     box-shadow:var(--shadow-card);
   }
@@ -264,18 +269,18 @@ getUiMode();
   }
   .hero-top{display:flex;align-items:stretch;gap:12px;position:relative}
   .now-temp{font-size:clamp(58px,17vw,74px);font-weight:600;letter-spacing:-.04em;line-height:.9;flex:none;align-self:center}
-  .now-temp sup{font-size:26px;font-weight:500;vertical-align:top;top:.18em;position:relative;color:var(--ink-2)}
+  .now-temp sup{font-size:var(--fd-lg);font-weight:500;vertical-align:top;top:.18em;position:relative;color:var(--ink-2)}
   .now-meta{text-align:left;flex:none;display:flex;flex-direction:column;justify-content:center;align-self:center;gap:8px}
-  .now-feels{font-size:13px;color:var(--feels);font-weight:600;
+  .now-feels{font-size:var(--fs-base);color:var(--feels);font-weight:600;
     letter-spacing:.03em}
-  .now-feels .lbl{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);
+  .now-feels .lbl{font-size:var(--fs-xs);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);
     font-weight:600;margin-right:5px}
   .chips{display:flex;flex-direction:column;gap:5px;align-items:flex-start;position:relative}
   .chip{
     display:inline-flex;align-items:center;gap:4px;
-    font-size:10px;font-weight:500;color:var(--ink-2);
+    font-size:var(--fs-xs);font-weight:500;color:var(--ink-2);
     background:var(--stroke-2);border:1px solid var(--stroke-2);
-    padding:3px 7px;border-radius:999px;white-space:nowrap;
+    padding:3px 7px;border-radius:var(--radius-pill);white-space:nowrap;
   }
   .chip b{color:var(--ink);font-weight:600}
   .chip .dot{width:5px;height:5px;border-radius:50%;flex:none}
@@ -292,12 +297,12 @@ getUiMode();
     box-shadow:var(--shadow-card);
   }
   .nowcast-head{display:flex;align-items:center;flex-wrap:wrap;row-gap:8px;column-gap:10px;margin-bottom:2px}
-  .nowcast-title{font-size:13px;font-weight:600;letter-spacing:.02em;color:var(--ink);flex:1 1 auto;min-width:0}
+  .nowcast-title{font-size:var(--fs-base);font-weight:600;letter-spacing:.02em;color:var(--ink);flex:1 1 auto;min-width:0}
   .nowcast-head-right{display:flex;align-items:center;gap:10px;margin-left:auto;flex:none}
   .nowcast-meta{margin:2px 0 4px}
   .nowcast-meta:has(.nowcast-src:empty){display:none}
-  .nowcast-src{font-size:10px;font-weight:600;letter-spacing:.03em;color:var(--ink-3);
-    border:1px solid var(--stroke-2);border-radius:999px;padding:2px 8px;display:inline-block}
+  .nowcast-src{font-size:var(--fs-xs);font-weight:600;letter-spacing:.03em;color:var(--ink-3);
+    border:1px solid var(--stroke-2);border-radius:var(--radius-pill);padding:2px 8px;display:inline-block}
   #cv-nowcast{min-height:96px}
   /* tappable header → expand radar map */
   .nowcast-head{cursor:pointer;user-select:none;-webkit-user-select:none}
@@ -308,10 +313,10 @@ getUiMode();
   /* ---------- Regen-Push-Benachrichtigung (im Kartenkopf, rechts) ---------- */
   .notify-btn{
     display:inline-flex;align-items:center;gap:5px;
-    font-size:11.5px;font-weight:600;font-family:var(--font);
+    font-size:var(--fs-sm);font-weight:600;font-family:var(--font);
     color:var(--ink-2);background:var(--stroke-2);
     border:1px solid var(--stroke-2);border-radius:var(--radius-pill);
-    padding:5px 11px 5px 9px;cursor:pointer;transition:.2s;
+    padding:5px var(--sp-3) 5px 9px;cursor:pointer;transition:.2s;
     white-space:nowrap;
   }
   .notify-btn:active{transform:scale(.97)}
@@ -322,7 +327,7 @@ getUiMode();
   .notify-btn.is-on .notify-icon{fill:#fff}
   .notify-btn.is-blocked{color:var(--ink-3);border-style:dashed;opacity:.8}
   .notify-hint{
-    margin-top:2px;margin-bottom:6px;font-size:11.5px;line-height:1.5;color:var(--ink-3);
+    margin-top:2px;margin-bottom:6px;font-size:var(--fs-sm);line-height:1.5;color:var(--ink-3);
   }
   /* collapsible radar map panel */
   .nowcast-map{
@@ -340,7 +345,7 @@ getUiMode();
   #cv-radarmap{display:block;width:100%;height:100%}
   .radarmap-status{
     position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-    text-align:center;padding:0 22px;font-size:12.5px;color:var(--ink-2);line-height:1.5;
+    text-align:center;padding:0 var(--sp-6);font-size:var(--fs-sm);color:var(--ink-2);line-height:1.5;
   }
   .radarmap-ctrl{display:flex;align-items:center;gap:10px;margin-top:9px}
   .radar-play{
@@ -351,35 +356,35 @@ getUiMode();
   .radar-play:hover{border-color:rgba(255,255,255,.2)}
   .radar-play svg{width:14px;height:14px}
   .radar-scrub{flex:1;accent-color:var(--rain);height:4px}
-  .radar-time{font-size:12px;font-weight:600;color:var(--ink);min-width:74px;text-align:right;
+  .radar-time{font-size:var(--fs-sm);font-weight:600;color:var(--ink);min-width:74px;text-align:right;
     font-variant-numeric:tabular-nums}
-  .radar-time .rel{display:block;font-size:10px;font-weight:500;color:var(--ink-3);margin-top:1px}
-  .radarmap-legend{display:flex;align-items:center;gap:0;margin-top:9px;height:8px;border-radius:4px;overflow:hidden}
+  .radar-time .rel{display:block;font-size:var(--fs-xs);font-weight:500;color:var(--ink-3);margin-top:1px}
+  .radarmap-legend{display:flex;align-items:center;gap:0;margin-top:9px;height:8px;border-radius:var(--radius-xs);overflow:hidden}
   .radarmap-legend i{flex:1;height:100%}
   .radarmap-foot{display:flex;justify-content:space-between;margin-top:6px;
-    font-size:10px;color:var(--ink-3);font-weight:500}
+    font-size:var(--fs-xs);color:var(--ink-3);font-weight:500}
 
   /* ---------- Section ---------- */
   .section-head{
     display:flex;align-items:baseline;gap:10px;
-    margin:var(--sp-6) var(--sp-1) var(--sp-3);
+    margin:var(--sp-6) var(--sp-3) var(--sp-3);
   }
-  .section-head h2{font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2)}
-  .section-head .sub{font-size:12px;color:var(--ink-3);margin-left:auto}
+  .section-head h2{font-size:var(--fs-base);font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2)}
+  .section-head .sub{font-size:var(--fs-sm);color:var(--ink-3);margin-left:auto}
 
   /* ---------- Model legend ---------- */
   .legend{
-    display:flex;gap:14px;flex-wrap:wrap;
+    display:flex;gap:var(--sp-4);flex-wrap:wrap;
     padding:var(--sp-3) var(--sp-4);margin-bottom:var(--sp-3);
     border:1px solid var(--stroke);border-radius:var(--radius-sm);
     background:var(--card);box-shadow:var(--shadow-sm);
   }
-  .legend-item{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2);font-weight:500}
-  .legend-line{width:26px;height:0;border-top-width:2.5px;border-top-style:solid;border-radius:2px}
+  .legend-item{display:flex;align-items:center;gap:8px;font-size:var(--fs-sm);color:var(--ink-2);font-weight:500}
+  .legend-line{width:26px;height:0;border-top-width:2.5px;border-top-style:solid;border-radius:var(--radius-xs)}
   .legend-item b{color:var(--ink);font-weight:600}
   .legend-sky{margin-top:-4px}
-  .sky-swatch{width:18px;height:9px;border-radius:3px;display:inline-block}
-  .sky-hint{margin-left:auto;color:var(--ink-3);font-size:11px}
+  .sky-swatch{width:18px;height:9px;border-radius:var(--radius-xs);display:inline-block}
+  .sky-hint{margin-left:auto;color:var(--ink-3);font-size:var(--fs-xs)}
 
   /* ---------- Chart card ---------- */
   .chart-card{
@@ -388,10 +393,10 @@ getUiMode();
     margin-top:var(--sp-4);box-shadow:var(--shadow-card);
   }
   .chart-daylabel{
-    padding:var(--sp-3) var(--sp-4) 0;font-size:15px;font-weight:600;letter-spacing:-.01em;
+    padding:var(--sp-3) var(--sp-4) 0;font-size:var(--fs-md);font-weight:600;letter-spacing:-.01em;
     display:flex;align-items:center;gap:8px;
   }
-  .chart-daylabel .meta{margin-left:auto;font-size:12px;font-weight:500;color:var(--ink-3)}
+  .chart-daylabel .meta{margin-left:auto;font-size:var(--fs-sm);font-weight:500;color:var(--ink-3)}
   canvas{display:block;width:100%;min-height:200px;touch-action:pan-y}
 
   /* ---------- Collapsible detail cards (Heute/+1/+2) — same open/close
@@ -406,12 +411,12 @@ getUiMode();
     width:100%;background:none;border:none;cursor:pointer;color:inherit;font:inherit;text-align:left;
     display:flex;align-items:center;gap:12px;padding:var(--sp-3) var(--sp-4);
   }
-  .chart-drow-btn .day{font-size:15px;font-weight:600;letter-spacing:-.01em;flex:1 1 auto;min-width:0;
+  .chart-drow-btn .day{font-size:var(--fs-md);font-weight:600;letter-spacing:-.01em;flex:1 1 auto;min-width:0;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .chart-dgroup .dpanel{max-height:0;overflow:hidden;transition:max-height .3s ease}
   .chart-dgroup.open .dpanel{max-height:360px}
   .chart-dgroup.open .chev{transform:rotate(180deg)}
-  .chart-dpanel-meta{padding:0 var(--sp-4);font-size:12px;font-weight:500;color:var(--ink-3);text-align:right}
+  .chart-dpanel-meta{padding:0 var(--sp-4);font-size:var(--fs-sm);font-weight:500;color:var(--ink-3);text-align:right}
 
   /* ---------- Daily list ---------- */
   .daily{
@@ -438,43 +443,43 @@ getUiMode();
     display:grid;
     grid-template-columns: 1.2fr auto 1fr auto auto;
     align-items:center;gap:12px;
-    padding:13px 16px;
+    padding:var(--sp-3) var(--sp-4);
     border-top:1px solid var(--stroke-2);
   }
   .drow:first-child{border-top:none}
-  .drow .day{font-size:14px;font-weight:500}
-  .drow .day small{display:block;font-size:11px;color:var(--ink-3);font-weight:400;margin-top:1px}
+  .drow .day{font-size:var(--fs-base);font-weight:500}
+  .drow .day small{display:block;font-size:var(--fs-xs);color:var(--ink-3);font-weight:400;margin-top:1px}
   .drow .ic{display:flex;align-items:center;gap:5px;justify-content:center;min-width:46px}
   .drow .ic svg{width:22px;height:22px}
-  .drow .precip{font-size:12px;color:var(--rain);font-variant-numeric:tabular-nums;text-align:right;font-weight:500}
+  .drow .precip{font-size:var(--fs-sm);color:var(--rain);font-variant-numeric:tabular-nums;text-align:right;font-weight:500}
   .drow .precip.dry{color:var(--ink-3)}
   .temprange{display:flex;align-items:center;gap:9px;justify-content:flex-end;min-width:96px}
-  .temprange .lo{font-size:14px;color:var(--ink-2);font-variant-numeric:tabular-nums;width:26px;text-align:right}
-  .temprange .hi{font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;width:26px}
-  .bar{flex:1;height:4px;border-radius:2px;min-width:34px;
+  .temprange .lo{font-size:var(--fs-base);color:var(--ink-2);font-variant-numeric:tabular-nums;width:26px;text-align:right}
+  .temprange .hi{font-size:var(--fs-base);font-weight:600;font-variant-numeric:tabular-nums;width:26px}
+  .bar{flex:1;height:4px;border-radius:var(--radius-xs);min-width:34px;
     background:linear-gradient(90deg,var(--c1),var(--c2))}
 
   .footnote{
-    margin:18px 6px 0;font-size:11px;line-height:1.5;color:var(--ink-3);
+    margin:var(--sp-4) 6px 0;font-size:var(--fs-xs);line-height:1.5;color:var(--ink-3);
   }
   .footnote b{color:var(--ink-2);font-weight:600}
 
   /* ---------- Weather warning button + badge ---------- */
   .warn-btn{
     position:relative;flex:none;
-    width:34px;height:34px;border-radius:50%;
+    width:var(--btn-round);height:var(--btn-round);border-radius:50%;
     border:1px solid rgba(255,138,61,.4);
     background:rgba(255,138,61,.14);
-    color:#ff8a3d;display:grid;place-items:center;cursor:pointer;
+    color:var(--t-hot);display:grid;place-items:center;cursor:pointer;
     margin:0 4px;transition:.2s;
   }
   .warn-btn:hover{background:rgba(255,138,61,.24)}
-  .warn-btn svg{width:18px;height:18px}
-  .warn-btn.sev-3{border-color:rgba(255,90,77,.6);background:rgba(255,90,77,.18);color:#ff5a4d}
+  .warn-btn svg{width:50%;height:50%}
+  .warn-btn.sev-3{border-color:rgba(255,90,77,.6);background:rgba(255,90,77,.18);color:var(--t-scorch)}
   .warn-count{
     position:absolute;top:-4px;right:-4px;
-    min-width:15px;height:15px;padding:0 3px;border-radius:8px;
-    background:#ff5a4d;color:#fff;font-size:10px;font-weight:700;
+    min-width:15px;height:15px;padding:0 3px;border-radius:var(--radius-pill);
+    background:var(--t-scorch);color:#fff;font-size:var(--fs-xs);font-weight:700;
     display:grid;place-items:center;line-height:1;
   }
   /* ---------- Hero weather icon ---------- */
@@ -524,41 +529,41 @@ getUiMode();
   .modal{
     width:100%;max-width:420px;max-height:80vh;overflow-y:auto;
     background:var(--card);border:1px solid var(--stroke);
-    border-radius:var(--radius);padding:18px;
+    border-radius:var(--radius);padding:var(--sp-4);
     box-shadow:0 20px 60px rgba(0,0,0,.4);
   }
   .modal-head{display:flex;align-items:center;gap:10px;margin-bottom:12px}
-  .modal-head h3{font-size:17px;font-weight:600;color:var(--ink)}
+  .modal-head h3{font-size:var(--fd-sm);font-weight:600;color:var(--ink)}
   .modal-close{
-    margin-left:auto;width:30px;height:30px;border-radius:50%;flex:none;
+    margin-left:auto;width:var(--btn-round);height:var(--btn-round);border-radius:50%;flex:none;
     border:1px solid var(--stroke);background:var(--card-2);color:var(--ink-2);
     display:grid;place-items:center;cursor:pointer;
   }
-  .modal-close svg{width:15px;height:15px}
+  .modal-close svg{width:50%;height:50%}
   .warn-item{
     border:1px solid var(--stroke-2);border-radius:var(--radius-sm);
-    padding:12px 14px;margin-top:10px;background:var(--card-2);
+    padding:var(--sp-3) var(--sp-4);margin-top:10px;background:var(--card-2);
   }
   .warn-item:first-child{margin-top:0}
   .warn-item .wi-head{display:flex;align-items:center;gap:8px;margin-bottom:5px}
-  .warn-item .wi-dot{width:9px;height:9px;border-radius:50%;flex:none;background:#ff8a3d}
-  .warn-item.sev-3 .wi-dot{background:#ff5a4d}
-  .warn-item.sev-2 .wi-dot{background:#ff8a3d}
-  .warn-item.sev-1 .wi-dot{background:#f4c430}
-  .warn-item .wi-event{font-size:14px;font-weight:600;color:var(--ink)}
-  .warn-item .wi-time{font-size:11px;color:var(--ink-3);margin-bottom:6px}
-  .warn-item .wi-desc{font-size:12px;line-height:1.5;color:var(--ink-2)}
+  .warn-item .wi-dot{width:9px;height:9px;border-radius:50%;flex:none;background:var(--t-hot)}
+  .warn-item.sev-3 .wi-dot{background:var(--t-scorch)}
+  .warn-item.sev-2 .wi-dot{background:var(--t-hot)}
+  .warn-item.sev-1 .wi-dot{background:var(--t-warm)}
+  .warn-item .wi-event{font-size:var(--fs-base);font-weight:600;color:var(--ink)}
+  .warn-item .wi-time{font-size:var(--fs-xs);color:var(--ink-3);margin-bottom:6px}
+  .warn-item .wi-desc{font-size:var(--fs-sm);line-height:1.5;color:var(--ink-2)}
 
   /* ---------- Responsive: very small phones (≤340px) ---------- */
   @media (max-width:340px){
     .hero-top{gap:10px}
-    .now-temp sup{font-size:22px}
-    .now-feels{font-size:12px}
-    .chip{font-size:9px;padding:3px 6px}
+    .now-temp sup{font-size:var(--fd-md)}
+    .now-feels{font-size:var(--fs-sm)}
+    .chip{font-size:var(--fs-xs);padding:3px 6px}
     .chip .dot{width:4px;height:4px}
-    .loc h1{font-size:18px}
-    .section-head h2{font-size:12px}
-    .drow{padding:11px 12px;gap:8px}
+    .loc h1{font-size:var(--fd-sm)}
+    .section-head h2{font-size:var(--fs-sm)}
+    .drow{padding:var(--sp-3) var(--sp-3);gap:8px}
     .temprange{min-width:84px}
     .radar-time{min-width:64px}
   }
@@ -566,8 +571,8 @@ getUiMode();
      weather icon still has room without pushing the chips off-card ---------- */
   @media (min-width:341px) and (max-width:400px){
     .hero-top{gap:8px}
-    .now-feels{font-size:12px}
-    .chip{font-size:10px;padding:4px 8px}
+    .now-feels{font-size:var(--fs-sm)}
+    .chip{font-size:var(--fs-xs);padding:4px 8px}
     .chip .dot{width:5px;height:5px}
   }
   /* ---------- Responsive: larger phones / small tablets ---------- */
@@ -576,7 +581,7 @@ getUiMode();
   }
   /* ---------- Landscape phones: cap hero so it doesn't dominate ---------- */
   @media (max-height:430px) and (orientation:landscape){
-    .now-temp{font-size:54px}
+    .now-temp{font-size:var(--fd-xl)}
     .topbar{position:static}
   }
 
@@ -608,13 +613,13 @@ getUiMode();
 
   /* ---------- Watch UI components (unique .w* class names) ---------- */
   #watch-ui .wloc{display:flex;align-items:center;gap:6px;justify-content:center;margin-bottom:8px}
-  #watch-ui .wloc h1{font-size:14px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;
+  #watch-ui .wloc h1{font-size:var(--fs-base);font-weight:600;letter-spacing:-.01em;white-space:nowrap;
     overflow:hidden;text-overflow:ellipsis;max-width:80%}
-  #watch-ui .wloc .time{font-size:12px;color:var(--ink-3);font-weight:600;font-variant-numeric:tabular-nums}
+  #watch-ui .wloc .time{font-size:var(--fs-sm);color:var(--ink-3);font-weight:600;font-variant-numeric:tabular-nums}
   #watch-ui .whero{
     background:linear-gradient(160deg,var(--card-2),var(--card));
-    border:1px solid var(--stroke);border-radius:18px;
-    padding:16px 14px;text-align:center;position:relative;overflow:hidden;
+    border:1px solid var(--stroke);border-radius:var(--radius);
+    padding:var(--sp-4) var(--sp-4);text-align:center;position:relative;overflow:hidden;
   }
   #watch-ui .whero-main{display:flex;align-items:center;justify-content:center;gap:4px}
   #watch-ui .whero .temp{font-size:clamp(120px, 38vw, 150px);font-weight:650;letter-spacing:-.05em;line-height:.86}
@@ -622,47 +627,47 @@ getUiMode();
   #watch-ui .whero .wicon{flex:none;width:clamp(64px,22vw,92px);height:clamp(64px,22vw,92px)}
   #watch-ui .whero .wicon svg{width:100%;height:100%;display:block;overflow:visible}
   #watch-ui .wstats{display:flex;gap:8px;margin-top:12px}
-  #watch-ui .wstat{flex:1;background:var(--card);border:1px solid var(--stroke);border-radius:15px;
-    padding:11px 6px;text-align:center}
-  #watch-ui .wstat .k{font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
-  #watch-ui .wstat .v{font-size:19px;font-weight:650;margin-top:4px;font-variant-numeric:tabular-nums}
+  #watch-ui .wstat{flex:1;background:var(--card);border:1px solid var(--stroke);border-radius:var(--radius-sm);
+    padding:var(--sp-3) 6px;text-align:center}
+  #watch-ui .wstat .k{font-size:var(--fs-xs);letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
+  #watch-ui .wstat .v{font-size:var(--fd-sm);font-weight:650;margin-top:4px;font-variant-numeric:tabular-nums}
   #watch-ui .wsection{margin-top:16px}
-  #watch-ui .wsection .h{font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+  #watch-ui .wsection .h{font-size:var(--fs-base);font-weight:700;letter-spacing:.04em;text-transform:uppercase;
     color:var(--ink-2);margin:0 4px 8px}
-  #watch-ui .wrain{background:var(--card);border:1px solid var(--stroke);border-radius:16px;padding:12px 14px}
-  #watch-ui .wrain .summary{font-size:14px;font-weight:600;margin-bottom:9px;line-height:1.3}
+  #watch-ui .wrain{background:var(--card);border:1px solid var(--stroke);border-radius:var(--radius);padding:var(--sp-3) var(--sp-4)}
+  #watch-ui .wrain .summary{font-size:var(--fs-base);font-weight:600;margin-bottom:9px;line-height:1.3}
   #watch-ui .wrain.dry .summary{color:var(--ink-2)}
   #watch-ui #wcv-rain{display:block;width:100%;height:62px}
-  #watch-ui .wdaily{background:var(--card);border:1px solid var(--stroke);border-radius:16px;overflow:hidden}
-  #watch-ui .wdrow{display:flex;align-items:center;gap:10px;padding:11px 14px;border-top:1px solid rgba(255,255,255,.06)}
+  #watch-ui .wdaily{background:var(--card);border:1px solid var(--stroke);border-radius:var(--radius);overflow:hidden}
+  #watch-ui .wdrow{display:flex;align-items:center;gap:10px;padding:var(--sp-3) var(--sp-4);border-top:1px solid rgba(255,255,255,.06)}
   #watch-ui .wdrow:first-child{border-top:none}
-  #watch-ui .wdrow .d{font-size:14px;font-weight:600;width:64px}
-  #watch-ui .wdrow .d small{display:block;font-size:10px;color:var(--ink-3);font-weight:500}
-  #watch-ui .wdrow .pr{font-size:12px;color:var(--rain);font-variant-numeric:tabular-nums;margin-left:auto;font-weight:600}
+  #watch-ui .wdrow .d{font-size:var(--fs-base);font-weight:600;width:64px}
+  #watch-ui .wdrow .d small{display:block;font-size:var(--fs-xs);color:var(--ink-3);font-weight:500}
+  #watch-ui .wdrow .pr{font-size:var(--fs-sm);color:var(--rain);font-variant-numeric:tabular-nums;margin-left:auto;font-weight:600}
   #watch-ui .wdrow .pr.dry{color:var(--ink-3)}
   #watch-ui .wdrow .tr{display:flex;align-items:center;gap:8px;min-width:78px;justify-content:flex-end}
-  #watch-ui .wdrow .lo{font-size:13px;color:var(--ink-2);width:24px;text-align:right;font-variant-numeric:tabular-nums}
-  #watch-ui .wdrow .hi{font-size:14px;font-weight:700;width:24px;font-variant-numeric:tabular-nums}
-  #watch-ui .wdrow .bar{width:34px;height:4px;border-radius:2px;background:linear-gradient(90deg,var(--c1),var(--c2))}
-  #watch-ui .wfoot{margin:14px 6px 0;font-size:10px;color:var(--ink-3);line-height:1.5;text-align:center}
+  #watch-ui .wdrow .lo{font-size:var(--fs-base);color:var(--ink-2);width:24px;text-align:right;font-variant-numeric:tabular-nums}
+  #watch-ui .wdrow .hi{font-size:var(--fs-base);font-weight:700;width:24px;font-variant-numeric:tabular-nums}
+  #watch-ui .wdrow .bar{width:34px;height:4px;border-radius:var(--radius-xs);background:linear-gradient(90deg,var(--c1),var(--c2))}
+  #watch-ui .wfoot{margin:var(--sp-4) 6px 0;font-size:var(--fs-xs);color:var(--ink-3);line-height:1.5;text-align:center}
   #watch-ui .wfoot a{color:var(--ink-2)}
-  #watch-ui .werr{color:var(--feels);font-size:13px;text-align:center;padding:18px 8px;line-height:1.5}
+  #watch-ui .werr{color:var(--feels);font-size:var(--fs-base);text-align:center;padding:var(--sp-4) var(--sp-2);line-height:1.5}
   @media (max-width:330px){
-    #watch-ui .wstat .v{font-size:17px}
+    #watch-ui .wstat .v{font-size:var(--fs-md)}
   }
 
   /* ---------- UI toggle button (both UIs) ---------- */
   .ui-toggle{
     display:inline-flex;align-items:center;gap:5px;cursor:pointer;
     background:none;border:1px solid var(--stroke);border-radius:999px;
-    color:var(--ink-2);font:inherit;font-size:11px;font-weight:600;
-    padding:5px 11px;transition:.15s;font-family:var(--font);
+    color:var(--ink-2);font:inherit;font-size:var(--fs-xs);font-weight:600;
+    padding:5px var(--sp-3);transition:.15s;font-family:var(--font);
   }
   .ui-toggle:hover{color:var(--ink);border-color:rgba(255,255,255,.22)}
   #watch-ui .ui-toggle{margin:2px auto 0}
 
   /* ---------- app version stamp ---------- */
-  .app-version{opacity:.4;font-size:10px;font-weight:600;letter-spacing:.04em}
+  .app-version{opacity:.4;font-size:var(--fs-xs);font-weight:600;letter-spacing:.04em}
 
   /* ---------- update banner (works in both UIs) ---------- */
   .update-banner{
@@ -676,10 +681,10 @@ getUiMode();
     max-width:calc(100vw - 28px);
   }
   .update-banner.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}
-  .update-banner .ub-txt{font-size:13px;font-weight:600;color:var(--ink)}
+  .update-banner .ub-txt{font-size:var(--fs-base);font-weight:600;color:var(--ink)}
   .update-banner .ub-btn{
-    flex:none;font-size:12px;font-weight:700;color:#fff;background:var(--rain);
-    border:none;border-radius:9px;padding:7px 12px;cursor:pointer;font-family:var(--font);
+    flex:none;font-size:var(--fs-sm);font-weight:700;color:#fff;background:var(--rain);
+    border:none;border-radius:var(--radius-pill);padding:7px 12px;cursor:pointer;font-family:var(--font);
   }
   .update-banner .ub-btn:hover{filter:brightness(1.08)}
 </style>
@@ -2466,10 +2471,18 @@ function fitHeroHeights(){
   const newFontSize=Math.max(40, Math.min(120, baseFontSize*scale));
   tempEl.style.fontSize=newFontSize+"px";
 
+  const iconSize=Math.max(48, Math.min(120, Math.round(metaH)));
   if(iconEl){
-    const iconSize=Math.max(48, Math.min(120, Math.round(metaH)));
     iconEl.style.width=iconSize+"px";
     iconEl.style.height=iconSize+"px";
+  }
+  // The warning button takes over the same hero slot when alerts are active —
+  // scale it identically so it never sits tiny in a tall slot. Its SVG is
+  // sized at 50% in CSS, so it grows along automatically.
+  const warnEl=document.getElementById("warn-btn");
+  if(warnEl){
+    warnEl.style.width=iconSize+"px";
+    warnEl.style.height=iconSize+"px";
   }
 }
 let __fitHeroTimer;
