@@ -11,14 +11,14 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="WEATH3R">
-<title>WEATH3R v9.6</title>
+<title>WEATH3R v9.8</title>
 <script>
 /* ============================================================
    WEATH3R · global config + UI-mode detection
    Runs synchronously in <head> BEFORE the body renders so the
    correct GUI is shown immediately (no layout flash).
    ============================================================ */
-window.APP_VERSION = "v9.6";
+window.APP_VERSION = "v9.8";
 
 function getUiMode(){
   var mode=null, explicit=false;
@@ -233,7 +233,7 @@ getUiMode();
     display:flex;flex-direction:column;gap:2px;
   }
   .locresult:first-child{border-top:none}
-  .locresult:hover{background:rgba(255,255,255,.03)}
+  .locresult:hover{background:var(--stroke-2)}
   .locresult .lr-name{font-size:14px;font-weight:600}
   .locresult .lr-sub{font-size:12px;color:var(--ink-3)}
   .locsheet-hint{margin-top:10px;font-size:12px;color:var(--ink-3);line-height:1.5;min-height:16px}
@@ -274,7 +274,7 @@ getUiMode();
   .chip{
     display:inline-flex;align-items:center;gap:4px;
     font-size:10px;font-weight:500;color:var(--ink-2);
-    background:rgba(255,255,255,.04);border:1px solid var(--stroke-2);
+    background:var(--stroke-2);border:1px solid var(--stroke-2);
     padding:3px 7px;border-radius:999px;white-space:nowrap;
   }
   .chip b{color:var(--ink);font-weight:600}
@@ -309,7 +309,7 @@ getUiMode();
   .notify-btn{
     display:inline-flex;align-items:center;gap:5px;
     font-size:11.5px;font-weight:600;font-family:var(--font);
-    color:var(--ink-2);background:rgba(255,255,255,.04);
+    color:var(--ink-2);background:var(--stroke-2);
     border:1px solid var(--stroke-2);border-radius:var(--radius-pill);
     padding:5px 11px 5px 9px;cursor:pointer;transition:.2s;
     white-space:nowrap;
@@ -479,8 +479,8 @@ getUiMode();
   }
   /* ---------- Hero weather icon ---------- */
   .wx-icon{
-    flex:1 1 auto;width:clamp(64px,26vw,128px);height:clamp(64px,26vw,128px);
-    max-width:128px;max-height:128px;
+    flex:1 1 auto;width:clamp(56px,20vw,100px);height:clamp(56px,20vw,100px);
+    max-width:100px;max-height:100px;
     border:none;background:none;border-radius:0;
     display:grid;place-items:center;margin:0 auto;padding:0;cursor:default;
     align-self:center;
@@ -489,24 +489,24 @@ getUiMode();
 
   /* ---------- Animated weather icon ---------- */
   .wxi{overflow:visible}
-  .wxi .wx-sun{transform-box:fill-box;transform-origin:center;animation:wxSunPulse 3.2s ease-in-out infinite}
-  .wxi .wx-rays{transform-box:fill-box;transform-origin:center;animation:wxRays 3.2s ease-in-out infinite}
-  .wxi .wx-moon{transform-box:fill-box;transform-origin:center;animation:wxMoon 4.5s ease-in-out infinite}
-  .wxi .wx-cloud-front{transform-box:fill-box;transform-origin:center;animation:wxDriftA 6s ease-in-out infinite}
-  .wxi .wx-cloud-back{transform-box:fill-box;transform-origin:center;animation:wxDriftB 8s ease-in-out infinite}
-  .wxi .wx-drop{transform-box:fill-box;transform-origin:center;animation:wxDrop 1.5s ease-in infinite}
-  .wxi .wx-drop.d2{animation-delay:.5s}
-  .wxi .wx-drop.d3{animation-delay:1s}
-  .wxi .wx-flake{transform-box:fill-box;transform-origin:center;animation:wxFlake 2.8s ease-in-out infinite}
-  .wxi .wx-flake.f2{animation-delay:.9s}
-  .wxi .wx-flake.f3{animation-delay:1.8s}
-  .wxi .wx-bolt{transform-box:fill-box;transform-origin:center;animation:wxFlash 3.4s steps(1,end) infinite}
-  .wxi .wx-fog{transform-box:fill-box;transform-origin:center;animation:wxFog 4s ease-in-out infinite}
-  @keyframes wxSunPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.14)}}
-  @keyframes wxRays{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.16);opacity:.55}}
-  @keyframes wxMoon{0%,100%{transform:scale(1) rotate(0)}50%{transform:scale(1.06) rotate(-4deg)}}
-  @keyframes wxDriftA{0%,100%{transform:translateX(-4.5px)}50%{transform:translateX(4.5px)}}
-  @keyframes wxDriftB{0%,100%{transform:translateX(4px)}50%{transform:translateX(-4px)}}
+  .wxi .wx-sun{transform-box:fill-box;transform-origin:center;animation:wxSunPulse 4.6s ease-in-out infinite}
+  .wxi .wx-rays{transform-box:fill-box;transform-origin:center;animation:wxRays 4.6s ease-in-out infinite}
+  .wxi .wx-moon{transform-box:fill-box;transform-origin:center;animation:wxMoon 5.5s ease-in-out infinite}
+  .wxi .wx-cloud-front{transform-box:fill-box;transform-origin:center;animation:wxDriftA 7s ease-in-out infinite}
+  .wxi .wx-cloud-back{transform-box:fill-box;transform-origin:center;animation:wxDriftB 9s ease-in-out infinite}
+  .wxi .wx-drop{transform-box:fill-box;transform-origin:center;animation:wxDrop 1.7s ease-in infinite}
+  .wxi .wx-drop.d2{animation-delay:.55s}
+  .wxi .wx-drop.d3{animation-delay:1.1s}
+  .wxi .wx-flake{transform-box:fill-box;transform-origin:center;animation:wxFlake 3.2s ease-in-out infinite}
+  .wxi .wx-flake.f2{animation-delay:1s}
+  .wxi .wx-flake.f3{animation-delay:2s}
+  .wxi .wx-bolt{transform-box:fill-box;transform-origin:center;animation:wxFlash 3.8s steps(1,end) infinite}
+  .wxi .wx-fog{transform-box:fill-box;transform-origin:center;animation:wxFog 4.6s ease-in-out infinite}
+  @keyframes wxSunPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+  @keyframes wxRays{0%,100%{transform:scale(1);opacity:.9}50%{transform:scale(1.06);opacity:.7}}
+  @keyframes wxMoon{0%,100%{transform:scale(1) rotate(0)}50%{transform:scale(1.03) rotate(-2deg)}}
+  @keyframes wxDriftA{0%,100%{transform:translateX(-3.5px)}50%{transform:translateX(3.5px)}}
+  @keyframes wxDriftB{0%,100%{transform:translateX(3px)}50%{transform:translateX(-3px)}}
   @keyframes wxDrop{0%{transform:translateY(-7px);opacity:0}25%{opacity:1}70%{opacity:1}100%{transform:translateY(9px);opacity:0}}
   @keyframes wxFlake{0%{transform:translate(0,-6px);opacity:0}25%{opacity:1}100%{transform:translate(3px,9px);opacity:0}}
   @keyframes wxFlash{0%,88%,100%{opacity:.28}90%,96%{opacity:1}}
@@ -670,7 +670,7 @@ getUiMode();
     bottom:calc(env(safe-area-inset-bottom) + 16px);z-index:80;
     display:flex;align-items:center;gap:12px;
     background:var(--card-2);border:1px solid var(--stroke);
-    border-radius:14px;padding:10px 12px 10px 16px;
+    border-radius:var(--radius-sm);padding:10px 12px 10px 16px;
     box-shadow:var(--shadow-pop);
     opacity:0;pointer-events:none;transition:opacity .25s ease, transform .25s ease;
     max-width:calc(100vw - 28px);
@@ -863,7 +863,7 @@ getUiMode();
     <b>Multi-Modell-Ansicht.</b> Drei unabhängige Wettermodelle laufen parallel — AROME (durchgezogen), ICON-D2 (gestrichelt), ECMWF (gepunktet). Liegen die Linien nah beieinander, ist die Prognose sicher; spreizen sie sich, ist sie unsicher. Farbe codiert die Wärme, das Linienmuster die Modell-Identität.<br>
     <span id="data-status"></span> Wetterdaten: <b>Open-Meteo.com</b> (CC BY 4.0). Regenradar &amp; Warnungen: <b>DWD</b> via Bright Sky.<br>
     <button class="ui-toggle" id="to-watch">⌚ Watch-Ansicht</button>
-    <span class="app-version" id="ver-desktop" style="margin-left:10px">WEATH3R v9.6</span>
+    <span class="app-version" id="ver-desktop" style="margin-left:10px">WEATH3R v9.8</span>
   </p>
 
 </div>
@@ -918,7 +918,7 @@ getUiMode();
     <span id="wstatus"></span><br>
     <button class="ui-toggle" id="to-desktop">↗ volle Ansicht</button><br>
     Daten: Open-Meteo · DWD (Bright Sky)<br>
-    <span class="app-version">WEATH3R v9.6</span>
+    <span class="app-version">WEATH3R v9.8</span>
   </p>
 </div><!-- /#watch-ui -->
 
@@ -1130,9 +1130,46 @@ const AURORA = (function(){
       };
     }
 
-    // daily list (7 entries from offset 1..7) — merge across models (mean)
-    out.dailyList=[];
-    const base=perModel.find(pm=>pm.daily&&pm.daily.time);
+  // Pick a representative weather code for a whole day from HOURLY data,
+  // rather than trusting Open-Meteo's single daily "most significant event"
+  // code — which can make an entire mostly-sunny day show as "rain" just
+  // because of one brief evening shower. Rain/snow/storm only "own" the
+  // day's icon once they cover a meaningful share of it; otherwise the icon
+  // reflects the day's prevailing sky condition (average cloud cover).
+  function dominantDayCode(H, dayStart){
+    if(!H || !H.time) return null;
+    const codes=[], clouds=[];
+    for(let h=0; h<24; h++){
+      const idx=dayStart+h;
+      if(H.weather_code && H.weather_code[idx]!=null) codes.push(H.weather_code[idx]);
+      if(H.cloud_cover && H.cloud_cover[idx]!=null) clouds.push(H.cloud_cover[idx]);
+    }
+    if(!codes.length) return null;
+    const isStorm=c=>c>=95, isSnow=c=>(c>=71&&c<=77)||c===85||c===86,
+          isRain=c=>(c>=51&&c<=67)||c===80||c===81||c===82;
+    const stormHrs=codes.filter(isStorm), snowHrs=codes.filter(isSnow), rainHrs=codes.filter(isRain);
+    // storms/snow are rare and noteworthy even if brief; rain needs a few
+    // hours (~4+) before it "owns" the whole day's icon
+    if(stormHrs.length>=1) return Math.max(...stormHrs);
+    if(snowHrs.length>=2) return Math.max(...snowHrs);
+    if(rainHrs.length>=4) return rainHrs.sort((a,b)=>b-a)[0];
+    // otherwise: represent the day by its prevailing sky condition
+    if(clouds.length){
+      const avgCloud=clouds.reduce((a,b)=>a+b,0)/clouds.length;
+      if(avgCloud<25) return 0;
+      if(avgCloud<60) return 2;
+      return 3;
+    }
+    const counts={};
+    codes.forEach(c=>{ if(!isRain(c)&&!isSnow(c)&&!isStorm(c)) counts[c]=(counts[c]||0)+1; });
+    const keys=Object.keys(counts);
+    return keys.length ? Number(keys.sort((a,b)=>counts[b]-counts[a])[0]) : codes[0];
+  }
+
+  // daily list (7 entries from offset 1..7) — merge across models (mean)
+  out.dailyList=[];
+  const base=perModel.find(pm=>pm.daily&&pm.daily.time);
+  const hourlyBase=perModel.find(pm=>pm.hourly&&pm.hourly.time); // for hourly-derived day icons
     if(base){
       const D=base.daily;
       for(let d=3; d<=14 && d<D.time.length; d++){
@@ -1140,6 +1177,10 @@ const AURORA = (function(){
         // average max/min across models that have this day
         let hiS=0,hiN=0,loS=0,loN=0,prMax=0,probMax=0,windMax=0;
         let code=D.weather_code?D.weather_code[d]:null;
+        if(hourlyBase && hourlyBase.hourly){
+          const ds=dayStartIndex(hourlyBase.hourly.time, d);
+          if(ds!=null){ const smart=dominantDayCode(hourlyBase.hourly, ds); if(smart!=null) code=smart; }
+        }
         perModel.forEach(pm=>{
           const dd=pm.daily; if(!dd||!dd.time||!dd.time[d]) return;
           if(dd.temperature_2m_max&&dd.temperature_2m_max[d]!=null){hiS+=dd.temperature_2m_max[d];hiN++;}
@@ -1167,6 +1208,10 @@ const AURORA = (function(){
         const dt=new Date(D.time[d]);
         let hiS=0,hiN=0,loS=0,loN=0,prMax=0,windMax=0;
         let code=D.weather_code?D.weather_code[d]:null;
+        if(hourlyBase && hourlyBase.hourly){
+          const ds=dayStartIndex(hourlyBase.hourly.time, d);
+          if(ds!=null){ const smart=dominantDayCode(hourlyBase.hourly, ds); if(smart!=null) code=smart; }
+        }
         perModel.forEach(pm=>{
           const dd=pm.daily; if(!dd||!dd.time||!dd.time[d]) return;
           if(dd.temperature_2m_max&&dd.temperature_2m_max[d]!=null){hiS+=dd.temperature_2m_max[d];hiN++;}
@@ -1878,7 +1923,7 @@ function drawChart(canvasId, day, opts){
       xs.forEach((x,i)=> i?ctx.lineTo(x,Y(uppers[i])):ctx.moveTo(x,Y(uppers[i])) );
       for(let i=xs.length-1;i>=0;i--) ctx.lineTo(xs[i],Y(lowers[i]));
       ctx.closePath();
-      ctx.fillStyle="rgba(255,255,255,.045)";
+      ctx.fillStyle=cssVar("--c-spread");
       ctx.fill();
     }
   }
