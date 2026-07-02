@@ -11,14 +11,14 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="WEATH3R">
-<title>WEATH3R v9.8</title>
+<title>WEATH3R v9.9</title>
 <script>
 /* ============================================================
    WEATH3R · global config + UI-mode detection
    Runs synchronously in <head> BEFORE the body renders so the
    correct GUI is shown immediately (no layout flash).
    ============================================================ */
-window.APP_VERSION = "v9.8";
+window.APP_VERSION = "v9.9";
 
 function getUiMode(){
   var mode=null, explicit=false;
@@ -863,7 +863,7 @@ getUiMode();
     <b>Multi-Modell-Ansicht.</b> Drei unabhängige Wettermodelle laufen parallel — AROME (durchgezogen), ICON-D2 (gestrichelt), ECMWF (gepunktet). Liegen die Linien nah beieinander, ist die Prognose sicher; spreizen sie sich, ist sie unsicher. Farbe codiert die Wärme, das Linienmuster die Modell-Identität.<br>
     <span id="data-status"></span> Wetterdaten: <b>Open-Meteo.com</b> (CC BY 4.0). Regenradar &amp; Warnungen: <b>DWD</b> via Bright Sky.<br>
     <button class="ui-toggle" id="to-watch">⌚ Watch-Ansicht</button>
-    <span class="app-version" id="ver-desktop" style="margin-left:10px">WEATH3R v9.8</span>
+    <span class="app-version" id="ver-desktop" style="margin-left:10px">WEATH3R v9.9</span>
   </p>
 
 </div>
@@ -918,7 +918,7 @@ getUiMode();
     <span id="wstatus"></span><br>
     <button class="ui-toggle" id="to-desktop">↗ volle Ansicht</button><br>
     Daten: Open-Meteo · DWD (Bright Sky)<br>
-    <span class="app-version">WEATH3R v9.8</span>
+    <span class="app-version">WEATH3R v9.9</span>
   </p>
 </div><!-- /#watch-ui -->
 
@@ -2442,6 +2442,43 @@ function updateWeatherIcon(h){
   if(!__alerts.length) el.style.display="grid";
 }
 
+// Make the hero's big temperature number and the weather icon both match the
+// rendered height of the "GEFÜHLT + Chips" column exactly, so all three sit
+// flush top-to-bottom instead of just being centered at different sizes.
+// Font-size ↔ rendered height isn't a fixed ratio (line-height/font metrics),
+// so this measures the ACTUAL rendered box and scales proportionally rather
+// than guessing a CSS clamp() coefficient.
+function fitHeroHeights(){
+  const tempEl=document.getElementById("now-temp");
+  const metaEl=document.querySelector(".now-meta");
+  const iconEl=document.getElementById("wx-icon");
+  if(!tempEl || !metaEl) return;
+
+  // reset to the CSS default first so repeated calls always scale from the
+  // same known baseline (otherwise tiny errors would compound over calls)
+  tempEl.style.fontSize="";
+  const metaH=metaEl.getBoundingClientRect().height;
+  const baseFontSize=parseFloat(getComputedStyle(tempEl).fontSize);
+  const baseHeight=tempEl.getBoundingClientRect().height;
+  if(!metaH || metaH<10 || !baseHeight || !baseFontSize) return; // not rendered yet
+
+  const scale=metaH/baseHeight;
+  const newFontSize=Math.max(40, Math.min(120, baseFontSize*scale));
+  tempEl.style.fontSize=newFontSize+"px";
+
+  if(iconEl){
+    const iconSize=Math.max(48, Math.min(120, Math.round(metaH)));
+    iconEl.style.width=iconSize+"px";
+    iconEl.style.height=iconSize+"px";
+  }
+}
+let __fitHeroTimer;
+function scheduleFitHero(){
+  clearTimeout(__fitHeroTimer);
+  __fitHeroTimer=setTimeout(fitHeroHeights, 30);
+}
+window.addEventListener("resize", scheduleFitHero);
+
 function rangeLabel(day){
   // collect min/max across model temp lines
   let lo=Infinity,hi=-Infinity;
@@ -2505,6 +2542,7 @@ function applyData(data){
     document.getElementById("chip-wind").textContent=`${h.wind} km/h`;
     applyExtremeChip(h);
     updateWeatherIcon(h);
+    scheduleFitHero();
   }
   // chart labels
   const now=new Date();
