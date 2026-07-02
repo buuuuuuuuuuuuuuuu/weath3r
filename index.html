@@ -11,14 +11,14 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="WEATH3R">
-<title>WEATH3R v9.4</title>
+<title>WEATH3R v9.6</title>
 <script>
 /* ============================================================
    WEATH3R · global config + UI-mode detection
    Runs synchronously in <head> BEFORE the body renders so the
    correct GUI is shown immediately (no layout flash).
    ============================================================ */
-window.APP_VERSION = "v9.4";
+window.APP_VERSION = "v9.6";
 
 function getUiMode(){
   var mode=null, explicit=false;
@@ -265,12 +265,12 @@ getUiMode();
   .hero-top{display:flex;align-items:stretch;gap:12px;position:relative}
   .now-temp{font-size:clamp(58px,17vw,74px);font-weight:600;letter-spacing:-.04em;line-height:.9;flex:none;align-self:center}
   .now-temp sup{font-size:26px;font-weight:500;vertical-align:top;top:.18em;position:relative;color:var(--ink-2)}
-  .now-meta{text-align:left;flex:none;display:flex;flex-direction:column;justify-content:center;align-self:center}
+  .now-meta{text-align:left;flex:none;display:flex;flex-direction:column;justify-content:center;align-self:center;gap:8px}
   .now-feels{font-size:13px;color:var(--feels);font-weight:600;
     letter-spacing:.03em}
   .now-feels .lbl{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);
     font-weight:600;margin-right:5px}
-  .chips{display:flex;flex-direction:column;justify-content:space-between;gap:5px;margin-left:auto;align-items:flex-end;position:relative}
+  .chips{display:flex;flex-direction:column;gap:5px;align-items:flex-start;position:relative}
   .chip{
     display:inline-flex;align-items:center;gap:4px;
     font-size:10px;font-weight:500;color:var(--ink-2);
@@ -394,6 +394,25 @@ getUiMode();
   .chart-daylabel .meta{margin-left:auto;font-size:12px;font-weight:500;color:var(--ink-3)}
   canvas{display:block;width:100%;min-height:200px;touch-action:pan-y}
 
+  /* ---------- Collapsible detail cards (Heute/+1/+2) — same open/close
+     mechanics as the daily list rows below, but keep full card chrome and
+     start expanded by default. ---------- */
+  .chart-dgroup{
+    border:1px solid var(--stroke);border-radius:var(--radius);
+    background:var(--card);overflow:hidden;
+    margin-top:var(--sp-4);box-shadow:var(--shadow-card);
+  }
+  .chart-drow-btn{
+    width:100%;background:none;border:none;cursor:pointer;color:inherit;font:inherit;text-align:left;
+    display:flex;align-items:center;gap:12px;padding:var(--sp-3) var(--sp-4);
+  }
+  .chart-drow-btn .day{font-size:15px;font-weight:600;letter-spacing:-.01em;flex:1 1 auto;min-width:0;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .chart-dgroup .dpanel{max-height:0;overflow:hidden;transition:max-height .3s ease}
+  .chart-dgroup.open .dpanel{max-height:360px}
+  .chart-dgroup.open .chev{transform:rotate(180deg)}
+  .chart-dpanel-meta{padding:0 var(--sp-4);font-size:12px;font-weight:500;color:var(--ink-3);text-align:right}
+
   /* ---------- Daily list ---------- */
   .daily{
     border:1px solid var(--stroke);border-radius:var(--radius);
@@ -460,9 +479,10 @@ getUiMode();
   }
   /* ---------- Hero weather icon ---------- */
   .wx-icon{
-    flex:none;width:clamp(48px,15vw,76px);height:clamp(48px,15vw,76px);
+    flex:1 1 auto;width:clamp(64px,26vw,128px);height:clamp(64px,26vw,128px);
+    max-width:128px;max-height:128px;
     border:none;background:none;border-radius:0;
-    display:grid;place-items:center;margin:0;padding:0;cursor:default;
+    display:grid;place-items:center;margin:0 auto;padding:0;cursor:default;
     align-self:center;
   }
   .wx-icon svg{width:100%;height:100%;display:block;overflow:visible}
@@ -482,8 +502,8 @@ getUiMode();
   .wxi .wx-flake.f3{animation-delay:1.8s}
   .wxi .wx-bolt{transform-box:fill-box;transform-origin:center;animation:wxFlash 3.4s steps(1,end) infinite}
   .wxi .wx-fog{transform-box:fill-box;transform-origin:center;animation:wxFog 4s ease-in-out infinite}
-  @keyframes wxSunPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
-  @keyframes wxRays{0%,100%{transform:scale(1);opacity:.95}50%{transform:scale(1.08);opacity:.6}}
+  @keyframes wxSunPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.14)}}
+  @keyframes wxRays{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.16);opacity:.55}}
   @keyframes wxMoon{0%,100%{transform:scale(1) rotate(0)}50%{transform:scale(1.06) rotate(-4deg)}}
   @keyframes wxDriftA{0%,100%{transform:translateX(-4.5px)}50%{transform:translateX(4.5px)}}
   @keyframes wxDriftB{0%,100%{transform:translateX(4px)}50%{transform:translateX(-4px)}}
@@ -725,17 +745,17 @@ getUiMode();
       <div class="now-temp" id="now-temp">–<sup>°</sup></div>
       <div class="now-meta">
         <div class="now-feels" id="now-feels"></div>
+        <div class="chips" id="chips">
+          <span class="chip"><span class="dot" style="background:var(--rain)"></span>Regen <b id="chip-rain">–</b></span>
+          <span class="chip chip-extreme" id="chip-extreme-wrap"><span class="dot" style="background:var(--storm)"></span><span id="chip-extreme-label">Gewitter</span> <b id="chip-storm">–</b></span>
+          <span class="chip"><span class="dot" style="background:var(--wind)"></span>Wind <b id="chip-wind">–</b></span>
+        </div>
       </div>
       <button class="wx-icon" id="wx-icon" aria-label="Aktuelles Wetter" style="display:none"></button>
       <button class="warn-btn" id="warn-btn" aria-label="Wetterwarnung anzeigen" style="display:none">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.6 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.6a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
         <span class="warn-count" id="warn-count"></span>
       </button>
-      <div class="chips" id="chips">
-        <span class="chip"><span class="dot" style="background:var(--rain)"></span>Regen <b id="chip-rain">–</b></span>
-        <span class="chip chip-extreme" id="chip-extreme-wrap"><span class="dot" style="background:var(--storm)"></span><span id="chip-extreme-label">Gewitter</span> <b id="chip-storm">–</b></span>
-        <span class="chip"><span class="dot" style="background:var(--wind)"></span>Wind <b id="chip-wind">–</b></span>
-      </div>
     </div>
   </section>
 
@@ -781,20 +801,59 @@ getUiMode();
   </section>
 
   <!-- Today detailed chart -->
-  <div class="chart-card">
-    <div class="chart-daylabel"><span id="lbl-today">Heute</span> <span class="meta" id="meta-today"></span></div>
-    <canvas id="cv-today"></canvas>
+  <div class="dgroup chart-dgroup open" id="dgroup-today">
+    <button class="drow drow-btn chart-drow-btn" id="toggle-today" aria-expanded="true">
+      <div class="day"><span id="lbl-today">Heute</span></div>
+      <div class="ic" id="ic-today"></div>
+      <div class="precip" id="precip-today"></div>
+      <div class="temprange">
+        <span class="lo" id="lo-today">–</span>
+        <span class="bar" id="bar-today"></span>
+        <span class="hi" id="hi-today">–</span>
+      </div>
+      <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
+    <div class="dpanel chart-dpanel">
+      <div class="chart-dpanel-meta"><span class="meta" id="meta-today"></span></div>
+      <canvas id="cv-today"></canvas>
+    </div>
   </div>
 
   <!-- Tomorrow chart (+1) -->
-  <div class="chart-card">
-    <div class="chart-daylabel"><span id="lbl-thu">–</span> <span class="meta" id="meta-thu"></span></div>
-    <canvas id="cv-thu"></canvas>
+  <div class="dgroup chart-dgroup open" id="dgroup-thu">
+    <button class="drow drow-btn chart-drow-btn" id="toggle-thu" aria-expanded="true">
+      <div class="day"><span id="lbl-thu">–</span></div>
+      <div class="ic" id="ic-thu"></div>
+      <div class="precip" id="precip-thu"></div>
+      <div class="temprange">
+        <span class="lo" id="lo-thu">–</span>
+        <span class="bar" id="bar-thu"></span>
+        <span class="hi" id="hi-thu">–</span>
+      </div>
+      <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
+    <div class="dpanel chart-dpanel">
+      <div class="chart-dpanel-meta"><span class="meta" id="meta-thu"></span></div>
+      <canvas id="cv-thu"></canvas>
+    </div>
   </div>
   <!-- Day after tomorrow chart (+2) -->
-  <div class="chart-card">
-    <div class="chart-daylabel"><span id="lbl-fri">–</span> <span class="meta" id="meta-fri"></span></div>
-    <canvas id="cv-fri"></canvas>
+  <div class="dgroup chart-dgroup open" id="dgroup-fri">
+    <button class="drow drow-btn chart-drow-btn" id="toggle-fri" aria-expanded="true">
+      <div class="day"><span id="lbl-fri">–</span></div>
+      <div class="ic" id="ic-fri"></div>
+      <div class="precip" id="precip-fri"></div>
+      <div class="temprange">
+        <span class="lo" id="lo-fri">–</span>
+        <span class="bar" id="bar-fri"></span>
+        <span class="hi" id="hi-fri">–</span>
+      </div>
+      <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
+    <div class="dpanel chart-dpanel">
+      <div class="chart-dpanel-meta"><span class="meta" id="meta-fri"></span></div>
+      <canvas id="cv-fri"></canvas>
+    </div>
   </div>
 
   <!-- day list (offset 3..14), each expandable -->
@@ -804,7 +863,7 @@ getUiMode();
     <b>Multi-Modell-Ansicht.</b> Drei unabhängige Wettermodelle laufen parallel — AROME (durchgezogen), ICON-D2 (gestrichelt), ECMWF (gepunktet). Liegen die Linien nah beieinander, ist die Prognose sicher; spreizen sie sich, ist sie unsicher. Farbe codiert die Wärme, das Linienmuster die Modell-Identität.<br>
     <span id="data-status"></span> Wetterdaten: <b>Open-Meteo.com</b> (CC BY 4.0). Regenradar &amp; Warnungen: <b>DWD</b> via Bright Sky.<br>
     <button class="ui-toggle" id="to-watch">⌚ Watch-Ansicht</button>
-    <span class="app-version" id="ver-desktop" style="margin-left:10px">WEATH3R v9.4</span>
+    <span class="app-version" id="ver-desktop" style="margin-left:10px">WEATH3R v9.6</span>
   </p>
 
 </div>
@@ -859,7 +918,7 @@ getUiMode();
     <span id="wstatus"></span><br>
     <button class="ui-toggle" id="to-desktop">↗ volle Ansicht</button><br>
     Daten: Open-Meteo · DWD (Bright Sky)<br>
-    <span class="app-version">WEATH3R v9.4</span>
+    <span class="app-version">WEATH3R v9.6</span>
   </p>
 </div><!-- /#watch-ui -->
 
@@ -1093,6 +1152,30 @@ const AURORA = (function(){
           offset:d,
           d:WD[dt.getDay()], dd:`${dt.getDate()}. ${MO[dt.getMonth()]}`,
           code, windMax,
+          pr: fmtMM(prMax>0?Math.max(0,prMax-0.4):0, prMax),
+          lo: hiN?Math.round(loS/loN):null,
+          hi: hiN?Math.round(hiS/hiN):null,
+        });
+      }
+    }
+    // Same compact summary (icon/precip/range) for today/+1/+2 — used by the
+    // collapsible header row on the three detail cards above the daily list.
+    out.heroDayMeta=[];
+    if(base){
+      const D=base.daily;
+      for(let d=0; d<=2 && d<D.time.length; d++){
+        const dt=new Date(D.time[d]);
+        let hiS=0,hiN=0,loS=0,loN=0,prMax=0,windMax=0;
+        let code=D.weather_code?D.weather_code[d]:null;
+        perModel.forEach(pm=>{
+          const dd=pm.daily; if(!dd||!dd.time||!dd.time[d]) return;
+          if(dd.temperature_2m_max&&dd.temperature_2m_max[d]!=null){hiS+=dd.temperature_2m_max[d];hiN++;}
+          if(dd.temperature_2m_min&&dd.temperature_2m_min[d]!=null){loS+=dd.temperature_2m_min[d];loN++;}
+          if(dd.precipitation_sum&&dd.precipitation_sum[d]!=null) prMax=Math.max(prMax,dd.precipitation_sum[d]);
+          if(dd.wind_speed_10m_max&&dd.wind_speed_10m_max[d]!=null) windMax=Math.max(windMax,dd.wind_speed_10m_max[d]);
+        });
+        out.heroDayMeta.push({
+          offset:d, code, windMax,
           pr: fmtMM(prMax>0?Math.max(0,prMax-0.4):0, prMax),
           lo: hiN?Math.round(loS/loN):null,
           hi: hiN?Math.round(hiS/hiN):null,
@@ -1591,20 +1674,38 @@ const rgba = (c,a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
    Three models per series. Hours 0..24.
    Today reflects screenshot: model temps ~30→23 / 22-24 / cooler grey-min line.        */
 
-function lerpSeries(points, n){
-  // points: [{x,y}] sparse → resampled to n evenly across 0..24
+function lerpSeries(points, n, maxGapHours){
+  // points: [{x,y}] sparse → resampled to n evenly across 0..24.
+  // IMPORTANT: outside the real data range, or across a large hole in the
+  // data (a model missing several consecutive hours), we must NOT invent a
+  // value — that previously showed up as a suspiciously straight diagonal
+  // line bridging the gap. Returning null there lets the caller break the
+  // stroke instead of drawing a fake trend.
   const out=[];
+  const firstX=points[0].x, lastX=points[points.length-1].x;
+  const gap = maxGapHours||2.5;
   for(let i=0;i<n;i++){
     const x = i/(n-1)*24;
-    // find segment
+    if(x<firstX-0.01 || x>lastX+0.01){ out.push(null); continue; }
     let p0=points[0], p1=points[points.length-1];
     for(let k=0;k<points.length-1;k++){
       if(x>=points[k].x && x<=points[k+1].x){p0=points[k];p1=points[k+1];break;}
     }
+    if(p1.x-p0.x>gap){ out.push(null); continue; }
     const k=(p1.x===p0.x)?0:(x-p0.x)/(p1.x-p0.x);
     out.push(p0.y+(p1.y-p0.y)*k);
   }
   return out;
+}
+// Find the nearest non-null sample to `idx` — used only for picking a sane
+// gradient colour when a probe point happens to land inside a data gap.
+function nearestValid(arr, idx){
+  if(arr[idx]!=null) return arr[idx];
+  for(let d=1; d<arr.length; d++){
+    if(arr[idx-d]!=null) return arr[idx-d];
+    if(arr[idx+d]!=null) return arr[idx+d];
+  }
+  return 15;
 }
 
 /* ---------- Live data (filled by AURORA data layer) ---------- */
@@ -1764,22 +1865,22 @@ function drawChart(canvasId, day, opts){
   /* --- inter-model spread band (min..max across the 3 models) --- */
   if(day.temp.length>=2){
     const resampled=day.temp.map(m=>lerpSeries(m.pts,N));
-    ctx.beginPath();
-    // upper edge = warmest model at each step
+    const uppers=[], lowers=[], xs=[];
     for(let i=0;i<N;i++){
-      const x=x0+(i/(N-1))*plotW;
-      const hi=Math.max(...resampled.map(r=>r[i]));
-      i?ctx.lineTo(x,Y(hi)):ctx.moveTo(x,Y(hi));
+      const vals=resampled.map(r=>r[i]).filter(v=>v!=null);
+      if(!vals.length) continue; // no model has data at this point — skip, don't fake it
+      xs.push(x0+(i/(N-1))*plotW);
+      uppers.push(Math.max(...vals));
+      lowers.push(Math.min(...vals));
     }
-    // lower edge = coolest model, traced back
-    for(let i=N-1;i>=0;i--){
-      const x=x0+(i/(N-1))*plotW;
-      const lo=Math.min(...resampled.map(r=>r[i]));
-      ctx.lineTo(x,Y(lo));
+    if(xs.length>1){
+      ctx.beginPath();
+      xs.forEach((x,i)=> i?ctx.lineTo(x,Y(uppers[i])):ctx.moveTo(x,Y(uppers[i])) );
+      for(let i=xs.length-1;i>=0;i--) ctx.lineTo(xs[i],Y(lowers[i]));
+      ctx.closePath();
+      ctx.fillStyle="rgba(255,255,255,.045)";
+      ctx.fill();
     }
-    ctx.closePath();
-    ctx.fillStyle="rgba(255,255,255,.045)";
-    ctx.fill();
   }
 
   /* --- TEMP model lines (gradient by warmth) --- */
@@ -1795,14 +1896,16 @@ function drawChart(canvasId, day, opts){
     const grad=ctx.createLinearGradient(x0,0,x1,0);
     for(let s=0;s<=6;s++){
       const idx=Math.round(s/6*(N-1));
-      grad.addColorStop(s/6, rgb(tempColor(ys[idx])));
+      grad.addColorStop(s/6, rgb(tempColor(nearestValid(ys,idx))));
     }
     ctx.strokeStyle=grad;
     ctx.setLineDash(m.dash.length?m.dash:[]);
     ctx.beginPath();
+    let drawing=false;
     for(let i=0;i<N;i++){
+      if(ys[i]==null){ drawing=false; continue; } // real data gap — break the line, don't bridge it
       const x=x0+(i/(N-1))*plotW, y=Y(ys[i]);
-      i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+      if(!drawing){ ctx.moveTo(x,y); drawing=true; } else { ctx.lineTo(x,y); }
     }
     ctx.stroke();
     ctx.setLineDash([]);
@@ -2366,6 +2469,21 @@ function applyData(data){
   document.getElementById("meta-thu").textContent=rangeLabel(data.thu);
   document.getElementById("lbl-fri").textContent=dayLabelFromOffset(2);
   document.getElementById("meta-fri").textContent=rangeLabel(data.fri);
+  // compact collapsed-row summary (icon/precip/range) for the same three cards
+  (data.heroDayMeta||[]).forEach((r,i)=>{
+    const suf=["today","thu","fri"][i]; if(!suf) return;
+    const icEl=document.getElementById("ic-"+suf);
+    if(icEl) icEl.innerHTML = (r.code!=null && SVG[codeIcon(r.code)]) ? SVG[codeIcon(r.code)] : "";
+    const dry = r.pr==="trocken";
+    const precEl=document.getElementById("precip-"+suf);
+    if(precEl){ precEl.textContent=r.pr; precEl.classList.toggle("dry",dry); }
+    const loC = r.lo!=null?rgb(tempColor(r.lo)):"var(--ink-2)";
+    const hiC = r.hi!=null?rgb(tempColor(r.hi)):"var(--ink)";
+    const loEl=document.getElementById("lo-"+suf), hiEl=document.getElementById("hi-"+suf), barEl=document.getElementById("bar-"+suf);
+    if(loEl) loEl.textContent=r.lo!=null?r.lo+"°":"–";
+    if(hiEl){ hiEl.textContent=r.hi!=null?r.hi+"°":"–"; hiEl.style.color=hiC; }
+    if(barEl) barEl.style.setProperty("--c1",loC), barEl.style.setProperty("--c2",hiC);
+  });
   // nowcast summary
   // (Zusammenfassungs-Text entfernt — die Grafik/„kein Niederschlag"-Anzeige trägt diese Info bereits)
   const srcEl=document.getElementById("nowcast-src");
@@ -3557,6 +3675,21 @@ document.addEventListener("DOMContentLoaded",()=>{
   const td=document.getElementById("to-desktop");
   if(tw) tw.addEventListener("click", ()=>setUiMode("watch"));
   if(td) td.addEventListener("click", ()=>setUiMode("desktop"));
+})();
+
+/* ============================================================
+   Heute/+1/+2 · einklappbar wie die restlichen Tage (Standard: offen)
+   ============================================================ */
+(function collapsibleDetailCards(){
+  ["today","thu","fri"].forEach(suf=>{
+    const btn=document.getElementById("toggle-"+suf);
+    const grp=document.getElementById("dgroup-"+suf);
+    if(!btn||!grp) return;
+    btn.addEventListener("click", ()=>{
+      const open=grp.classList.toggle("open");
+      btn.setAttribute("aria-expanded", open?"true":"false");
+    });
+  });
 })();
 
 /* ============================================================
