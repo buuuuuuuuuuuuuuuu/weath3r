@@ -18,8 +18,16 @@
    Runs synchronously in <head> BEFORE the body renders so the
    correct GUI is shown immediately (no layout flash).
    ============================================================ */
-window.APP_VERSION = "v10.0";
+window.APP_VERSION = "v11.0";
 
+// fetch mit Timeout: ein hängender Request darf nie die ganze Ladekette blockieren
+window.fetchT=function(url,opts,ms){
+  if(typeof opts==="number"){ ms=opts; opts=undefined; }
+  ms=ms||12000;
+  const c=new AbortController();
+  const t=setTimeout(()=>c.abort(), ms);
+  return fetch(url, Object.assign({}, opts||{}, { signal:c.signal })).finally(()=>clearTimeout(t));
+};
 function getUiMode(){
   var mode=null, explicit=false;
   try{
@@ -27,7 +35,7 @@ function getUiMode(){
     if(p.get("watch")==="1"){ mode="watch"; explicit=true; }
     else if(p.get("desktop")==="1"){ mode="desktop"; explicit=true; }
     else {
-      var saved=localStorage.getItem("uiMode");
+      var saved=localStorage.getItem("weath3r_ui_mode")||localStorage.getItem("uiMode");
       if(saved==="watch"||saved==="desktop"){ mode=saved; explicit=true; }
     }
   }catch(e){}
@@ -42,7 +50,7 @@ function getUiMode(){
     // choices (URL param or a prior toggle) are stored.
   }
   document.documentElement.dataset.uiMode = mode;
-  if(explicit){ try{ localStorage.setItem("uiMode", mode); }catch(e){} }
+  if(explicit){ try{ localStorage.setItem("weath3r_ui_mode", mode); }catch(e){} }
   return mode;
 }
 getUiMode();
@@ -54,6 +62,10 @@ getUiMode();
     --bg-grad-top:#1c1329;
     --bg-grad-bot:#0b0712;
     --bg-radial:#2e1f45;
+    --stroke-hover:rgba(255,255,255,.22);           /* Hover-Kante, themeabhängig */
+    --overlay-bg:rgba(4,7,11,.55);                  /* Modal/Sheet-Abdunklung */
+    --rain-ink:#3d9be9;                             /* Regen-Farbe für TEXT (kontrastgeprüft) */
+    --rain-strong:#2374b5;                          /* Regen-Farbe als Button-Fläche (weißer Text ≥4.5:1) */
     --card:#1e1530;
     --card-2:#241a3a;
     --stroke:rgba(216,180,255,.10);
@@ -62,7 +74,7 @@ getUiMode();
 
     --ink:#f1ecf9;
     --ink-2:#a99bc4;
-    --ink-3:#786a94;
+    --ink-3:#9486b0; /* v11: von #786a94 aufgehellt — 5.2:1 statt 3.6:1, Violett-Charakter bleibt */
 
     /* Temperature ramp (semantic warmth) — shared by both themes */
     --t-cold:#4aa8ff;
@@ -132,7 +144,7 @@ getUiMode();
 
     --ink:#1a2230;
     --ink-2:#56627a;
-    --ink-3:#8a96aa;
+    --ink-3:#66748c; /* v11: von #8a96aa abgedunkelt — 4.7:1 auf Weiß */
 
     --c-grid:rgba(20,30,50,.07);
     --c-grid-soft:rgba(20,30,50,.05);
@@ -145,6 +157,11 @@ getUiMode();
     --c-sky-cloud2:#aab4c2;
     --c-sky-rain:#3d9be9;
     --c-sky-nodata:#1a2230;
+    --stroke-hover:rgba(20,30,50,.25);
+    --overlay-bg:rgba(20,30,50,.35);
+    --rain-ink:#2374b5;
+    --rain-strong:#2374b5;
+    --feels:#cf4331; /* v11: Light-Variante — 4.7:1 auf Weiß statt 2.8:1 */
     --topbar-solid:rgb(247,249,252);
     --topbar-skirt:linear-gradient(180deg, rgba(247,249,252,.94) 0%, rgba(247,249,252,.55) 45%, rgba(247,249,252,0) 100%);
   }
@@ -194,8 +211,19 @@ getUiMode();
     color:var(--ink-2);display:grid;place-items:center;cursor:pointer;
     transition:.2s;
   }
-  .iconbtn:hover{color:var(--ink);border-color:rgba(255,255,255,.18)}
+  .iconbtn:hover{color:var(--ink);border-color:var(--stroke-hover)}
   .iconbtn svg{width:50%;height:50%}
+
+  /* Tastatur-Fokus sichtbar machen (nur :focus-visible — kein Ring bei Touch/Maus) */
+  :focus-visible{outline:2px solid var(--rain);outline-offset:2px}
+
+  /* Unsichtbare Trefferflächen-Erweiterung Richtung 44-pt-Ziel (Apple HIG),
+     ohne die visuelle Größe zu ändern. ::before spannt die Hit-Area auf. */
+  .iconbtn,.radar-play,.locsheet-close,.modal-close,.notify-btn{position:relative}
+  .iconbtn::before,.radar-play::before,.locsheet-close::before,.modal-close::before,
+  .notify-btn::before,.warn-btn::before{
+    content:"";position:absolute;inset:-6px;border-radius:inherit;
+  }
 
   /* refresh spin */
   @keyframes spin{to{transform:rotate(360deg)}}
@@ -205,7 +233,7 @@ getUiMode();
   .locsheet{
     position:fixed;inset:0;z-index:60;display:flex;align-items:flex-start;justify-content:center;
     padding:calc(env(safe-area-inset-top) + 60px) 16px 16px;
-    background:rgba(4,7,11,.55);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+    background:var(--overlay-bg);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
   }
   .locsheet[hidden]{display:none}
   .locsheet-card{
@@ -353,9 +381,9 @@ getUiMode();
     border:1px solid var(--stroke);background:var(--card-2);color:var(--ink);
     display:grid;place-items:center;cursor:pointer;transition:.15s;
   }
-  .radar-play:hover{border-color:rgba(255,255,255,.2)}
+  .radar-play:hover{border-color:var(--stroke-hover)}
   .radar-play svg{width:14px;height:14px}
-  .radar-scrub{flex:1;accent-color:var(--rain);height:4px}
+  .radar-scrub{flex:1;accent-color:var(--rain);height:28px} /* große Grab-Fläche, Track bleibt schlank */
   .radar-time{font-size:var(--fs-sm);font-weight:600;color:var(--ink);min-width:74px;text-align:right;
     font-variant-numeric:tabular-nums}
   .radar-time .rel{display:block;font-size:var(--fs-xs);font-weight:500;color:var(--ink-3);margin-top:1px}
@@ -451,7 +479,7 @@ getUiMode();
   .drow .day small{display:block;font-size:var(--fs-xs);color:var(--ink-3);font-weight:400;margin-top:1px}
   .drow .ic{display:flex;align-items:center;gap:5px;justify-content:center;min-width:46px}
   .drow .ic svg{width:22px;height:22px}
-  .drow .precip{font-size:var(--fs-sm);color:var(--rain);font-variant-numeric:tabular-nums;text-align:right;font-weight:500}
+  .drow .precip{font-size:var(--fs-sm);color:var(--rain-ink);font-variant-numeric:tabular-nums;text-align:right;font-weight:500}
   .drow .precip.dry{color:var(--ink-3)}
   .temprange{display:flex;align-items:center;gap:9px;justify-content:flex-end;min-width:96px}
   .temprange .lo{font-size:var(--fs-base);color:var(--ink-2);font-variant-numeric:tabular-nums;width:26px;text-align:right}
@@ -520,7 +548,7 @@ getUiMode();
   /* ---------- Modal ---------- */
   .modal-overlay{
     position:fixed;inset:0;z-index:100;
-    background:rgba(0,0,0,.5);
+    background:var(--overlay-bg);
     backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);
     display:flex;align-items:center;justify-content:center;padding:20px;
     animation:fadein .15s ease;
@@ -601,7 +629,7 @@ getUiMode();
     --stroke:rgba(255,255,255,.10);
     --ink:#fff;
     --ink-2:#aab4c2;
-    --ink-3:#6b7480;
+    --ink-3:#8590a0; /* v11: Watch-Kleinsttext von 3.9:1 auf 5.8:1 */
     --rain:#3d9be9;
     --feels:#ff6b5e;
     --warn:#ffb020;
@@ -643,7 +671,7 @@ getUiMode();
   #watch-ui .wdrow:first-child{border-top:none}
   #watch-ui .wdrow .d{font-size:var(--fs-base);font-weight:600;width:64px}
   #watch-ui .wdrow .d small{display:block;font-size:var(--fs-xs);color:var(--ink-3);font-weight:500}
-  #watch-ui .wdrow .pr{font-size:var(--fs-sm);color:var(--rain);font-variant-numeric:tabular-nums;margin-left:auto;font-weight:600}
+  #watch-ui .wdrow .pr{font-size:var(--fs-sm);color:var(--rain-ink);font-variant-numeric:tabular-nums;margin-left:auto;font-weight:600}
   #watch-ui .wdrow .pr.dry{color:var(--ink-3)}
   #watch-ui .wdrow .tr{display:flex;align-items:center;gap:8px;min-width:78px;justify-content:flex-end}
   #watch-ui .wdrow .lo{font-size:var(--fs-base);color:var(--ink-2);width:24px;text-align:right;font-variant-numeric:tabular-nums}
@@ -663,7 +691,7 @@ getUiMode();
     color:var(--ink-2);font:inherit;font-size:var(--fs-xs);font-weight:600;
     padding:5px var(--sp-3);transition:.15s;font-family:var(--font);
   }
-  .ui-toggle:hover{color:var(--ink);border-color:rgba(255,255,255,.22)}
+  .ui-toggle:hover{color:var(--ink);border-color:var(--stroke-hover)}
   #watch-ui .ui-toggle{margin:2px auto 0}
 
   /* ---------- app version stamp ---------- */
@@ -683,7 +711,7 @@ getUiMode();
   .update-banner.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}
   .update-banner .ub-txt{font-size:var(--fs-base);font-weight:600;color:var(--ink)}
   .update-banner .ub-btn{
-    flex:none;font-size:var(--fs-sm);font-weight:700;color:#fff;background:var(--rain);
+    flex:none;font-size:var(--fs-sm);font-weight:700;color:#fff;background:var(--rain-strong);
     border:none;border-radius:var(--radius-pill);padding:7px 12px;cursor:pointer;font-family:var(--font);
   }
   .update-banner .ub-btn:hover{filter:brightness(1.08)}
@@ -943,7 +971,8 @@ const AURORA = (function(){
     { id:"icon_d2",                  label:"ICON-D2",  dash:[9,6] },    // dashed
     { id:"ecmwf_ifs025",             label:"ECMWF",    dash:[2,5] },    // dotted
   ];
-  const CACHE_KEY = "aurora_cache_v1";
+  const CACHE_KEY = "weath3r_cache_v1";
+  const LEGACY_CACHE_KEY = "aurora_cache_v1"; // Alt-Ära — wird einmalig migriert
   const CACHE_TTL = 30*60*1000; // 30 min
 
   // hourly + 15-min variables we ask each model for
@@ -1251,10 +1280,12 @@ const AURORA = (function(){
     let start=0;
     for(let i=0;i<t.length;i++){ if(new Date(t[i])>=now){ start=Math.max(0,i-1); break; } }
     const pts=[];
-    for(let i=start; i<t.length && pts.length<25; i++){
+    let base=null;
+    for(let i=start; i<t.length && pts.length<9; i++){ // 9 Punkte × 15 min = 2 h — passt zum Kartentitel
       const d=new Date(t[i]);
+      if(base===null) base=new Date(d.getFullYear(), d.getMonth(), d.getDate()); // Mitternacht des 1. Punkts
       pts.push({
-        t: d.getHours()+d.getMinutes()/60,
+        t: (d-base)/3600000, // Stunden seit Basis-Mitternacht — monoton auch über Mitternacht hinweg
         prob: (prob[i]!=null?prob[i]:0)/100,
         inten: Math.max(0, Math.min(1, (pr[i]!=null?pr[i]:0)/2)), // 2mm/15min = heavy
       });
@@ -1265,10 +1296,10 @@ const AURORA = (function(){
     const rainy=pts.findIndex(p=>p.prob>0.4);
     if(pts[0].prob>0.4){
       const stop=pts.findIndex((p,i)=>i>0&&p.prob<0.3);
-      if(stop>0){ const s=pts[stop]; summary=`Schauer lässt gegen ${Math.floor(s.t)}:${pad(Math.round((s.t%1)*60))} nach`; }
+      if(stop>0){ const s=pts[stop]; summary=`Schauer lässt gegen ${Math.floor(s.t)%24}:${pad(Math.round((s.t%1)*60))} nach`; }
       else summary="Niederschlag hält an";
     } else if(rainy>0){
-      const s=pts[rainy]; summary=`Schauer ab ca. ${Math.floor(s.t)}:${pad(Math.round((s.t%1)*60))}`;
+      const s=pts[rainy]; summary=`Schauer ab ca. ${Math.floor(s.t)%24}:${pad(Math.round((s.t%1)*60))}`;
     }
     return { start:pts[0].t, end:pts[pts.length-1].t, pts, summary };
   }
@@ -1288,7 +1319,7 @@ const AURORA = (function(){
     u.searchParams.set("format", "plain");      // nested int arrays (tiny bbox → cheap)
     u.searchParams.set("date", now.toISOString());
     u.searchParams.set("last_date", end.toISOString());
-    const res=await fetch(u.toString());
+    const res=await fetchT(u.toString(), 12000);
     if(!res.ok) throw new Error("Radar "+res.status);
     return res.json();
   }
@@ -1362,7 +1393,7 @@ const AURORA = (function(){
     u.searchParams.set("format", "plain");
     u.searchParams.set("date", now.toISOString());
     u.searchParams.set("last_date", end.toISOString());
-    const res=await fetch(u.toString());
+    const res=await fetchT(u.toString(), 25000); // großes Komposit — mehr Budget
     if(!res.ok) throw new Error("RadarMap "+res.status);
     return res.json();
   }
@@ -1438,7 +1469,7 @@ const AURORA = (function(){
 
   async function fetchData(geo){
     const url=buildURL(geo);
-    const res=await fetch(url);
+    const res=await fetchT(url, 15000); // Multi-Modell-Abruf — etwas mehr Budget
     if(!res.ok) throw new Error("API "+res.status);
     const json=await res.json();
     const per=splitModels(json);
@@ -1461,7 +1492,7 @@ const AURORA = (function(){
     u.searchParams.set("longitude", geo.lon);
     u.searchParams.set("current",["temperature_2m","apparent_temperature","precipitation","weather_code","cloud_cover","wind_speed_10m"].join(","));
     u.searchParams.set("timezone","auto");
-    const res=await fetch(u.toString());
+    const res=await fetchT(u.toString(), 10000);
     if(!res.ok) throw new Error("current "+res.status);
     const json=await res.json();
     return json.current||null;
@@ -1481,7 +1512,7 @@ const AURORA = (function(){
   async function fetchAlerts(geo){
     try{
       const u=`https://api.brightsky.dev/alerts?lat=${geo.lat}&lon=${geo.lon}&tz=auto`;
-      const r=await fetch(u);
+      const r=await fetchT(u, 10000);
       if(!r.ok) return [];
       const j=await r.json();
       const arr=(j&&j.alerts)||[];
@@ -1547,7 +1578,7 @@ const AURORA = (function(){
   async function resolveName(geo){
     if(geo.name) return geo;
     try{
-      const r=await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${geo.lat}&longitude=${geo.lon}&localityLanguage=de`);
+      const r=await fetchT(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${geo.lat}&longitude=${geo.lon}&localityLanguage=de`, 8000);
       if(r.ok){ const j=await r.json(); geo.name=(j.locality||j.city||j.principalSubdivision||"Mein Standort"); }
     }catch(e){ geo.name="Mein Standort"; }
     return geo;
@@ -1559,7 +1590,16 @@ const AURORA = (function(){
   }
   function loadCache(){
     try{
-      const raw=localStorage.getItem(CACHE_KEY); if(!raw) return null;
+      let raw=localStorage.getItem(CACHE_KEY);
+      if(!raw){
+        // einmalige Migration vom Alt-Key (Aurora-Ära)
+        const legacy=localStorage.getItem(LEGACY_CACHE_KEY);
+        if(legacy){
+          raw=legacy;
+          try{ localStorage.setItem(CACHE_KEY, legacy); localStorage.removeItem(LEGACY_CACHE_KEY); }catch(e){}
+        }
+      }
+      if(!raw) return null;
       const o=JSON.parse(raw); return o&&o.data?o:null;
     }catch(e){ return null; }
   }
@@ -1573,7 +1613,7 @@ const AURORA = (function(){
     u.searchParams.set("count", "6");
     u.searchParams.set("language", "de");
     u.searchParams.set("format", "json");
-    const res=await fetch(u.toString());
+    const res=await fetchT(u.toString(), 10000);
     if(!res.ok) throw new Error("Geo "+res.status);
     const j=await res.json();
     return (j.results||[]).map(r=>({
@@ -1588,36 +1628,38 @@ const AURORA = (function(){
     let geo=await getLocation();
     try{
       const data=await fetchData(geo);
-      // overlay a true "right now" snapshot onto the hero (see fetchCurrent
-      // above) so the desktop hero matches the Watch's accuracy; best-effort,
-      // falls back silently to the hourly-derived estimate if it fails
-      try{
-        const cur=await fetchCurrent(geo);
-        if(cur && data.hero){
-          if(cur.temperature_2m!=null) data.hero.temp=Math.round(cur.temperature_2m);
-          if(cur.apparent_temperature!=null) data.hero.feels=Math.round(cur.apparent_temperature);
-          if(cur.cloud_cover!=null) data.hero.cloud=cur.cloud_cover;
-          if(cur.precipitation!=null) data.hero.precip=cur.precipitation;
-          if(cur.wind_speed_10m!=null) data.hero.wind=Math.round(cur.wind_speed_10m);
-          if(cur.weather_code!=null) data.hero.code=cur.weather_code;
-          // prob (precipitation_probability) has no equivalent in `current` —
-          // keep the hourly-derived estimate for that one field
-        }
-      }catch(e){ /* keep hourly-derived hero values */ }
-      // resolve place name AFTER weather succeeds; never let it block
-      try{ await resolveName(geo); }catch(e){}
+      // Die vier folgenden Anreicherungen sind unabhängig voneinander und
+      // alle best-effort — deshalb laufen sie PARALLEL statt nacheinander
+      // (v11: spart auf Mobilfunk mehrere serielle Round-Trips).
+      const [curR, , alertsR, radarR] = await Promise.allSettled([
+        fetchCurrent(geo),          // echter "Jetzt"-Snapshot für die Hero-Kachel
+        resolveName(geo),           // Ortsname (mutiert geo.name; Fehler egal)
+        fetchAlerts(geo),           // DWD-Warnungen
+        fetchRadar(geo),            // DWD-Radar-Nowcast
+      ]);
+      // 1) Hero-Overlay: hourly-Schätzung durch echten Ist-Wert ersetzen
+      if(curR.status==="fulfilled" && curR.value && data.hero){
+        const cur=curR.value;
+        if(cur.temperature_2m!=null) data.hero.temp=Math.round(cur.temperature_2m);
+        if(cur.apparent_temperature!=null) data.hero.feels=Math.round(cur.apparent_temperature);
+        if(cur.cloud_cover!=null) data.hero.cloud=cur.cloud_cover;
+        if(cur.precipitation!=null) data.hero.precip=cur.precipitation;
+        if(cur.wind_speed_10m!=null) data.hero.wind=Math.round(cur.wind_speed_10m);
+        if(cur.weather_code!=null) data.hero.code=cur.weather_code;
+        // prob (precipitation_probability) hat kein `current`-Pendant —
+        // die hourly-Schätzung bleibt für dieses eine Feld stehen
+      }
       data.geo=geo;
-      // weather warnings (best-effort; never block on failure)
-      try{
-        const alerts=await fetchAlerts(geo);
+      // 2) Warnungen anhängen (Fehler → leere Liste)
+      {
+        const alerts=(alertsR.status==="fulfilled" && Array.isArray(alertsR.value)) ? alertsR.value : [];
         data.alerts=alerts;
-        // attach alert bands to the detailed days (today/thu/fri)
         const today=new Date();
         const dOf=off=>{const d=new Date(today);d.setDate(d.getDate()+off);return d;};
         if(data.today) data.today.alerts=alertBandsForDay(alerts, dOf(0));
         if(data.thu)   data.thu.alerts  =alertBandsForDay(alerts, dOf(1));
         if(data.fri)   data.fri.alerts  =alertBandsForDay(alerts, dOf(2));
-        // wrap buildDay so expanded list days also get their alert bands
+        // buildDay wrappen, damit auch nachträglich aufgeklappte Tage ihre Bänder bekommen
         if(typeof data.buildDay==="function"){
           const inner=data.buildDay;
           data.buildDay=function(offset){
@@ -1626,15 +1668,15 @@ const AURORA = (function(){
             return day;
           };
         }
-      }catch(e){ data.alerts=[]; }
-      // DWD radar nowcast (best-effort): replaces the model-based nowcast
-      // when available. Falls back silently to Open-Meteo minutely_15 outside
-      // German radar coverage or on any error.
-      try{
-        const radar=await fetchRadar(geo);
-        const rn=buildRadarNowcast(radar, new Date());
-        if(rn) data.nowcast=rn;
-      }catch(e){ /* keep model nowcast */ }
+      }
+      // 3) DWD-Radar-Nowcast ersetzt den Modell-Nowcast, wenn verfügbar;
+      //    außerhalb der Radar-Abdeckung bleibt still der minutely_15-Fallback
+      if(radarR.status==="fulfilled"){
+        try{
+          const rn=buildRadarNowcast(radarR.value, new Date());
+          if(rn) data.nowcast=rn;
+        }catch(e){ /* Modell-Nowcast behalten */ }
+      }
       saveCache(data);
       return { data, stale:false };
     }catch(err){
@@ -1645,7 +1687,7 @@ const AURORA = (function(){
   }
 
   return { load, loadCache, MODELS, DEFAULT_LOC, fetchRadarMap, buildRadarMap,
-           searchPlaces, setOverride, getOverride };
+           searchPlaces, setOverride, getOverride, resolveName, radarInten, CACHE_TTL };
 })();
 
 </script>
@@ -2181,11 +2223,12 @@ function drawNowcast(canvasId){
   // hour ticks every 30 min (skip any that would collide with the y-axis)
   ctx.font="10px "+getComputedStyle(document.body).fontFamily;
   ctx.textAlign="center";ctx.textBaseline="alphabetic";ctx.fillStyle=cssVar("--c-axis");
-  for(let m=0;m<=2*60;m+=30){
+  const winMin=Math.max(30, Math.round((t1-t0)*60)); // echtes Datenfenster statt fixer 2 h
+  for(let m=0;m<=winMin;m+=30){
     const t=t0+m/60;
     const x=X(t);
     if(x < x0+18) continue; // too close to y-axis labels
-    const hh=Math.floor(t), mm=Math.round((t-hh)*60);
+    const hh=Math.floor(t)%24, mm=Math.round((t-Math.floor(t))*60);
     const lbl=hh+":"+String(mm).padStart(2,"0");
     ctx.fillText(lbl,Math.min(x1-14,x),H-5);
   }
@@ -2544,7 +2587,11 @@ function applyExtremeChip(h){
 function applyData(data){
   // location
   if(data.geo && data.geo.name) document.getElementById("loc-name").textContent=data.geo.name;
-  if(data.geo && data.geo.lat!=null) window.__currentGeo=data.geo; // reused by the push-notify subscribe flow
+  if(data.geo && data.geo.lat!=null){
+    window.__currentGeo=data.geo; // reused by the push-notify subscribe flow
+    // Push-Abo über Ortswechsel informieren (rainNotify hört auf dieses Event)
+    try{ document.dispatchEvent(new CustomEvent("weath3r:geo",{detail:data.geo})); }catch(e){}
+  }
   // hero
   const h=data.hero;
   if(h){
@@ -2670,6 +2717,7 @@ async function boot(manual){
       setStatus(`Offline – zuletzt aktualisiert vor ${mins} Min.`);
     } else {
       setStatus("");
+      __lastLoadOk=Date.now(); // nur frische Daten zählen — stale löst beim nächsten Fokus einen Retry aus
     }
   }catch(err){
     setStatus("Fehler: "+(err&&err.message?err.message:err)+" — Datei muss über http(s) geöffnet werden, nicht in einer Vorschau.");
@@ -2680,6 +2728,16 @@ async function boot(manual){
   }
 }
 if(document.documentElement.dataset.uiMode!=="watch") boot();
+
+// Auto-Refresh: kommt die PWA nach längerer Pause wieder in den Vordergrund,
+// werden die Daten automatisch neu geladen statt kommentarlos zu veralten.
+let __lastLoadOk=0;
+document.addEventListener("visibilitychange", ()=>{
+  if(document.visibilityState!=="visible") return;
+  if(document.documentElement.dataset.uiMode==="watch") return;
+  const ttl=(AURORA && AURORA.CACHE_TTL) || 30*60*1000;
+  if(Date.now()-__lastLoadOk > ttl) boot();
+});
 
 /* ============================================================
    LOCATION PICKER · pin button → search / GPS
@@ -2721,7 +2779,7 @@ if(document.documentElement.dataset.uiMode!=="watch") boot();
       const b=document.createElement("button");
       b.className="locresult";
       const sub=[r.admin1, r.country].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(" · ");
-      b.innerHTML=`<span class="lr-name">${r.name}</span><span class="lr-sub">${sub||""}</span>`;
+      b.innerHTML=`<span class="lr-name">${escapeHtml(r.name)}</span><span class="lr-sub">${escapeHtml(sub||"")}</span>`;
       b.addEventListener("click", ()=>chooseGeo({ lat:r.lat, lon:r.lon, name:r.name }));
       results.appendChild(b);
     });
@@ -3060,7 +3118,7 @@ if(document.documentElement.dataset.uiMode!=="watch") boot();
     }catch(e){}
     for(const url of BORDER_URLS){
       try{
-        const r=await fetch(url);
+        const r=await fetchT(url, 15000);
         if(!r.ok) continue;
         const geo=await r.json();
         borderRings=flattenGeo(geo);
@@ -3322,8 +3380,13 @@ if(document.documentElement.dataset.uiMode!=="watch") boot();
       const geo=(DATA && DATA.geo) ? DATA.geo : AURORA.DEFAULT_LOC;
       const raw=await AURORA.fetchRadarMap(geo);
       const m=AURORA.buildRadarMap(raw);
-      if(!m){ statusEl.textContent="Regenradar für diesen Standort nicht verfügbar."; loading=false; return; }
+      if(!m){
+        statusEl.textContent="Regenradar für diesen Standort nicht verfügbar.";
+        const ct=document.querySelector(".radarmap-ctrl"); if(ct) ct.style.display="none"; // keine Controls ohne Daten
+        loading=false; return;
+      }
       map=m; idx=0;
+      { const ct=document.querySelector(".radarmap-ctrl"); if(ct) ct.style.display=""; } // Controls (wieder) zeigen
       // anchor for the border overlay: the user's true lat/lon + its projection
       map.userLat=geo.lat; map.userLon=geo.lon;
       map.userName=geo.name||"Mein Standort";
@@ -3518,29 +3581,10 @@ document.addEventListener("DOMContentLoaded",()=>{
   const MO=["Jan.","Feb.","März","Apr.","Mai","Juni","Juli","Aug.","Sep.","Okt.","Nov.","Dez."];
   const pad=n=>String(n).padStart(2,"0");
 
-  const RAMP=[[4,[74,168,255]],[12,[95,208,196]],[18,[155,212,90]],[23,[244,196,48]],[28,[255,138,61]],[33,[255,90,77]]];
-  function tempColor(t){
-    if(t<=RAMP[0][0])return RAMP[0][1];
-    if(t>=RAMP[RAMP.length-1][0])return RAMP[RAMP.length-1][1];
-    for(let i=0;i<RAMP.length-1;i++){const[a,ca]=RAMP[i],[b,cb]=RAMP[i+1];
-      if(t>=a&&t<=b){const k=(t-a)/(b-a);return[0,1,2].map(j=>Math.round(ca[j]+(cb[j]-ca[j])*k));}}
-    return RAMP[RAMP.length-1][1];
-  }
-  const rgb=c=>`rgb(${c[0]},${c[1]},${c[2]})`;
+  // tempColor/rgb kommen aus dem gemeinsamen Skript-Scope (Block 2) —
+  // identische Kopien wurden in v11 entfernt (eine Quelle der Wahrheit).
 
-  function weatherWord(code,cloud,precip){
-    if(precip>0.1)return "Regen";
-    if(code!=null){
-      if(code>=95)return "Gewitter";
-      if(code>=71&&code<=77)return "Schnee";
-      if(code>=51&&code<=67)return "Regen";
-      if(code>=45&&code<=48)return "Nebel";
-      if(code>=1&&code<=3)return cloud>60?"Bewölkt":"Heiter";
-      if(code===0)return "Klar";
-    }
-    if(cloud!=null)return cloud>70?"Bewölkt":cloud>30?"Heiter":"Klar";
-    return "–";
-  }
+  // v11: weatherWord dedupliziert — nutzt die globale Version aus Block 2
 
   function getLocation(){
     return new Promise(resolve=>{
@@ -3554,14 +3598,7 @@ document.addEventListener("DOMContentLoaded",()=>{
       );
     });
   }
-  async function resolveName(geo){
-    if(geo.name)return geo;
-    try{
-      const r=await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${geo.lat}&longitude=${geo.lon}&localityLanguage=de`);
-      if(r.ok){const j=await r.json();geo.name=(j.locality||j.city||j.principalSubdivision||"Mein Standort");}
-    }catch(e){geo.name="Mein Standort";}
-    return geo;
-  }
+  const resolveName=AURORA.resolveName; // v11: dedupliziert — kanonische Version lebt in AURORA
   async function fetchWeather(geo){
     const u=new URL("https://api.open-meteo.com/v1/forecast");
     u.searchParams.set("latitude",geo.lat);
@@ -3571,18 +3608,18 @@ document.addEventListener("DOMContentLoaded",()=>{
     u.searchParams.set("timezone","auto");
     u.searchParams.set("forecast_days","5");
     u.searchParams.set("wind_speed_unit","kmh");
-    const res=await fetch(u.toString());
+    const res=await fetchT(u.toString(), 12000);
     if(!res.ok)throw new Error("OM "+res.status);
     return res.json();
   }
-  function radarInten(mmh){return Math.max(0,Math.min(1,Math.sqrt(mmh/8)));}
+  const radarInten=AURORA.radarInten; // v11: dedupliziert — kanonische Version lebt in AURORA
   async function fetchRadar(geo){
     const now=new Date(),end=new Date(now.getTime()+125*60*1000);
     const u=new URL("https://api.brightsky.dev/radar");
     u.searchParams.set("lat",geo.lat);u.searchParams.set("lon",geo.lon);
     u.searchParams.set("distance",1000);u.searchParams.set("format","plain");
     u.searchParams.set("date",now.toISOString());u.searchParams.set("last_date",end.toISOString());
-    const res=await fetch(u.toString());
+    const res=await fetchT(u.toString(), 12000);
     if(!res.ok)throw new Error("Radar "+res.status);
     return res.json();
   }
@@ -3616,7 +3653,7 @@ document.addEventListener("DOMContentLoaded",()=>{
     u.searchParams.set("latitude",geo.lat);u.searchParams.set("longitude",geo.lon);
     u.searchParams.set("minutely_15",["precipitation","precipitation_probability"].join(","));
     u.searchParams.set("timezone","auto");u.searchParams.set("forecast_minutely_15","12");
-    const res=await fetch(u.toString());if(!res.ok)throw new Error("min15 "+res.status);
+    const res=await fetchT(u.toString(), 12000);if(!res.ok)throw new Error("min15 "+res.status);
     return res.json();
   }
   function buildMinutelyNowcast(j,now){
@@ -3761,7 +3798,7 @@ document.addEventListener("DOMContentLoaded",()=>{
    ============================================================ */
 (function uiToggles(){
   function setUiMode(mode){
-    try{ localStorage.setItem("uiMode", mode); }catch(e){}
+    try{ localStorage.setItem("weath3r_ui_mode", mode); }catch(e){}
     const p=new URLSearchParams(location.search);
     if(mode==="watch"){ p.set("watch","1"); p.delete("desktop"); }
     else { p.set("desktop","1"); p.delete("watch"); }
@@ -3800,7 +3837,6 @@ document.addEventListener("DOMContentLoaded",()=>{
 
   const VAPID_PUBLIC_KEY="BI6UkcRNvu8656LLHAvakqKXpDDctKupM-Hq1nYRwwuRfMvdGtX-H6GFkK44G2sTuNs_6Fus0QHBdXq9Sa3jOBo";
   const PUSH_URL="https://weath3r-push.reinhard-buschmann.workers.dev";
-  const LS_KEY="weath3r_push_enabled";
 
   function isIOS(){
     return /iP(hone|ad|od)/.test(navigator.userAgent) ||
@@ -3835,6 +3871,36 @@ document.addEventListener("DOMContentLoaded",()=>{
 
   const supported = ("serviceWorker" in navigator) && ("PushManager" in window) && ("Notification" in window);
 
+  // serviceWorker.ready resolved nie, wenn die Registrierung fehlschlug —
+  // mit Timeout wrappen, damit der Button nie stumm hängen bleibt.
+  function swReady(ms=8000){
+    return Promise.race([
+      navigator.serviceWorker.ready,
+      new Promise((_,rej)=>setTimeout(()=>rej(new Error("Service Worker nicht bereit")),ms)),
+    ]);
+  }
+
+  // Ortswechsel → Abo-Koordinaten am Worker aktualisieren (Worker upsertet
+  // per Endpoint und erhält dabei den Benachrichtigungs-Status).
+  let __lastSyncedLoc=null;
+  async function syncLocation(geo){
+    if(!supported || !geo || geo.lat==null || geo.lon==null) return;
+    const key=(+geo.lat).toFixed(3)+","+(+geo.lon).toFixed(3);
+    if(__lastSyncedLoc===key) return; // schon aktuell in dieser Session
+    try{
+      const reg=await swReady();
+      const sub=await reg.pushManager.getSubscription();
+      if(!sub) return; // Push nicht aktiv — nichts zu synchronisieren
+      const j=sub.toJSON();
+      const res=await fetchT(PUSH_URL+"/subscribe",{
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({ endpoint:j.endpoint, keys:j.keys, lat:geo.lat, lon:geo.lon, location_name:geo.name||null }),
+      },12000);
+      if(res.ok) __lastSyncedLoc=key;
+    }catch(e){ /* still — nächster Versuch beim nächsten Datenladen */ }
+  }
+  document.addEventListener("weath3r:geo", e=>{ syncLocation(e.detail); });
+
   async function enable(){
     if(!supported){
       if(isIOS() && !isStandalone()){
@@ -3859,7 +3925,7 @@ document.addEventListener("DOMContentLoaded",()=>{
     }
 
     try{
-      const reg = await navigator.serviceWorker.ready;
+      const reg = await swReady();
       let sub = await reg.pushManager.getSubscription();
       if(!sub){
         sub = await reg.pushManager.subscribe({
@@ -3868,7 +3934,7 @@ document.addEventListener("DOMContentLoaded",()=>{
         });
       }
       const subJSON = sub.toJSON();
-      const res = await fetch(PUSH_URL+"/subscribe", {
+      const res = await fetchT(PUSH_URL+"/subscribe", {
         method:"POST",
         headers:{"Content-Type":"application/json"},
         body: JSON.stringify({
@@ -3878,7 +3944,6 @@ document.addEventListener("DOMContentLoaded",()=>{
         }),
       });
       if(!res.ok) throw new Error("subscribe "+res.status);
-      try{ localStorage.setItem(LS_KEY,"1"); }catch(e){}
       setState("on");
     }catch(err){
       console.error("push subscribe failed", err);
@@ -3890,20 +3955,19 @@ document.addEventListener("DOMContentLoaded",()=>{
   async function disable(){
     try{
       if("serviceWorker" in navigator){
-        const reg = await navigator.serviceWorker.ready;
+        const reg = await swReady();
         const sub = await reg.pushManager.getSubscription();
         if(sub){
           try{
-            await fetch(PUSH_URL+"/unsubscribe", {
+            await fetchT(PUSH_URL+"/unsubscribe", {
               method:"POST", headers:{"Content-Type":"application/json"},
               body: JSON.stringify({ endpoint: sub.endpoint }),
-            });
+            }, 8000);
           }catch(e){}
           await sub.unsubscribe();
         }
       }
     }catch(e){ console.warn("push unsubscribe cleanup failed", e); }
-    try{ localStorage.removeItem(LS_KEY); }catch(e){}
     setState("off");
   }
 
@@ -3918,7 +3982,7 @@ document.addEventListener("DOMContentLoaded",()=>{
     if(!supported){ return; }
     if(Notification.permission==="denied"){ setState("blocked"); return; }
     try{
-      const reg = await navigator.serviceWorker.ready;
+      const reg = await swReady();
       const sub = await reg.pushManager.getSubscription();
       setState(sub ? "on" : "off");
     }catch(e){ /* SW noch nicht bereit — Default-Zustand (off) bleibt stehen */ }
