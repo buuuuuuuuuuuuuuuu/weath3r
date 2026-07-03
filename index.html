@@ -19,7 +19,7 @@
    Runs synchronously in <head> BEFORE the body renders so the
    correct GUI is shown immediately (no layout flash).
    ============================================================ */
-window.APP_VERSION = "v14.0";
+window.APP_VERSION = "v14.1";
 
 // fetch mit Timeout: ein hängender Request darf nie die ganze Ladekette blockieren
 window.fetchT=function(url,opts,ms){
@@ -170,6 +170,7 @@ getUiMode();
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
   html,body{height:100%}
   body{
+    overscroll-behavior-y:contain; /* v14.1: iOS-Bounce zähmen, damit Pull-to-Refresh zuverlässig auslöst */
     font-family:var(--font);
     color:var(--ink);
     background:
@@ -515,6 +516,23 @@ getUiMode();
     margin:0 4px;transition:.2s;
   }
   .warn-btn:hover{background:rgba(255,138,61,.24)}
+  /* Prominenter Warn-Streifen (v14.1): sichtbarer als das reine Icon,
+     bei "Bedrohung für Leben/Besitz" angemessen auffällig. */
+  .warn-strip{
+    display:flex;align-items:center;gap:var(--sp-2);width:100%;
+    margin-top:var(--sp-3);padding:var(--sp-3) var(--sp-4);
+    border:1px solid var(--t-hot);border-radius:var(--radius-sm);
+    background:rgba(255,138,61,.14);color:var(--ink);
+    font-family:var(--font);text-align:left;cursor:pointer;
+  }
+  .warn-strip .ws-ic{width:20px;height:20px;flex:none;color:var(--t-hot)}
+  .warn-strip .ws-text{flex:1;min-width:0;font-size:var(--fs-base);font-weight:600;
+    line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .warn-strip .ws-chev{width:16px;height:16px;flex:none;color:var(--ink-3)}
+  .warn-strip.sev-3{
+    border-color:var(--t-scorch);background:rgba(255,90,77,.16);
+  }
+  .warn-strip.sev-3 .ws-ic{color:var(--t-scorch)}
   .warn-btn svg{width:50%;height:50%}
   .warn-btn.sev-3{border-color:rgba(255,90,77,.6);background:rgba(255,90,77,.18);color:var(--t-scorch)}
   .warn-count{
@@ -825,6 +843,11 @@ getUiMode();
         <span class="warn-count" id="warn-count"></span>
       </button>
     </div>
+    <button class="warn-strip" id="warn-strip" style="display:none" aria-label="Wetterwarnung anzeigen">
+      <svg class="ws-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.6 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.6a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+      <span class="ws-text" id="warn-strip-text"></span>
+      <svg class="ws-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+    </button>
   </section>
 
   <!-- NOWCAST · next 2h -->
@@ -2843,18 +2866,31 @@ function applyAlerts(alerts){
   const btn=document.getElementById("warn-btn");
   const cnt=document.getElementById("warn-count");
   const wx=document.getElementById("wx-icon");
+  const strip=document.getElementById("warn-strip");
+  const stripTxt=document.getElementById("warn-strip-text");
   if(!btn) return;
   if(!__alerts.length){
     btn.style.display="none";
+    if(strip) strip.style.display="none";
     if(wx && wx.innerHTML.trim()) wx.style.display="grid";  // restore weather icon
     return;
   }
-  // a warning is active → the warning icon takes over the hero slot
-  if(wx) wx.style.display="none";
+  // v14.1: Der prominente Warn-Streifen übernimmt die Kommunikation. Das
+  // Hero-Wetter-Icon bleibt sichtbar (der Streifen ist auffällig genug),
+  // der kompakte warn-btn bleibt als zweites Tap-Ziel erhalten.
+  if(wx && wx.innerHTML.trim()) wx.style.display="grid";
   btn.style.display="grid";
   const maxSev=Math.max(...__alerts.map(a=>a.sev));
   btn.classList.toggle("sev-3", maxSev>=3);
   if(cnt) cnt.textContent=__alerts.length>1?__alerts.length:"";
+  // Streifen: wichtigste Warnung als Kurztext, Rest als "+N"
+  if(strip && stripTxt){
+    const top=__alerts[0]; // bereits nach Schwere sortiert
+    const extra=__alerts.length>1?` +${__alerts.length-1}`:"";
+    stripTxt.textContent=(top.event||"Wetterwarnung")+extra;
+    strip.classList.toggle("sev-3", maxSev>=3);
+    strip.style.display="flex";
+  }
   // build modal body
   const body=document.getElementById("warn-body");
   if(body){
@@ -2992,6 +3028,8 @@ function closeWarnModal(){ const m=document.getElementById("warn-modal"); if(m) 
 document.addEventListener("DOMContentLoaded",()=>{
   const btn=document.getElementById("warn-btn");
   if(btn) btn.addEventListener("click", openWarnModal);
+  const strip=document.getElementById("warn-strip");
+  if(strip) strip.addEventListener("click", openWarnModal);
   const close=document.getElementById("warn-close");
   if(close) close.addEventListener("click", closeWarnModal);
   const overlay=document.getElementById("warn-modal");
@@ -3009,6 +3047,52 @@ document.addEventListener("DOMContentLoaded",()=>{
 });
 
 let __loading=false;
+
+// ===== Warnungs-Diagnose (v14.1) — per ?debug=alerts aufrufbar =====
+// Zeigt die ROHE Bright-Sky-Alerts-Antwort für die aktuellen Koordinaten.
+// So lässt sich prüfen, ob eine (z.B. bei Apple sichtbare) Warnung
+// überhaupt bei der DWD-Quelle ankommt oder ob es eine Quellen-Lücke ist.
+async function runAlertDiagnostic(){
+  const geo = window.__currentGeo || (AURORA && AURORA.getOverride && AURORA.getOverride()) || (AURORA && AURORA.DEFAULT_LOC);
+  const box = document.createElement("div");
+  box.style.cssText = "position:fixed;inset:0;z-index:9999;background:rgba(4,7,11,.92);color:#e8eef7;font:13px/1.5 ui-monospace,Menlo,monospace;padding:20px;overflow:auto;-webkit-overflow-scrolling:touch";
+  box.innerHTML = "<div style='font-weight:700;margin-bottom:8px'>WEATH3R · Warnungs-Diagnose</div><div id='diag-out'>Lädt…</div><button id='diag-close' style='position:fixed;top:14px;right:14px;width:34px;height:34px;border-radius:50%;border:1px solid #444;background:#222;color:#fff;font-size:18px'>×</button>";
+  document.body.appendChild(box);
+  box.querySelector("#diag-close").addEventListener("click",()=>box.remove());
+  const out = box.querySelector("#diag-out");
+  if(!geo || geo.lat==null){ out.textContent="Kein Standort verfügbar."; return; }
+  const url = `https://api.brightsky.dev/alerts?lat=${geo.lat}&lon=${geo.lon}&tz=auto`;
+  try{
+    const r = await fetch(url);
+    const j = await r.json();
+    const alerts = (j && j.alerts) || [];
+    let html = `<div>Standort: <b>${geo.name||"?"}</b> (${(+geo.lat).toFixed(3)}, ${(+geo.lon).toFixed(3)})</div>`;
+    html += `<div>Abgefragt: ${new Date().toLocaleString("de-DE")}</div>`;
+    html += `<div>HTTP-Status: ${r.status}</div>`;
+    html += `<div>Warnungen von Bright Sky/DWD: <b style='color:${alerts.length?"#7CFC9A":"#ff8a6a"}'>${alerts.length}</b></div><hr style='border-color:#333;margin:12px 0'>`;
+    if(!alerts.length){
+      html += "<div style='color:#ff8a6a'>→ Bright Sky/DWD liefert für diesen Punkt AKTUELL KEINE Warnung.<br>Wenn Apple gleichzeitig warnt, ist es eine Quellen-Lücke (Apple mischt mehr Quellen als nur den DWD).</div>";
+    } else {
+      alerts.forEach((a,i)=>{
+        html += `<div style='margin-bottom:10px;padding:8px;border:1px solid #333;border-radius:8px'>`;
+        html += `<b>#${i+1}: ${a.event_de||a.event_en||a.event||"?"}</b><br>`;
+        html += `severity: ${a.severity||"?"} · urgency: ${a.urgency||"?"}<br>`;
+        html += `onset: ${a.onset||"?"}<br>expires: ${a.expires||a.expires_utc||"?"}<br>`;
+        html += `<div style='color:#aab;margin-top:4px'>${(a.headline_de||a.headline_en||a.headline||"").slice(0,200)}</div>`;
+        html += `</div>`;
+      });
+    }
+    html += `<hr style='border-color:#333;margin:12px 0'><div style='color:#889;font-size:11px'>Roh-URL: ${url}</div>`;
+    out.innerHTML = html;
+  }catch(e){
+    out.innerHTML = `<div style='color:#ff8a6a'>Fehler beim Abruf: ${e.message}</div><div style='color:#889;font-size:11px;margin-top:8px'>URL: ${url}</div>`;
+  }
+}
+if(new URLSearchParams(location.search).get("debug")==="alerts"){
+  // nach dem ersten Laden (geo steht dann), Diagnose öffnen
+  setTimeout(runAlertDiagnostic, 2500);
+}
+
 async function boot(manual){
   if(__loading) return;
   __loading=true;
@@ -3843,19 +3927,28 @@ document.addEventListener("DOMContentLoaded",()=>{
 (function pullToRefresh(){
   const ptr=document.getElementById("ptr");
   if(!ptr) return;
-  let startY=0, pulling=false, dist=0;
-  const THRESH=70, MAX=90;
+  let startY=0, startX=0, pulling=false, dist=0, decided=false;
+  const THRESH=64, MAX=90;
   window.addEventListener("touchstart",e=>{
     // only when scrolled to the very top
     if(window.scrollY<=0 && e.touches.length===1){
-      startY=e.touches[0].clientY; pulling=true; dist=0;
+      startY=e.touches[0].clientY; startX=e.touches[0].clientX;
+      pulling=true; dist=0; decided=false;
     } else pulling=false;
   },{passive:true});
   window.addEventListener("touchmove",e=>{
     if(!pulling) return;
-    dist=e.touches[0].clientY-startY;
+    const dy=e.touches[0].clientY-startY;
+    const dx=e.touches[0].clientX-startX;
+    // erste nennenswerte Bewegung entscheidet: vertikal = Pull, sonst abbrechen
+    if(!decided && (Math.abs(dy)>6 || Math.abs(dx)>6)){
+      decided=true;
+      if(Math.abs(dx)>Math.abs(dy)){ pulling=false; ptr.style.height="0px"; ptr.style.opacity="0"; return; }
+    }
+    dist=dy;
     if(dist>0){
-      const d=Math.min(dist*0.5, MAX);
+      // sanfte Progression bis zur Schwelle, danach etwas straffer für spürbares Feedback
+      const d=Math.min(dist*0.55, MAX);
       ptr.style.height=d+"px";
       ptr.style.opacity=Math.min(1, d/THRESH);
     }
@@ -3863,7 +3956,7 @@ document.addEventListener("DOMContentLoaded",()=>{
   window.addEventListener("touchend",()=>{
     if(!pulling) return;
     pulling=false;
-    if(dist*0.5>=THRESH){
+    if(dist*0.55>=THRESH){
       ptr.classList.add("spin"); ptr.style.height=THRESH+"px";
       boot(true).finally(()=>{
         ptr.classList.remove("spin");
