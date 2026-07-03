@@ -19,7 +19,7 @@
    Runs synchronously in <head> BEFORE the body renders so the
    correct GUI is shown immediately (no layout flash).
    ============================================================ */
-window.APP_VERSION = "v14.1";
+window.APP_VERSION = "v14.2";
 
 // fetch mit Timeout: ein hängender Request darf nie die ganze Ladekette blockieren
 window.fetchT=function(url,opts,ms){
@@ -1605,7 +1605,10 @@ const AURORA = (function(){
   }
   async function fetchAlerts(geo){
     try{
-      const u=`https://api.brightsky.dev/alerts?lat=${geo.lat}&lon=${geo.lon}&tz=auto`;
+      // v14.2: tz=auto ist bei Bright Sky /alerts KEIN gültiger Wert (nur
+      // echte IANA-Namen werden akzeptiert) — führte zu HTTP 422 und damit
+      // zu fälschlich "keine Warnung". Europe/Berlin ist unser fixer Kontext.
+      const u=`https://api.brightsky.dev/alerts?lat=${geo.lat}&lon=${geo.lon}&tz=Europe/Berlin`;
       const r=await fetchT(u, 10000);
       if(!r.ok) return [];
       const j=await r.json();
@@ -3048,7 +3051,7 @@ document.addEventListener("DOMContentLoaded",()=>{
 
 let __loading=false;
 
-// ===== Warnungs-Diagnose (v14.1) — per ?debug=alerts aufrufbar =====
+// ===== Warnungs-Diagnose (v14.2) — per ?debug=alerts aufrufbar =====
 // Zeigt die ROHE Bright-Sky-Alerts-Antwort für die aktuellen Koordinaten.
 // So lässt sich prüfen, ob eine (z.B. bei Apple sichtbare) Warnung
 // überhaupt bei der DWD-Quelle ankommt oder ob es eine Quellen-Lücke ist.
@@ -3061,26 +3064,34 @@ async function runAlertDiagnostic(){
   box.querySelector("#diag-close").addEventListener("click",()=>box.remove());
   const out = box.querySelector("#diag-out");
   if(!geo || geo.lat==null){ out.textContent="Kein Standort verfügbar."; return; }
-  const url = `https://api.brightsky.dev/alerts?lat=${geo.lat}&lon=${geo.lon}&tz=auto`;
+  // tz muss ein echter IANA-Name sein — "auto" führte hier zu HTTP 422.
+  const url = `https://api.brightsky.dev/alerts?lat=${geo.lat}&lon=${geo.lon}&tz=Europe/Berlin`;
   try{
     const r = await fetch(url);
-    const j = await r.json();
-    const alerts = (j && j.alerts) || [];
+    const j = await r.json().catch(()=>null);
     let html = `<div>Standort: <b>${geo.name||"?"}</b> (${(+geo.lat).toFixed(3)}, ${(+geo.lon).toFixed(3)})</div>`;
     html += `<div>Abgefragt: ${new Date().toLocaleString("de-DE")}</div>`;
-    html += `<div>HTTP-Status: ${r.status}</div>`;
-    html += `<div>Warnungen von Bright Sky/DWD: <b style='color:${alerts.length?"#7CFC9A":"#ff8a6a"}'>${alerts.length}</b></div><hr style='border-color:#333;margin:12px 0'>`;
-    if(!alerts.length){
-      html += "<div style='color:#ff8a6a'>→ Bright Sky/DWD liefert für diesen Punkt AKTUELL KEINE Warnung.<br>Wenn Apple gleichzeitig warnt, ist es eine Quellen-Lücke (Apple mischt mehr Quellen als nur den DWD).</div>";
+    html += `<div>HTTP-Status: <b style='color:${r.ok?"#7CFC9A":"#ff8a6a"}'>${r.status}</b></div><hr style='border-color:#333;margin:12px 0'>`;
+    if(!r.ok){
+      // Request selbst ist fehlgeschlagen (z.B. 422 Validation Error) —
+      // das ist KEINE "keine Warnung"-Aussage, sondern ein API-Fehler.
+      html += "<div style='color:#ff8a6a'>→ Die Anfrage an Bright Sky ist fehlgeschlagen (kein gültiges Warnungs-Ergebnis). Das ist NICHT dasselbe wie \"keine Warnung vorhanden\" — die API konnte den Request nicht verarbeiten.</div>";
+      html += `<div style='margin-top:10px;padding:8px;border:1px solid #443;border-radius:8px;color:#ffb;white-space:pre-wrap'>${escapeHtml(JSON.stringify(j,null,2)||"(kein Response-Body)")}</div>`;
     } else {
-      alerts.forEach((a,i)=>{
-        html += `<div style='margin-bottom:10px;padding:8px;border:1px solid #333;border-radius:8px'>`;
-        html += `<b>#${i+1}: ${a.event_de||a.event_en||a.event||"?"}</b><br>`;
-        html += `severity: ${a.severity||"?"} · urgency: ${a.urgency||"?"}<br>`;
-        html += `onset: ${a.onset||"?"}<br>expires: ${a.expires||a.expires_utc||"?"}<br>`;
-        html += `<div style='color:#aab;margin-top:4px'>${(a.headline_de||a.headline_en||a.headline||"").slice(0,200)}</div>`;
-        html += `</div>`;
-      });
+      const alerts = (j && j.alerts) || [];
+      html += `<div>Warnungen von Bright Sky/DWD: <b style='color:${alerts.length?"#7CFC9A":"#ff8a6a"}'>${alerts.length}</b></div><hr style='border-color:#333;margin:12px 0'>`;
+      if(!alerts.length){
+        html += "<div style='color:#ff8a6a'>→ Bright Sky/DWD liefert für diesen Punkt AKTUELL KEINE Warnung.<br>Wenn Apple gleichzeitig warnt, ist es eine Quellen-Lücke (Apple mischt mehr Quellen als nur den DWD).</div>";
+      } else {
+        alerts.forEach((a,i)=>{
+          html += `<div style='margin-bottom:10px;padding:8px;border:1px solid #333;border-radius:8px'>`;
+          html += `<b>#${i+1}: ${a.event_de||a.event_en||a.event||"?"}</b><br>`;
+          html += `severity: ${a.severity||"?"} · urgency: ${a.urgency||"?"}<br>`;
+          html += `onset: ${a.onset||"?"}<br>expires: ${a.expires||a.expires_utc||"?"}<br>`;
+          html += `<div style='color:#aab;margin-top:4px'>${(a.headline_de||a.headline_en||a.headline||"").slice(0,200)}</div>`;
+          html += `</div>`;
+        });
+      }
     }
     html += `<hr style='border-color:#333;margin:12px 0'><div style='color:#889;font-size:11px'>Roh-URL: ${url}</div>`;
     out.innerHTML = html;
