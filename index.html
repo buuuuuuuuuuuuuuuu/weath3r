@@ -19,7 +19,7 @@
    Runs synchronously in <head> BEFORE the body renders so the
    correct GUI is shown immediately (no layout flash).
    ============================================================ */
-window.APP_VERSION = "v13.1";
+window.APP_VERSION = "v14.0";
 
 // fetch mit Timeout: ein hängender Request darf nie die ganze Ladekette blockieren
 window.fetchT=function(url,opts,ms){
@@ -585,6 +585,20 @@ getUiMode();
     border:1px solid var(--stroke-2);border-radius:var(--radius-sm);
     padding:var(--sp-3) var(--sp-4);margin-top:10px;background:var(--card-2);
   }
+  /* ---------- Legend / explainer rows (v14) ---------- */
+  .lg-group{margin-top:var(--sp-4)}
+  .lg-group:first-child{margin-top:0}
+  .lg-group-title{font-size:var(--fs-xs);font-weight:700;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--ink-3);margin-bottom:var(--sp-2)}
+  .lg-row{display:flex;align-items:flex-start;gap:var(--sp-3);padding:var(--sp-2) 0}
+  .lg-swatch{flex:none;width:44px;height:26px;border-radius:var(--radius-xs);
+    background:var(--card-2);border:1px solid var(--stroke-2);
+    display:grid;place-items:center;overflow:hidden}
+  .lg-swatch svg,.lg-swatch canvas{display:block;min-height:0} /* schlägt die globale canvas{min-height:200px}-Regel */
+  .lg-swatch .drop-ic{width:16px;height:16px;color:var(--rain-ink)} /* Tropfen in App-Blau */
+  .lg-text{min-width:0;padding-top:1px}
+  .lg-term{font-size:var(--fs-base);font-weight:600;color:var(--ink);line-height:1.25}
+  .lg-desc{font-size:var(--fs-sm);color:var(--ink-2);line-height:1.4;margin-top:1px}
   .warn-item:first-child{margin-top:0}
   .warn-item .wi-head{display:flex;align-items:center;gap:8px;margin-bottom:5px}
   .warn-item .wi-dot{width:9px;height:9px;border-radius:50%;flex:none;background:var(--t-hot)}
@@ -755,6 +769,9 @@ getUiMode();
         <div class="eyebrow">bu sein Wetter</div>
         <h1 id="loc-name">Treptow-Köpenick, Berlin</h1>
       </div>
+      <button class="iconbtn" id="info-btn" aria-label="Legende & Erklärung">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.6" r="0.6" fill="currentColor"/></svg>
+      </button>
       <button class="iconbtn" id="loc-btn" aria-label="Standort ändern">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6-5.3-6-10a6 6 0 1 1 12 0c0 4.7-6 10-6 10z"/><circle cx="12" cy="11" r="2.2"/></svg>
       </button>
@@ -917,6 +934,19 @@ getUiMode();
     <span class="app-version" id="ver-desktop" style="margin-left:10px">WEATH3R</span>
   </p>
 
+</div>
+
+<!-- Legend / explainer modal -->
+<div class="modal-overlay" id="legend-modal" style="display:none">
+  <div class="modal" role="dialog" aria-modal="true" aria-label="Legende & Erklärung">
+    <div class="modal-head">
+      <h3>Was zeigt diese App?</h3>
+      <button class="modal-close" id="legend-close" aria-label="Schließen">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body" id="legend-body"></div>
+  </div>
 </div>
 
 <!-- Weather warning modal -->
@@ -2844,6 +2874,119 @@ function applyAlerts(alerts){
 function escapeHtml(s){
   return (s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 }
+
+/* ===================== Legend / explainer (v14) =====================
+   Baut das Info-Modal aus LIVE gezeichneten Mustern — dieselben Tokens
+   und Zeichenlogik wie die App selbst. Dadurch stimmt die Legende in
+   Dark/Light automatisch und veraltet nie bei Design-Änderungen. */
+function lgLineSwatch(dash, width){
+  // kleines Canvas mit einer horizontalen Modell-Linie (durchgezogen/gestrichelt/gepunktet)
+  const c=document.createElement("canvas");
+  const W=44,H=26,DPR=window.devicePixelRatio||1;
+  c.width=W*DPR;c.height=H*DPR;c.style.width=W+"px";c.style.height=H+"px";
+  const x=c.getContext("2d");x.setTransform(DPR,0,0,DPR,0,0);
+  x.strokeStyle=cssVar("--ink-2");
+  x.lineWidth=width||2.4;x.lineCap=dash&&dash.length?"butt":"round";
+  x.setLineDash(dash&&dash.length?dash:[]);
+  x.beginPath();x.moveTo(6,H/2);x.lineTo(W-6,H/2);x.stroke();
+  return c;
+}
+function lgGradientSwatch(stopsRGB){
+  // horizontaler Farbverlauf (z.B. Temperatur-RAMP)
+  const c=document.createElement("canvas");
+  const W=44,H=26,DPR=window.devicePixelRatio||1;
+  c.width=W*DPR;c.height=H*DPR;c.style.width=W+"px";c.style.height=H+"px";
+  const x=c.getContext("2d");x.setTransform(DPR,0,0,DPR,0,0);
+  const g=x.createLinearGradient(4,0,W-4,0);
+  stopsRGB.forEach((col,i)=>g.addColorStop(i/(stopsRGB.length-1), rgb(col)));
+  x.fillStyle=g;
+  const r=5;const bx=4,by=8,bw=W-8,bh=H-16;
+  x.beginPath();x.moveTo(bx+r,by);x.arcTo(bx+bw,by,bx+bw,by+bh,r);
+  x.arcTo(bx+bw,by+bh,bx,by+bh,r);x.arcTo(bx,by+bh,bx,by,r);x.arcTo(bx,by,bx+bw,by,r);
+  x.closePath();x.fill();
+  return c;
+}
+function lgWindSwatch(){
+  // Windband-Ausschnitt mit einem Richtungspfeil (wie im Chart)
+  const c=document.createElement("canvas");
+  const W=44,H=26,DPR=window.devicePixelRatio||1;
+  c.width=W*DPR;c.height=H*DPR;c.style.width=W+"px";c.style.height=H+"px";
+  const x=c.getContext("2d");x.setTransform(DPR,0,0,DPR,0,0);
+  const pal=(typeof resolveWindPalette==="function")?resolveWindPalette():null;
+  x.fillStyle=pal?windColor(24,pal):cssVar("--wind");
+  x.fillRect(4,H/2-4,W-8,8);
+  // Pfeil (Strömungsrichtung), --ink für Kontrast
+  x.save();x.translate(W/2,H/2);x.rotate(Math.PI/2); // zeigt nach rechts als Beispiel
+  x.strokeStyle=cssVar("--ink");x.fillStyle=cssVar("--ink");
+  x.lineWidth=1.4;x.lineCap="round";
+  x.beginPath();x.moveTo(0,4.5);x.lineTo(0,-2);x.stroke();
+  x.beginPath();x.moveTo(0,-4.5);x.lineTo(-2.2,-1.6);x.lineTo(2.2,-1.6);x.closePath();x.fill();
+  x.restore();
+  return c;
+}
+function lgNowSwatch(){
+  const c=document.createElement("canvas");
+  const W=44,H=26,DPR=window.devicePixelRatio||1;
+  c.width=W*DPR;c.height=H*DPR;c.style.width=W+"px";c.style.height=H+"px";
+  const x=c.getContext("2d");x.setTransform(DPR,0,0,DPR,0,0);
+  x.strokeStyle="rgba(255,90,77,.9)";x.lineWidth=1.5;x.setLineDash([3,3]);
+  x.beginPath();x.moveTo(W/2,5);x.lineTo(W/2,H-4);x.stroke();
+  x.setLineDash([]);x.fillStyle="#ff5a4d";
+  x.beginPath();x.arc(W/2,5,3,0,7);x.fill();
+  return c;
+}
+function lgSkySwatch(state){
+  const c=document.createElement("canvas");
+  const W=44,H=26,DPR=window.devicePixelRatio||1;
+  c.width=W*DPR;c.height=H*DPR;c.style.width=W+"px";c.style.height=H+"px";
+  const x=c.getContext("2d");x.setTransform(DPR,0,0,DPR,0,0);
+  const map={sun:"--c-sky-sun",cloud:"--c-sky-cloud2",rain:"--c-sky-rain"};
+  x.fillStyle=cssVar(map[state]||"--c-sky-cloud2");
+  x.fillRect(4,H/2-4,W-8,8);
+  return c;
+}
+
+const LEGEND_SPEC=[
+  {group:"Temperatur-Charts", rows:[
+    {swatch:()=>lgLineSwatch([]), term:"AROME", desc:"Hauptmodell — durchgezogene Linie."},
+    {swatch:()=>lgLineSwatch([9,6]), term:"ICON-D2", desc:"Deutsches Modell — gestrichelt."},
+    {swatch:()=>lgLineSwatch([2,5]), term:"ECMWF", desc:"Europäisches Modell — gepunktet."},
+    {swatch:()=>lgGradientSwatch(RAMP.map(r=>r[1])), term:"Farbe = Temperatur", desc:"Kühl (blau) bis heiß (rot). Liegen die drei Linien eng zusammen, ist die Prognose sicher."},
+    {swatch:()=>lgNowSwatch(), term:"Rote Linie", desc:"Die aktuelle Uhrzeit — die Zeit daneben wandert mit."},
+  ]},
+  {group:"Himmel & Wind", rows:[
+    {swatch:()=>lgSkySwatch("sun"), term:"Himmelsspuren", desc:"Drei Streifen (je Modell) über dem Chart: sonnig, bewölkt oder Regen — Stunde für Stunde."},
+    {swatch:()=>lgWindSwatch(), term:"Windband", desc:"Unter den Himmelsspuren (AROME): Dicke = Stärke, Pfeil = Richtung, in die der Wind weht. Ab Sturmböen färbt es sich orange-rot."},
+  ]},
+  {group:"Regen & Vorschau", rows:[
+    {html:()=>SVG.drop, term:"Tropfen-Symbol", desc:"Erwartete Regenmenge in mm."},
+    {swatch:()=>lgGradientSwatch([[95,208,196],[244,196,48]]), term:"Temperatur-Balken", desc:"Bei den Folgetagen: Tief- bis Höchstwert als kleiner Farbverlauf."},
+  ]},
+];
+
+function buildLegend(){
+  const body=document.getElementById("legend-body");
+  if(!body) return;
+  body.innerHTML="";
+  LEGEND_SPEC.forEach(g=>{
+    const grp=document.createElement("div");grp.className="lg-group";
+    const t=document.createElement("div");t.className="lg-group-title";t.textContent=g.group;
+    grp.appendChild(t);
+    g.rows.forEach(r=>{
+      const row=document.createElement("div");row.className="lg-row";
+      const sw=document.createElement("div");sw.className="lg-swatch";
+      if(r.swatch) sw.appendChild(r.swatch());
+      else if(r.html) sw.innerHTML=r.html();
+      const tx=document.createElement("div");tx.className="lg-text";
+      tx.innerHTML=`<div class="lg-term">${r.term}</div><div class="lg-desc">${r.desc}</div>`;
+      row.appendChild(sw);row.appendChild(tx);grp.appendChild(row);
+    });
+    body.appendChild(grp);
+  });
+}
+function openLegendModal(){ const m=document.getElementById("legend-modal"); if(m) m.style.display="flex"; buildLegend(); /* nach display:flex — Canvas braucht sichtbares Layout */ }
+function closeLegendModal(){ const m=document.getElementById("legend-modal"); if(m) m.style.display="none"; }
+
 function openWarnModal(){ const m=document.getElementById("warn-modal"); if(m) m.style.display="flex"; }
 function closeWarnModal(){ const m=document.getElementById("warn-modal"); if(m) m.style.display="none"; }
 document.addEventListener("DOMContentLoaded",()=>{
@@ -2853,7 +2996,16 @@ document.addEventListener("DOMContentLoaded",()=>{
   if(close) close.addEventListener("click", closeWarnModal);
   const overlay=document.getElementById("warn-modal");
   if(overlay) overlay.addEventListener("click", e=>{ if(e.target===overlay) closeWarnModal(); });
-  document.addEventListener("keydown", e=>{ if(e.key==="Escape") closeWarnModal(); });
+
+  // Legend / Info modal (v14)
+  const infoBtn=document.getElementById("info-btn");
+  if(infoBtn) infoBtn.addEventListener("click", openLegendModal);
+  const lgClose=document.getElementById("legend-close");
+  if(lgClose) lgClose.addEventListener("click", closeLegendModal);
+  const lgOverlay=document.getElementById("legend-modal");
+  if(lgOverlay) lgOverlay.addEventListener("click", e=>{ if(e.target===lgOverlay) closeLegendModal(); });
+
+  document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ closeWarnModal(); closeLegendModal(); } });
 });
 
 let __loading=false;
