@@ -11,14 +11,15 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="WEATH3R">
-<title>WEATH3R v9.9</title>
+<meta name="disabled-adaptations" content="watch">
+<title>WEATH3R</title>
 <script>
 /* ============================================================
    WEATH3R · global config + UI-mode detection
    Runs synchronously in <head> BEFORE the body renders so the
    correct GUI is shown immediately (no layout flash).
    ============================================================ */
-window.APP_VERSION = "v12.0";
+window.APP_VERSION = "v12.1";
 
 // fetch mit Timeout: ein hängender Request darf nie die ganze Ladekette blockieren
 window.fetchT=function(url,opts,ms){
@@ -641,48 +642,53 @@ getUiMode();
   }
 
   /* ---------- Watch UI components (unique .w* class names) ---------- */
-  #watch-ui .wloc{display:flex;align-items:center;gap:6px;justify-content:center;margin-bottom:8px}
+  #watch-ui .wloc{display:flex;align-items:center;gap:6px;justify-content:center;margin-bottom:6px}
   #watch-ui .wloc h1{font-size:var(--fs-base);font-weight:600;letter-spacing:-.01em;white-space:nowrap;
     overflow:hidden;text-overflow:ellipsis;max-width:80%}
   #watch-ui .wloc .time{font-size:var(--fs-sm);color:var(--ink-3);font-weight:600;font-variant-numeric:tabular-nums}
   #watch-ui .whero{
     background:linear-gradient(160deg,var(--card-2),var(--card));
     border:1px solid var(--stroke);border-radius:var(--radius);
-    padding:var(--sp-4) var(--sp-4);text-align:center;position:relative;overflow:hidden;
+    padding:var(--sp-3) var(--sp-3);text-align:center;position:relative;overflow:hidden;
   }
-  #watch-ui .whero-main{display:flex;align-items:center;justify-content:center;gap:4px}
-  #watch-ui .whero .temp{font-size:clamp(120px, 38vw, 150px);font-weight:650;letter-spacing:-.05em;line-height:.86}
+  #watch-ui .whero-main{display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:nowrap;min-width:0}
+  #watch-ui .whero .temp{font-size:clamp(34px, 30vw, 96px); /* v12.1: fluid statt 120px-Floor — µBrowser hat ~halbes Display */font-weight:650;letter-spacing:-.05em;line-height:.86}
   #watch-ui .whero .temp sup{font-size:.327em;font-weight:500;vertical-align:top;top:.16em;position:relative;color:var(--ink-2)}
-  #watch-ui .whero .wicon{flex:none;width:clamp(64px,22vw,92px);height:clamp(64px,22vw,92px)}
+  #watch-ui .whero .wicon{flex:none;width:clamp(28px,16vw,56px);height:clamp(28px,16vw,56px)}
   #watch-ui .whero .wicon svg{width:100%;height:100%;display:block;overflow:visible}
-  #watch-ui .wstats{display:flex;gap:8px;margin-top:12px}
-  #watch-ui .wstat{flex:1;background:var(--card);border:1px solid var(--stroke);border-radius:var(--radius-sm);
-    padding:var(--sp-3) 6px;text-align:center}
+  #watch-ui .wstats{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  #watch-ui .wstat{flex:1 1 64px;min-width:64px;overflow:hidden;background:var(--card);border:1px solid var(--stroke);border-radius:var(--radius-sm);
+    padding:var(--sp-2) 4px;text-align:center}
   #watch-ui .wstat .k{font-size:var(--fs-xs);letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
-  #watch-ui .wstat .v{font-size:var(--fd-sm);font-weight:650;margin-top:4px;font-variant-numeric:tabular-nums}
-  #watch-ui .wsection{margin-top:16px}
+  #watch-ui .wstat .v{font-size:clamp(13px, 6vw, 18px);font-weight:650;margin-top:3px;font-variant-numeric:tabular-nums;white-space:nowrap}
+  #watch-ui .wstat .u{font-size:var(--fs-xs);color:var(--ink-3);font-weight:600;margin-top:1px}
+  #watch-ui .wstat .v.gusty{color:var(--t-hot)} /* Böen >= 70 km/h */
+  #watch-ui .wsection{margin-top:10px}
   #watch-ui .wsection .h{font-size:var(--fs-base);font-weight:700;letter-spacing:.04em;text-transform:uppercase;
     color:var(--ink-2);margin:0 4px 8px}
   #watch-ui .wrain{background:var(--card);border:1px solid var(--stroke);border-radius:var(--radius);padding:var(--sp-3) var(--sp-4)}
   #watch-ui .wrain .summary{font-size:var(--fs-base);font-weight:600;margin-bottom:9px;line-height:1.3}
   #watch-ui .wrain.dry .summary{color:var(--ink-2)}
-  #watch-ui #wcv-rain{display:block;width:100%;height:62px}
+  #watch-ui #wcv-rain{display:block;width:100%;height:48px;min-height:0} /* v12.1: min-height:0 schlägt die globale canvas{min-height:200px}-Regel */
   #watch-ui .wdaily{background:var(--card);border:1px solid var(--stroke);border-radius:var(--radius);overflow:hidden}
-  #watch-ui .wdrow{display:flex;align-items:center;gap:10px;padding:var(--sp-3) var(--sp-4);border-top:1px solid rgba(255,255,255,.06)}
+  #watch-ui .wdrow{display:flex;align-items:center;gap:8px;padding:var(--sp-2) var(--sp-3);border-top:1px solid var(--stroke-2, rgba(255,255,255,.06))}
   #watch-ui .wdrow:first-child{border-top:none}
-  #watch-ui .wdrow .d{font-size:var(--fs-base);font-weight:600;width:64px}
+  #watch-ui .wdrow .d{font-size:var(--fs-base);font-weight:600;flex:none;min-width:36px}
   #watch-ui .wdrow .d small{display:block;font-size:var(--fs-xs);color:var(--ink-3);font-weight:500}
-  #watch-ui .wdrow .pr{font-size:var(--fs-sm);color:var(--rain-ink);font-variant-numeric:tabular-nums;margin-left:auto;font-weight:600}
+  #watch-ui .wdrow .pr{font-size:var(--fs-sm);color:var(--rain-ink);font-variant-numeric:tabular-nums;margin-left:auto;font-weight:600;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   #watch-ui .wdrow .pr.dry{color:var(--ink-3)}
-  #watch-ui .wdrow .tr{display:flex;align-items:center;gap:8px;min-width:78px;justify-content:flex-end}
-  #watch-ui .wdrow .lo{font-size:var(--fs-base);color:var(--ink-2);width:24px;text-align:right;font-variant-numeric:tabular-nums}
-  #watch-ui .wdrow .hi{font-size:var(--fs-base);font-weight:700;width:24px;font-variant-numeric:tabular-nums}
-  #watch-ui .wdrow .bar{width:34px;height:4px;border-radius:var(--radius-xs);background:linear-gradient(90deg,var(--c1),var(--c2))}
+  #watch-ui .wdrow .tr{display:flex;align-items:center;gap:4px;flex:0 1 auto;min-width:0;justify-content:flex-end}
+  #watch-ui .wdrow .lo{font-size:var(--fs-base);color:var(--ink-2);min-width:18px;text-align:right;font-variant-numeric:tabular-nums}
+  #watch-ui .wdrow .hi{font-size:var(--fs-base);font-weight:700;min-width:18px;font-variant-numeric:tabular-nums}
+  #watch-ui .wdrow .bar{flex:0 1 34px;min-width:8px;width:auto;height:4px;border-radius:var(--radius-xs);background:linear-gradient(90deg,var(--c1),var(--c2))}
   #watch-ui .wfoot{margin:var(--sp-4) 6px 0;font-size:var(--fs-xs);color:var(--ink-3);line-height:1.5;text-align:center}
   #watch-ui .wfoot a{color:var(--ink-2)}
   #watch-ui .werr{color:var(--feels);font-size:var(--fs-base);text-align:center;padding:var(--sp-4) var(--sp-2);line-height:1.5}
   @media (max-width:330px){
     #watch-ui .wstat .v{font-size:var(--fs-md)}
+  }
+  @media (max-width:174px){ /* µBrowser-Kleinstbreiten: Labels kompakter */
+    #watch-ui .wstat .k{font-size:9px;letter-spacing:.02em}
   }
 
   /* ---------- UI toggle button (both UIs) ---------- */
@@ -693,7 +699,7 @@ getUiMode();
     padding:5px var(--sp-3);transition:.15s;font-family:var(--font);
   }
   .ui-toggle:hover{color:var(--ink);border-color:var(--stroke-hover)}
-  #watch-ui .ui-toggle{margin:2px auto 0}
+  #watch-ui .ui-toggle{margin:2px auto 0;padding:8px var(--sp-4)} /* Uhr-tauglich treffbar */
 
   /* ---------- app version stamp ---------- */
   .app-version{opacity:.4;font-size:var(--fs-xs);font-weight:600;letter-spacing:.04em}
@@ -710,7 +716,7 @@ getUiMode();
     max-width:calc(100vw - 28px);
   }
   .update-banner.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}
-  .update-banner .ub-txt{font-size:var(--fs-base);font-weight:600;color:var(--ink)}
+  .update-banner .ub-txt{font-size:var(--fs-base);font-weight:600;color:var(--ink);min-width:0} /* v12.1: darf umbrechen statt aus dem Banner zu laufen */
   .update-banner .ub-btn{
     flex:none;font-size:var(--fs-sm);font-weight:700;color:#fff;background:var(--rain-strong);
     border:none;border-radius:var(--radius-pill);padding:7px 12px;cursor:pointer;font-family:var(--font);
@@ -897,7 +903,7 @@ getUiMode();
     <b>Multi-Modell-Ansicht.</b> Drei unabhängige Wettermodelle laufen parallel — AROME (durchgezogen), ICON-D2 (gestrichelt), ECMWF (gepunktet). Liegen die Linien nah beieinander, ist die Prognose sicher; spreizen sie sich, ist sie unsicher. Farbe codiert die Wärme, das Linienmuster die Modell-Identität. Das Windband (AROME) unter den Himmelsspuren: Dicke&nbsp;= Stärke, Pfeil&nbsp;= Richtung, in die der Wind weht; ab Sturmböen färbt es sich orange-rot.<br>
     <span id="data-status"></span> Wetterdaten: <b>Open-Meteo.com</b> (CC BY 4.0). Regenradar &amp; Warnungen: <b>DWD</b> via Bright Sky.<br>
     <button class="ui-toggle" id="to-watch">⌚ Watch-Ansicht</button>
-    <span class="app-version" id="ver-desktop" style="margin-left:10px">WEATH3R v9.9</span>
+    <span class="app-version" id="ver-desktop" style="margin-left:10px">WEATH3R</span>
   </p>
 
 </div>
@@ -931,8 +937,8 @@ getUiMode();
   </div>
 
   <div class="wstats">
-    <div class="wstat"><div class="k">Regen</div><div class="v" id="wrain-mm">–</div></div>
-    <div class="wstat"><div class="k">Wind</div><div class="v" id="wwind">–</div></div>
+    <div class="wstat"><div class="k">Regen</div><div class="v" id="wrain-mm">–</div><div class="u">mm</div></div>
+    <div class="wstat"><div class="k">Wind</div><div class="v" id="wwind">–</div><div class="u">km/h</div></div>
     <div class="wstat"><div class="k">Gefühlt</div><div class="v" id="wfeels2">–</div></div>
   </div>
 
@@ -952,7 +958,7 @@ getUiMode();
     <span id="wstatus"></span><br>
     <button class="ui-toggle" id="to-desktop">↗ volle Ansicht</button><br>
     Daten: Open-Meteo · DWD (Bright Sky)<br>
-    <span class="app-version">WEATH3R v9.9</span>
+    <span class="app-version">WEATH3R</span>
   </p>
 </div><!-- /#watch-ui -->
 
@@ -3683,6 +3689,12 @@ document.addEventListener("DOMContentLoaded",()=>{
 /* ============================================================
    APPLE WATCH UI  (self-contained; runs only in watch mode)
    ============================================================ */
+// Sichtbare Versions-Stempel aus APP_VERSION speisen — nie wieder
+// hardcodierte "v9.9"-Leichen in Footern (v12.1)
+document.querySelectorAll(".app-version").forEach(el=>{
+  el.textContent="WEATH3R "+(window.APP_VERSION||"");
+});
+
 (function watchUI(){
   if(document.documentElement.dataset.uiMode!=="watch") return;
   "use strict";
@@ -3786,7 +3798,7 @@ document.addEventListener("DOMContentLoaded",()=>{
     const cv=document.getElementById("wcv-rain");if(!cv)return;
     const ctx=cv.getContext("2d");
     let W=cv.clientWidth||document.body.clientWidth-60;if(W<60)W=300;
-    const H=62;cv.width=W*DPR;cv.height=H*DPR;cv.style.height=H+"px";
+    const H=48;cv.width=W*DPR;cv.height=H*DPR;cv.style.height=H+"px";
     ctx.setTransform(DPR,0,0,DPR,0,0);ctx.clearRect(0,0,W,H);
     if(!nc||!nc.pts||!nc.pts.length)return;
     const padB=14,padT=4,x0=2,x1=W-2,plotW=x1-x0;
@@ -3809,14 +3821,19 @@ document.addEventListener("DOMContentLoaded",()=>{
       ctx.arcTo(x,y+bh,x,y,r);ctx.arcTo(x,y,x+bw,y,r);ctx.closePath();ctx.fill();
     });
     ctx.font="9px "+getComputedStyle(document.body).fontFamily;
-    ctx.fillStyle="#6b7480";ctx.textAlign="center";ctx.textBaseline="alphabetic";
+    ctx.fillStyle=cssVar("--ink-3");ctx.textAlign="center";ctx.textBaseline="alphabetic";
+    // v12.1: Mindestabstand zwischen Labels — bei ~110px Breite (µBrowser)
+    // kollidierten die 30-min-Labels sonst zu Buchstabensalat
+    let lastX=-1e9;
     for(let m=0;m<=total;m+=30){
-      const x=X(m);
+      const x=Math.max(14,Math.min(W-14,X(m)));
+      if(x-lastX<36) continue;
       let best=nc.pts[0],bd=1e9;nc.pts.forEach(p=>{const d=Math.abs(p.mins-m);if(d<bd){bd=d;best=p;}});
-      ctx.fillText(best.label,Math.max(12,Math.min(W-12,x)),H-3);
+      ctx.fillText(best.label,x,H-3);
+      lastX=x;
     }
     if(!anyRain){
-      ctx.fillStyle="#6b7480";ctx.font="11px "+getComputedStyle(document.body).fontFamily;
+      ctx.fillStyle=cssVar("--ink-3");ctx.font="11px "+getComputedStyle(document.body).fontFamily;
       ctx.textAlign="center";ctx.textBaseline="middle";
       ctx.fillText("trocken",W/2,barMax*0.5+padT);
     }
@@ -3835,7 +3852,7 @@ document.addEventListener("DOMContentLoaded",()=>{
       const lo=daily.temperature_2m_min?Math.round(daily.temperature_2m_min[d]):null;
       const hi=daily.temperature_2m_max?Math.round(daily.temperature_2m_max[d]):null;
       const pr=daily.precipitation_sum?daily.precipitation_sum[d]:null;
-      const prTxt=fmtMM(pr);const dry=prTxt==="trocken";
+      const dry=(pr==null||pr<0.05);const prTxt=dry?"":fmtMM(pr).replace(" mm","");
       const loC=lo!=null?rgb(tempColor(lo)):"var(--ink-2)";
       const hiC=hi!=null?rgb(tempColor(hi)):"var(--ink)";
       const dayName=d===0?"Heute":WD[dt.getDay()];
@@ -3878,7 +3895,19 @@ document.addEventListener("DOMContentLoaded",()=>{
       const feels=cur.apparent_temperature!=null?Math.round(cur.apparent_temperature):null;
       const f=x=>(Math.round(x*10)/10).toString().replace(".",",");
       document.getElementById("wrain-mm").textContent=(precip!=null&&precip>0.05)?`${f(precip)}`:"0";
-      document.getElementById("wwind").textContent=cur.wind_speed_10m!=null?`${Math.round(cur.wind_speed_10m)}`:"–";
+      {
+        const wEl=document.getElementById("wwind");
+        const ws=cur.wind_speed_10m!=null?Math.round(cur.wind_speed_10m):null;
+        const wg=cur.wind_gusts_10m!=null?Math.round(cur.wind_gusts_10m):null;
+        if(ws==null){ wEl.textContent="–"; wEl.classList.remove("gusty"); }
+        else if(wg!=null && wg>=ws+15){ // Böen deutlich über Grundwind → Spanne zeigen
+          wEl.textContent=`${ws}–${wg}`;
+          wEl.classList.toggle("gusty", wg>=70);
+        } else {
+          wEl.textContent=`${ws}`;
+          wEl.classList.remove("gusty");
+        }
+      }
       document.getElementById("wfeels2").textContent=feels!=null?`${feels}°`:"–";
       renderDaily(wx.daily);
       const now=new Date();
