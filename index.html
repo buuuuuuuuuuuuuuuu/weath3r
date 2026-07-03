@@ -19,7 +19,7 @@
    Runs synchronously in <head> BEFORE the body renders so the
    correct GUI is shown immediately (no layout flash).
    ============================================================ */
-window.APP_VERSION = "v12.1";
+window.APP_VERSION = "v13.0";
 
 // fetch mit Timeout: ein hängender Request darf nie die ganze Ladekette blockieren
 window.fetchT=function(url,opts,ms){
@@ -329,10 +329,12 @@ getUiMode();
   .nowcast-head{display:flex;align-items:center;flex-wrap:wrap;row-gap:8px;column-gap:10px;margin-bottom:2px}
   .nowcast-title{font-size:var(--fs-base);font-weight:600;letter-spacing:.02em;color:var(--ink);flex:1 1 auto;min-width:0}
   .nowcast-head-right{display:flex;align-items:center;gap:10px;margin-left:auto;flex:none}
-  .nowcast-meta{margin:2px 0 4px}
-  .nowcast-meta:has(.nowcast-src:empty){display:none}
-  .nowcast-src{font-size:var(--fs-xs);font-weight:600;letter-spacing:.03em;color:var(--ink-3);
-    border:1px solid var(--stroke-2);border-radius:var(--radius-pill);padding:2px 8px;display:inline-block}
+  /* P6: Datenquelle-Chip unten links auf Höhe der Zeitachse statt in eigener Kopfzeile */
+  .nowcast-src{position:absolute;left:var(--sp-4);bottom:calc(var(--sp-2) + 2px);
+    font-size:var(--fs-xs);font-weight:600;letter-spacing:.03em;color:var(--ink-3);
+    border:1px solid var(--stroke-2);border-radius:var(--radius-pill);padding:2px 8px;
+    display:inline-block;background:var(--card);z-index:2;pointer-events:none}
+  .nowcast-src:empty{display:none}
   #cv-nowcast{min-height:96px}
   /* tappable header → expand radar map */
   .nowcast-head{cursor:pointer;user-select:none;-webkit-user-select:none}
@@ -441,8 +443,8 @@ getUiMode();
     width:100%;background:none;border:none;cursor:pointer;color:inherit;font:inherit;text-align:left;
     display:flex;align-items:center;gap:12px;padding:var(--sp-3) var(--sp-4);
   }
-  .chart-drow-btn .day{font-size:var(--fs-md);font-weight:600;letter-spacing:-.01em;flex:1 1 auto;min-width:0;
-    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .chart-drow-btn .day{font-size:var(--fs-md);font-weight:600;letter-spacing:-.01em;
+    flex:none;white-space:nowrap} /* v13: kurzer Text ("Heute"/"Sa. 4. Juli") — kein Abschneiden mehr */
   .chart-dgroup .dpanel{max-height:0;overflow:hidden;transition:max-height .3s ease}
   .chart-dgroup.open .dpanel{max-height:360px}
   .chart-dgroup.open .chev{transform:rotate(180deg)}
@@ -471,7 +473,7 @@ getUiMode();
   .dpanel canvas{display:block;width:100%}
   .drow{
     display:grid;
-    grid-template-columns: 1.2fr auto 1fr auto auto;
+    grid-template-columns: 1fr auto minmax(84px, auto) auto auto; /* P2: precip feste Spalte für Mittellinie */
     align-items:center;gap:12px;
     padding:var(--sp-3) var(--sp-4);
     border-top:1px solid var(--stroke-2);
@@ -481,7 +483,13 @@ getUiMode();
   .drow .day small{display:block;font-size:var(--fs-xs);color:var(--ink-3);font-weight:400;margin-top:1px}
   .drow .ic{display:flex;align-items:center;gap:5px;justify-content:center;min-width:46px}
   .drow .ic svg{width:22px;height:22px}
-  .drow .precip{font-size:var(--fs-sm);color:var(--rain-ink);font-variant-numeric:tabular-nums;text-align:right;font-weight:500}
+  .drow .precip{
+    font-size:var(--fs-sm);color:var(--rain-ink);font-variant-numeric:tabular-nums;
+    font-weight:500;display:flex;align-items:center;justify-content:flex-end;gap:4px;
+    white-space:nowrap; /* P2: einzeilig */
+  }
+  .drow .precip .drop-ic{width:11px;height:11px;flex:none;color:var(--rain-ink);opacity:.85}
+  .drow .precip .pr-val{font-variant-numeric:tabular-nums}
   .drow .precip.dry{color:var(--ink-3)}
   .temprange{display:flex;align-items:center;gap:9px;justify-content:flex-end;min-width:96px}
   .temprange .lo{font-size:var(--fs-base);color:var(--ink-2);font-variant-numeric:tabular-nums;width:26px;text-align:right}
@@ -809,15 +817,15 @@ getUiMode();
             <path d="M6 8a6 6 0 0 1 12 0c0 4 1.5 5.5 2 6H4c.5-.5 2-2 2-6Z"/>
             <path d="M10 20a2 2 0 0 0 4 0"/>
           </svg>
-          <span id="notify-label">Regen-Warnung aktivieren</span>
+          <span id="notify-label">Alert aktivieren</span>
         </button>
         <svg class="nowcast-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
       </div>
     </div>
-    <div class="nowcast-meta"><span id="nowcast-src" class="nowcast-src"></span></div>
     <div class="notify-hint" id="notify-hint" hidden></div>
 
     <canvas id="cv-nowcast"></canvas>
+    <span id="nowcast-src" class="nowcast-src"></span>
 
     <!-- collapsible DWD rain-radar map -->
     <div class="nowcast-map" id="nowcast-map">
@@ -1002,7 +1010,7 @@ const AURORA = (function(){
     if(max==null||max<0.05) return "trocken";
     const f = x => (Math.round(x*10)/10).toString().replace(".",",");
     if(min==null||min<0.05) min=0;
-    return `${f(min)}–${f(max)} mm`;
+    return `${f(min)}–${f(max)}`; // v13 (P2): ohne "mm" — Einheit steckt jetzt im Tropfen-Icon
   }
 
   // Derive sky state (sun|cloud|rain) + intensity (0..1) from cloud%/precip
@@ -2124,6 +2132,18 @@ function drawChart(canvasId, day, opts){
     // dot at top
     ctx.fillStyle="#ff5a4d";
     ctx.beginPath();ctx.arc(nx,padT,3.2,0,7);ctx.fill();
+    // v13: current time rides ALONG the marker (P1) — no more fixed header label.
+    // Placed just right of the dot; flips left when the marker nears the right edge.
+    if(opts.nowLabel){
+      ctx.font="600 11px "+getComputedStyle(document.body).fontFamily;
+      const tw=ctx.measureText(opts.nowLabel).width;
+      const flip = nx + 6 + tw > W-4;      // too close to the right edge → put it left
+      ctx.fillStyle=cssVar("--ink-3");
+      ctx.textBaseline="middle";
+      ctx.textAlign = flip ? "right" : "left";
+      ctx.fillText(opts.nowLabel, flip ? nx-6 : nx+6, padT+1);
+      ctx.textAlign="left"; ctx.textBaseline="alphabetic";
+    }
   }
 }
 
@@ -2177,6 +2197,15 @@ const SVG = {
   storm:'<svg viewBox="0 0 24 24" fill="none"><path d="M7 13a4 4 0 010-8 5 5 0 019.6-1.3A3.5 3.5 0 0117 13H7z" fill="#8a95a6"/><path d="M12 13l-2.5 4.5h2L11 22l4-5.5h-2L13.5 13z" fill="#e35bff"/></svg>',
   fog:'<svg viewBox="0 0 24 24" fill="none" stroke="#8a95a6" stroke-width="1.8" stroke-linecap="round"><path d="M4 9h16M4 13h16M6 17h12"/></svg>',
 };
+// Regentropfen-Icon für die Niederschlagsspalte (P2) — kompakt, --rain-ink
+SVG.drop='<svg class="drop-ic" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3s6 7 6 11a6 6 0 01-12 0c0-4 6-11 6-11z"/></svg>';
+// Einheitliches Markup der Niederschlagsspalte: bei Regen Tropfen + Wert
+// (einzeilig), bei "trocken" nur das Wort. Genutzt von Liste UND Chart-Headern.
+function precipHTML(pr){
+  if(pr==null || pr==="trocken") return "trocken";
+  return `${SVG.drop}<span class="pr-val">${pr}</span>`;
+}
+
 // WMO weather_code → icon key
 function codeIcon(code){
   if(code==null) return "cloud";
@@ -2213,7 +2242,7 @@ function renderDaily(list){
     row.innerHTML=`
       <div class="day">${r.d} <small>${r.dd}</small></div>
       <div class="ic">${icons.join("")}</div>
-      <div class="precip ${dry?'dry':''}">${r.pr}</div>
+      <div class="precip ${dry?'dry':''}">${precipHTML(r.pr)}</div>
       <div class="temprange">
         <span class="lo">${r.lo!=null?r.lo+'°':'–'}</span>
         <span class="bar" style="--c1:${loC};--c2:${hiC}"></span>
@@ -2459,7 +2488,7 @@ function renderNowcast(canvasId){
 function renderAll(){
   if(document.documentElement.dataset.uiMode==="watch") return;
   renderNowcast("cv-nowcast");
-  drawChart("cv-today", DATA.today, {bands:true, height:268});
+  drawChart("cv-today", DATA.today, {bands:true, height:268, nowLabel: DATA._nowLabel});
   drawChart("cv-thu", DATA.thu, {bands:true, height:236});
   drawChart("cv-fri", DATA.fri, {bands:true, height:240});
 }
@@ -2723,12 +2752,17 @@ function applyData(data){
   }
   // chart labels
   const now=new Date();
-  document.getElementById("lbl-today").textContent=`Heute · ${dayLabelFromOffset(0)}`;
-  document.getElementById("meta-today").textContent=`jetzt ${now.getHours()}:${String(now.getMinutes()).padStart(2,"0")}`;
+  document.getElementById("lbl-today").textContent="Heute";
+  {
+    // P1: Zeit wandert jetzt mit dem Marker im Canvas — Header-Zeile leer lassen.
+    const hhmm=`${now.getHours()}:${String(now.getMinutes()).padStart(2,"0")}`;
+    data._nowLabel=hhmm; // auf data, nicht DATA — DATA wird unten frisch zugewiesen (v13-Fix)
+    document.getElementById("meta-today").textContent="";
+  }
   document.getElementById("lbl-thu").textContent=dayLabelFromOffset(1);
-  document.getElementById("meta-thu").textContent=rangeLabel(data.thu);
+  document.getElementById("meta-thu").textContent="";  // P3: redundante min/max raus (Balken zeigt es)
   document.getElementById("lbl-fri").textContent=dayLabelFromOffset(2);
-  document.getElementById("meta-fri").textContent=rangeLabel(data.fri);
+  document.getElementById("meta-fri").textContent="";  // P3: redundante min/max raus
   // compact collapsed-row summary (icon/precip/range) for the same three cards
   (data.heroDayMeta||[]).forEach((r,i)=>{
     const suf=["today","thu","fri"][i]; if(!suf) return;
@@ -2736,7 +2770,7 @@ function applyData(data){
     if(icEl) icEl.innerHTML = (r.code!=null && SVG[codeIcon(r.code)]) ? SVG[codeIcon(r.code)] : "";
     const dry = r.pr==="trocken";
     const precEl=document.getElementById("precip-"+suf);
-    if(precEl){ precEl.textContent=r.pr; precEl.classList.toggle("dry",dry); }
+    if(precEl){ precEl.innerHTML=precipHTML(r.pr); precEl.classList.toggle("dry",dry); }
     const loC = r.lo!=null?rgb(tempColor(r.lo)):"var(--ink-2)";
     const hiC = r.hi!=null?rgb(tempColor(r.hi)):"var(--ink)";
     const loEl=document.getElementById("lo-"+suf), hiEl=document.getElementById("hi-"+suf), barEl=document.getElementById("bar-"+suf);
@@ -3998,7 +4032,7 @@ document.querySelectorAll(".app-version").forEach(el=>{
     btn.classList.toggle("is-on", state==="on");
     btn.classList.toggle("is-blocked", state==="blocked");
     btn.setAttribute("aria-pressed", state==="on" ? "true":"false");
-    label.textContent = state==="on" ? "Regen-Warnung aktiv" : "Regen-Warnung aktivieren";
+    label.textContent = state==="on" ? "Regen-Alert aktiv" : "Alert aktivieren";
     icon.style.fill = state==="on" ? "#fff" : "none";
     if(hintText){ hint.textContent=hintText; hint.hidden=false; }
     else { hint.hidden=true; hint.textContent=""; }
