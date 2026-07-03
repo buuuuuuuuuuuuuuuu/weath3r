@@ -18,7 +18,7 @@
    Runs synchronously in <head> BEFORE the body renders so the
    correct GUI is shown immediately (no layout flash).
    ============================================================ */
-window.APP_VERSION = "v11.0";
+window.APP_VERSION = "v12.0";
 
 // fetch mit Timeout: ein hängender Request darf nie die ganze Ladekette blockieren
 window.fetchT=function(url,opts,ms){
@@ -312,6 +312,7 @@ getUiMode();
   }
   .chip b{color:var(--ink);font-weight:600}
   .chip .dot{width:5px;height:5px;border-radius:50%;flex:none}
+  .chip .wind-arrow{width:9px;height:9px;flex:none;fill:var(--wind);transform-origin:50% 50%;transition:transform .4s ease}
   .chip-extreme{display:none}
   .chip-extreme.show{display:inline-flex}
 
@@ -781,7 +782,7 @@ getUiMode();
         <div class="chips" id="chips">
           <span class="chip"><span class="dot" style="background:var(--rain)"></span>Regen <b id="chip-rain">–</b></span>
           <span class="chip chip-extreme" id="chip-extreme-wrap"><span class="dot" style="background:var(--storm)"></span><span id="chip-extreme-label">Gewitter</span> <b id="chip-storm">–</b></span>
-          <span class="chip"><span class="dot" style="background:var(--wind)"></span>Wind <b id="chip-wind">–</b></span>
+          <span class="chip"><svg class="wind-arrow" id="chip-wind-arrow" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 0.6 L7.6 5.4 L5 4.3 L2.4 5.4 Z"/><rect x="4.45" y="4.2" width="1.1" height="5.2" rx="0.55"/></svg>Wind <b id="chip-wind">–</b></span>
         </div>
       </div>
       <button class="wx-icon" id="wx-icon" aria-label="Aktuelles Wetter" style="display:none"></button>
@@ -893,7 +894,7 @@ getUiMode();
   <div class="daily" id="daily"></div>
 
   <p class="footnote">
-    <b>Multi-Modell-Ansicht.</b> Drei unabhängige Wettermodelle laufen parallel — AROME (durchgezogen), ICON-D2 (gestrichelt), ECMWF (gepunktet). Liegen die Linien nah beieinander, ist die Prognose sicher; spreizen sie sich, ist sie unsicher. Farbe codiert die Wärme, das Linienmuster die Modell-Identität.<br>
+    <b>Multi-Modell-Ansicht.</b> Drei unabhängige Wettermodelle laufen parallel — AROME (durchgezogen), ICON-D2 (gestrichelt), ECMWF (gepunktet). Liegen die Linien nah beieinander, ist die Prognose sicher; spreizen sie sich, ist sie unsicher. Farbe codiert die Wärme, das Linienmuster die Modell-Identität. Das Windband (AROME) unter den Himmelsspuren: Dicke&nbsp;= Stärke, Pfeil&nbsp;= Richtung, in die der Wind weht; ab Sturmböen färbt es sich orange-rot.<br>
     <span id="data-status"></span> Wetterdaten: <b>Open-Meteo.com</b> (CC BY 4.0). Regenradar &amp; Warnungen: <b>DWD</b> via Bright Sky.<br>
     <button class="ui-toggle" id="to-watch">⌚ Watch-Ansicht</button>
     <span class="app-version" id="ver-desktop" style="margin-left:10px">WEATH3R v9.9</span>
@@ -978,12 +979,12 @@ const AURORA = (function(){
   // hourly + 15-min variables we ask each model for
   const HOURLY = [
     "temperature_2m","apparent_temperature","precipitation","precipitation_probability",
-    "cloud_cover","weather_code","wind_speed_10m","wind_gusts_10m","cape"
+    "cloud_cover","weather_code","wind_speed_10m","wind_gusts_10m","wind_direction_10m","cape"
   ].join(",");
   const MIN15 = ["precipitation","precipitation_probability"].join(",");
   const DAILY = [
     "temperature_2m_max","temperature_2m_min","precipitation_sum",
-    "precipitation_probability_max","weather_code","wind_speed_10m_max"
+    "precipitation_probability_max","weather_code","wind_speed_10m_max","wind_gusts_10m_max"
   ].join(",");
 
   // ---- helpers ----
@@ -1135,6 +1136,25 @@ const AURORA = (function(){
             day.sky.push([{from:0,to:24,state:"nodata",inten:1}]);
           }
         });
+        // wind track — AROME (erstes Modell) als Primärquelle; EIN Band statt
+        // drei, weil Richtungspfeile pro Modell visuelles Chaos wären (v12)
+        {
+          const pm0=perModel.find(pm=>pm.hourly&&pm.hourly.time);
+          const H0=pm0?pm0.hourly:null;
+          const ds0=H0?dayStartIndex(H0.time,dOffset):null;
+          if(H0 && ds0!=null && H0.wind_speed_10m){
+            day.wind=[];
+            for(let h=0;h<24;h++){
+              const i=ds0+h, sp=H0.wind_speed_10m[i];
+              if(sp==null) continue;
+              day.wind.push({
+                h, speed:sp,
+                gust: H0.wind_gusts_10m ? H0.wind_gusts_10m[i] : null,
+                dir:  H0.wind_direction_10m!=null && H0.wind_direction_10m[i]!=null ? H0.wind_direction_10m[i] : null,
+              });
+            }
+          }
+        }
         // storm from first model with CAPE
         for(let mi=0; mi<perModel.length; mi++){
           const H=perModel[mi].hourly; if(!H) continue;
@@ -1159,6 +1179,8 @@ const AURORA = (function(){
         feels: Math.round(H.apparent_temperature[ci]),
         cloud: H.cloud_cover[ci], precip: H.precipitation[ci],
         wind: Math.round(H.wind_speed_10m[ci]),
+        gust: H.wind_gusts_10m && H.wind_gusts_10m[ci]!=null ? Math.round(H.wind_gusts_10m[ci]) : null,
+        dir:  H.wind_direction_10m && H.wind_direction_10m[ci]!=null ? H.wind_direction_10m[ci] : null,
         prob: H.precipitation_probability ? H.precipitation_probability[ci] : null,
         code: H.weather_code ? H.weather_code[ci] : null,
       };
@@ -1209,7 +1231,7 @@ const AURORA = (function(){
       for(let d=3; d<=14 && d<D.time.length; d++){
         const dt=new Date(D.time[d]);
         // average max/min across models that have this day
-        let hiS=0,hiN=0,loS=0,loN=0,prMax=0,probMax=0,windMax=0;
+        let hiS=0,hiN=0,loS=0,loN=0,prMax=0,probMax=0,windMax=0,gustMax=0;
         let code=D.weather_code?D.weather_code[d]:null;
         if(hourlyBase && hourlyBase.hourly){
           const ds=dayStartIndex(hourlyBase.hourly.time, d);
@@ -1222,11 +1244,12 @@ const AURORA = (function(){
           if(dd.precipitation_sum&&dd.precipitation_sum[d]!=null) prMax=Math.max(prMax,dd.precipitation_sum[d]);
           if(dd.precipitation_probability_max&&dd.precipitation_probability_max[d]!=null) probMax=Math.max(probMax,dd.precipitation_probability_max[d]);
           if(dd.wind_speed_10m_max&&dd.wind_speed_10m_max[d]!=null) windMax=Math.max(windMax,dd.wind_speed_10m_max[d]);
+          if(dd.wind_gusts_10m_max&&dd.wind_gusts_10m_max[d]!=null) gustMax=Math.max(gustMax,dd.wind_gusts_10m_max[d]);
         });
         out.dailyList.push({
           offset:d,
           d:WD[dt.getDay()], dd:`${dt.getDate()}. ${MO[dt.getMonth()]}`,
-          code, windMax,
+          code, windMax, gustMax,
           pr: fmtMM(prMax>0?Math.max(0,prMax-0.4):0, prMax),
           lo: hiN?Math.round(loS/loN):null,
           hi: hiN?Math.round(hiS/hiN):null,
@@ -1240,7 +1263,7 @@ const AURORA = (function(){
       const D=base.daily;
       for(let d=0; d<=2 && d<D.time.length; d++){
         const dt=new Date(D.time[d]);
-        let hiS=0,hiN=0,loS=0,loN=0,prMax=0,windMax=0;
+        let hiS=0,hiN=0,loS=0,loN=0,prMax=0,windMax=0,gustMax=0;
         let code=D.weather_code?D.weather_code[d]:null;
         if(hourlyBase && hourlyBase.hourly){
           const ds=dayStartIndex(hourlyBase.hourly.time, d);
@@ -1252,9 +1275,10 @@ const AURORA = (function(){
           if(dd.temperature_2m_min&&dd.temperature_2m_min[d]!=null){loS+=dd.temperature_2m_min[d];loN++;}
           if(dd.precipitation_sum&&dd.precipitation_sum[d]!=null) prMax=Math.max(prMax,dd.precipitation_sum[d]);
           if(dd.wind_speed_10m_max&&dd.wind_speed_10m_max[d]!=null) windMax=Math.max(windMax,dd.wind_speed_10m_max[d]);
+          if(dd.wind_gusts_10m_max&&dd.wind_gusts_10m_max[d]!=null) gustMax=Math.max(gustMax,dd.wind_gusts_10m_max[d]);
         });
         out.heroDayMeta.push({
-          offset:d, code, windMax,
+          offset:d, code, windMax, gustMax,
           pr: fmtMM(prMax>0?Math.max(0,prMax-0.4):0, prMax),
           lo: hiN?Math.round(loS/loN):null,
           hi: hiN?Math.round(hiS/hiN):null,
@@ -1490,7 +1514,7 @@ const AURORA = (function(){
     const u=new URL("https://api.open-meteo.com/v1/forecast");
     u.searchParams.set("latitude", geo.lat);
     u.searchParams.set("longitude", geo.lon);
-    u.searchParams.set("current",["temperature_2m","apparent_temperature","precipitation","weather_code","cloud_cover","wind_speed_10m"].join(","));
+    u.searchParams.set("current",["temperature_2m","apparent_temperature","precipitation","weather_code","cloud_cover","wind_speed_10m","wind_gusts_10m","wind_direction_10m"].join(","));
     u.searchParams.set("timezone","auto");
     const res=await fetchT(u.toString(), 10000);
     if(!res.ok) throw new Error("current "+res.status);
@@ -1645,6 +1669,8 @@ const AURORA = (function(){
         if(cur.cloud_cover!=null) data.hero.cloud=cur.cloud_cover;
         if(cur.precipitation!=null) data.hero.precip=cur.precipitation;
         if(cur.wind_speed_10m!=null) data.hero.wind=Math.round(cur.wind_speed_10m);
+        if(cur.wind_gusts_10m!=null) data.hero.gust=Math.round(cur.wind_gusts_10m);
+        if(cur.wind_direction_10m!=null) data.hero.dir=cur.wind_direction_10m;
         if(cur.weather_code!=null) data.hero.code=cur.weather_code;
         // prob (precipitation_probability) hat kein `current`-Pendant —
         // die hourly-Schätzung bleibt für dieses eine Feld stehen
@@ -1760,6 +1786,52 @@ function tempColor(t){
   return RAMP[RAMP.length-1][1];
 }
 const rgb = c => `rgb(${c[0]},${c[1]},${c[2]})`;
+
+/* ---------- Wind-Farbrampe (v12) ----------
+   Analog zur Temperatur-RAMP, aber über Theme-Tokens aufgelöst (cssVar),
+   damit Light/Dark automatisch stimmen. km/h → Tokenfarbe:
+   leichte Brise teal (--wind) → steife Böe warm → Sturm hot/scorch.     */
+const WINDRAMP=[
+  [10, "--wind"],
+  [30, "--t-warm"],
+  [50, "--t-hot"],
+  [70, "--t-scorch"],
+];
+function hexToRgbArr(hex){
+  const h=(hex||"").trim().replace("#","");
+  if(h.length!==6) return [52,211,166]; // Fallback: --wind-Teal
+  return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
+}
+// Palette einmal pro Chart-Zeichnung auflösen (getComputedStyle ist nicht gratis)
+function resolveWindPalette(){
+  return WINDRAMP.map(([v,tok])=>[v, hexToRgbArr(cssVar(tok))]);
+}
+function windColor(kmh, pal){
+  if(kmh<=pal[0][0]) return rgb(pal[0][1]);
+  if(kmh>=pal[pal.length-1][0]) return rgb(pal[pal.length-1][1]);
+  for(let i=0;i<pal.length-1;i++){
+    const [a,ca]=pal[i],[b,cb]=pal[i+1];
+    if(kmh>=a&&kmh<=b){
+      const k=(kmh-a)/(b-a);
+      return rgb([0,1,2].map(j=>Math.round(ca[j]+(cb[j]-ca[j])*k)));
+    }
+  }
+  return rgb(pal[pal.length-1][1]);
+}
+// Pfeil in Strömungsrichtung ("wie Apple": Nordwind → Pfeil nach unten).
+// deg ist bereits die Bildschirm-Rotation (0 = Pfeil nach oben, im UZS).
+function drawWindArrow(ctx,x,y,deg,size,col){
+  ctx.save();
+  ctx.translate(x,y);
+  ctx.rotate(deg*Math.PI/180);
+  ctx.strokeStyle=col; ctx.fillStyle=col;
+  ctx.lineWidth=1.4; ctx.lineCap="round";
+  ctx.beginPath(); ctx.moveTo(0,size/2); ctx.lineTo(0,-size/2+2.6); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0,-size/2);
+  ctx.lineTo(-2.4,-size/2+3.2); ctx.lineTo(2.4,-size/2+3.2);
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
 const rgba = (c,a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
 
 /* ---------- Sample data (matches screenshots) ----------
@@ -1819,7 +1891,8 @@ function drawChart(canvasId, day, opts){
   }
   if(!W) W=Math.min(document.documentElement.clientWidth||360,460)-34;
   if(!W||W<60) W=326; // last-resort sane default
-  const H=opts.height||230;
+  const hasWindTrack = opts.bands && day.wind && day.wind.length; // v12
+  const H=(opts.height||230) + (hasWindTrack?16:0); // Windspur braucht eigenen Platz
   cv.width=W*DPR; cv.height=H*DPR;
   cv.style.height=H+"px";
   ctx.setTransform(DPR,0,0,DPR,0,0);
@@ -1834,7 +1907,8 @@ function drawChart(canvasId, day, opts){
   const hasBands = opts.bands;        // sky-state + storm bars on top
   const stormRow = hasBands && day.storm;
   const cloudH = hasBands ? (stormRow?74:56) : 0;
-  const tempTop = padT + cloudH + (hasBands?8:0);
+  const windH = hasWindTrack ? 16 : 0;                 // 12px-Spur + 4px Abstand (v12)
+  const tempTop = padT + cloudH + windH + (hasBands?8:0);
   const precipH = 40;
   const tempBot = H - padB - precipH - 6;
   const tempH = tempBot - tempTop;
@@ -1908,6 +1982,30 @@ function drawChart(canvasId, day, opts){
         roundBar(ctx, X(a)+1, sy - th/2, X(b)-X(a)-2, th, '#e35bff');
       });
     }
+  }
+
+  /* --- WIND track (v12): eine feste 12px-Spur unter den Sky-Bändern.
+     Balkendicke = Windgeschwindigkeit (analog zur inten-Logik der Sky-Bänder),
+     Farbe = WINDRAMP über Geschwindigkeit; bei Sturmböen (>=70 km/h) färbt
+     die Böe den Balken. Pfeile alle 3 h zeigen die STRÖMUNGSrichtung
+     (meteorologische Richtung + 180° — "wie Apple").                    */
+  if(hasWindTrack){
+    const laneC = padT + cloudH + 8;          // vertikale Mitte der Windspur
+    const pal = resolveWindPalette();
+    const arrowCol = cssVar('--ink'); // maximaler Kontrast auf der Teal-Spur, themeabhängig
+    // durchgehende Spur: Stundenzellen ohne Insets, +0.6px Überlappung
+    // gegen Haarlinien-Fugen (anders als Sky-Bänder, die Segmente mergen)
+    day.wind.forEach(e=>{
+      const x=X(e.h), w=X(e.h+1)-x;
+      const eff=(e.gust!=null && e.gust>=70) ? e.gust : e.speed;
+      const th=3 + 8*Math.max(0, Math.min(1, e.speed/60));
+      ctx.fillStyle=windColor(eff, pal);
+      ctx.fillRect(x, laneC - th/2, w+0.6, th);
+    });
+    day.wind.forEach(e=>{
+      if(e.dir==null || e.h%3!==1) return;    // alle 3 h: 1,4,…,22 Uhr
+      drawWindArrow(ctx, X(e.h+0.5), laneC, (e.dir+180)%360, 9, arrowCol);
+    });
   }
 
   /* --- DWD warning bands (time-aligned, top of plot) --- */
@@ -2554,7 +2652,7 @@ function rangeHTML(day){
 // Extreme-weather chip: a single slot that surfaces whichever hazard is
 // currently most relevant (thunderstorm, heavy rain, snow, high wind).
 // Stays hidden entirely when nothing notable is happening.
-function applyExtremeChip(h){
+function applyExtremeChip(h, todayMax){
   const wrap=document.getElementById("chip-extreme-wrap");
   const label=document.getElementById("chip-extreme-label");
   const val=document.getElementById("chip-storm");
@@ -2571,6 +2669,10 @@ function applyExtremeChip(h){
     hazard={ label:"Starkregen", value:(prob!=null?`${Math.round(prob)} %`:""), color:"var(--rain)" };
   } else if(wind!=null && wind>=50){
     hazard={ label:"Sturm", value:`${Math.round(wind)} km/h`, color:"var(--wind)" };
+  } else if(todayMax && todayMax.gustMax!=null && todayMax.gustMax>=70){
+    // v12: Böen-Warnung auf TAGESMAX-Basis — warnt vor der Gewitterfront am
+    // Abend, auch wenn es jetzt gerade noch ruhig ist ("heute"-Semantik).
+    hazard={ label:"Böen", value:`bis ${Math.round(todayMax.gustMax)} km/h`, color:"var(--t-hot)" };
   }
 
   if(hazard){
@@ -2599,8 +2701,17 @@ function applyData(data){
     document.getElementById("now-feels").innerHTML=h.feels!=null?`<span class="lbl">Gefühlt</span>${h.feels}°`:"";
     const f=x=>(Math.round(x*10)/10).toString().replace(".",",");
     document.getElementById("chip-rain").textContent=h.precip>0.05?`${f(h.precip)} mm`:"0 mm";
-    document.getElementById("chip-wind").textContent=`${h.wind} km/h`;
-    applyExtremeChip(h);
+    {
+      // Böen nur nennen, wenn sie deutlich über dem Grundwind liegen (>= +15)
+      const gustTxt=(h.gust!=null && h.gust>=h.wind+15) ? ` (Böen ${h.gust})` : "";
+      document.getElementById("chip-wind").textContent=`${h.wind} km/h${gustTxt}`;
+      const ar=document.getElementById("chip-wind-arrow");
+      if(ar){
+        if(h.dir!=null){ ar.style.visibility=""; ar.style.transform=`rotate(${Math.round((h.dir+180)%360)}deg)`; }
+        else ar.style.visibility="hidden";
+      }
+    }
+    applyExtremeChip(h, data.heroDayMeta && data.heroDayMeta[0]);
     updateWeatherIcon(h);
     scheduleFitHero();
   }
@@ -3603,7 +3714,7 @@ document.addEventListener("DOMContentLoaded",()=>{
     const u=new URL("https://api.open-meteo.com/v1/forecast");
     u.searchParams.set("latitude",geo.lat);
     u.searchParams.set("longitude",geo.lon);
-    u.searchParams.set("current",["temperature_2m","apparent_temperature","precipitation","weather_code","cloud_cover","wind_speed_10m"].join(","));
+    u.searchParams.set("current",["temperature_2m","apparent_temperature","precipitation","weather_code","cloud_cover","wind_speed_10m","wind_gusts_10m","wind_direction_10m"].join(","));
     u.searchParams.set("daily",["temperature_2m_max","temperature_2m_min","precipitation_sum","weather_code"].join(","));
     u.searchParams.set("timezone","auto");
     u.searchParams.set("forecast_days","5");
