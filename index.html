@@ -19,7 +19,7 @@
    Runs synchronously in <head> BEFORE the body renders so the
    correct GUI is shown immediately (no layout flash).
    ============================================================ */
-window.APP_VERSION = "v13.0";
+window.APP_VERSION = "v13.1";
 
 // fetch mit Timeout: ein hängender Request darf nie die ganze Ladekette blockieren
 window.fetchT=function(url,opts,ms){
@@ -329,11 +329,14 @@ getUiMode();
   .nowcast-head{display:flex;align-items:center;flex-wrap:wrap;row-gap:8px;column-gap:10px;margin-bottom:2px}
   .nowcast-title{font-size:var(--fs-base);font-weight:600;letter-spacing:.02em;color:var(--ink);flex:1 1 auto;min-width:0}
   .nowcast-head-right{display:flex;align-items:center;gap:10px;margin-left:auto;flex:none}
-  /* P6: Datenquelle-Chip unten links auf Höhe der Zeitachse statt in eigener Kopfzeile */
-  .nowcast-src{position:absolute;left:var(--sp-4);bottom:calc(var(--sp-2) + 2px);
-    font-size:var(--fs-xs);font-weight:600;letter-spacing:.03em;color:var(--ink-3);
-    border:1px solid var(--stroke-2);border-radius:var(--radius-pill);padding:2px 8px;
-    display:inline-block;background:var(--card);z-index:2;pointer-events:none}
+  /* P6/v13.1: Datenquelle-Chip unten links, linksbündig unter der Y-Achsen-
+     Beschriftung (100%/50%). Schmales "DWD" sitzt NEBEN dem Plot, nicht davor,
+     damit die Prognoselinie ungehindert durchläuft. Optisch an der Zeitachse
+     orientiert: gleiche Kleinschrift/Farbe wie die Achsen-Ticks. */
+  .nowcast-src{position:absolute;left:var(--sp-4);bottom:calc(var(--sp-2) + 1px);
+    font-size:var(--fs-xs);font-weight:600;letter-spacing:.02em;color:var(--ink-3);
+    border:1px solid var(--stroke-2);border-radius:var(--radius-pill);padding:1px 7px;
+    display:inline-block;background:transparent;z-index:2;pointer-events:none}
   .nowcast-src:empty{display:none}
   #cv-nowcast{min-height:96px}
   /* tappable header → expand radar map */
@@ -2781,7 +2784,7 @@ function applyData(data){
   // nowcast summary
   // (Zusammenfassungs-Text entfernt — die Grafik/„kein Niederschlag"-Anzeige trägt diese Info bereits)
   const srcEl=document.getElementById("nowcast-src");
-  if(srcEl) srcEl.textContent=(data.nowcast&&data.nowcast.radar)?"DWD Radar":"";
+  if(srcEl) srcEl.textContent=(data.nowcast&&data.nowcast.radar)?"DWD":"";
   // weather warnings
   applyAlerts(data.alerts||[]);
   // assign render data
