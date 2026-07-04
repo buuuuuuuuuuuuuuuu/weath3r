@@ -19,7 +19,7 @@
    Runs synchronously in <head> BEFORE the body renders so the
    correct GUI is shown immediately (no layout flash).
    ============================================================ */
-window.APP_VERSION = "v15.1";
+window.APP_VERSION = "v15.2";
 
 // fetch mit Timeout: ein hängender Request darf nie die ganze Ladekette blockieren
 window.fetchT=function(url,opts,ms){
@@ -4526,7 +4526,7 @@ document.querySelectorAll(".app-version").forEach(el=>{
     if(cloud!=null && cloud<40) return "sun";
     return "cloud";
   }
-  function drawDayDetail(cv, perModel, ds){
+  function drawDayDetail(cv, perModel, ds, isToday){
     if(!cv||!perModel||!perModel.length||ds==null) return;
     const W=cv.clientWidth||160, DPR2=Math.min(window.devicePixelRatio||1,2.5);
     const H=84;
@@ -4575,6 +4575,20 @@ document.querySelectorAll(".app-version").forEach(el=>{
       });
       ctx.setLineDash([]);
     }
+
+    // "Jetzt"-Linie (v15.2) — wie am Desktop: gestrichelte rote Linie + Punkt
+    // oben, aber bewusst OHNE Uhrzeit-Label (dafür ist auf 190px kein Platz,
+    // und die Zeit steht ja schon oben im Header). Nur für "Heute".
+    if(isToday){
+      const now=new Date(); const nowHour=now.getHours()+now.getMinutes()/60;
+      const nx=X(nowHour);
+      ctx.setLineDash([2,2]);
+      ctx.strokeStyle="rgba(255,90,77,.85)"; ctx.lineWidth=1.2;
+      ctx.beginPath(); ctx.moveTo(nx,trackY-4); ctx.lineTo(nx,H-padB); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle="#ff5a4d";
+      ctx.beginPath(); ctx.arc(nx,trackY-4,2.6,0,7); ctx.fill();
+    }
   }
   function renderDaily(wx){
     const daily=wx&&wx.daily;
@@ -4610,7 +4624,7 @@ document.querySelectorAll(".app-version").forEach(el=>{
         row.setAttribute("aria-expanded",open?"true":"false");
         if(open && !drawn){
           const ds=wDayStart(perModel[0]&&perModel[0].hourly&&perModel[0].hourly.time, d);
-          drawDayDetail(cv, perModel, ds);
+          drawDayDetail(cv, perModel, ds, d===0);
           drawn=true;
         }
       });
