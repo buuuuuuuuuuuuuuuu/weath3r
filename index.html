@@ -19,7 +19,7 @@
    Runs synchronously in <head> BEFORE the body renders so the
    correct GUI is shown immediately (no layout flash).
    ============================================================ */
-window.APP_VERSION = "v14.2";
+window.APP_VERSION = "v14.3";
 
 // fetch mit Timeout: ein hängender Request darf nie die ganze Ladekette blockieren
 window.fetchT=function(url,opts,ms){
@@ -604,10 +604,14 @@ getUiMode();
     padding:var(--sp-3) var(--sp-4);margin-top:10px;background:var(--card-2);
   }
   /* ---------- Legend / explainer rows (v14) ---------- */
+  .lg-intro{font-size:var(--fs-sm);color:var(--ink-2);line-height:1.4;margin:0 0 var(--sp-4)}
   .lg-group{margin-top:var(--sp-4)}
   .lg-group:first-child{margin-top:0}
   .lg-group-title{font-size:var(--fs-xs);font-weight:700;letter-spacing:.1em;
     text-transform:uppercase;color:var(--ink-3);margin-bottom:var(--sp-2)}
+  .lg-hero{display:flex;justify-content:center;padding:var(--sp-3) 0;margin-bottom:var(--sp-1);
+    background:var(--card-2);border:1px solid var(--stroke-2);border-radius:var(--radius-xs)}
+  .lg-hero canvas{display:block;min-height:0} /* schlägt die globale canvas{min-height:200px}-Regel */
   .lg-row{display:flex;align-items:flex-start;gap:var(--sp-3);padding:var(--sp-2) 0}
   .lg-swatch{flex:none;width:44px;height:26px;border-radius:var(--radius-xs);
     background:var(--card-2);border:1px solid var(--stroke-2);
@@ -2945,24 +2949,6 @@ function lgGradientSwatch(stopsRGB){
   x.closePath();x.fill();
   return c;
 }
-function lgWindSwatch(){
-  // Windband-Ausschnitt mit einem Richtungspfeil (wie im Chart)
-  const c=document.createElement("canvas");
-  const W=44,H=26,DPR=window.devicePixelRatio||1;
-  c.width=W*DPR;c.height=H*DPR;c.style.width=W+"px";c.style.height=H+"px";
-  const x=c.getContext("2d");x.setTransform(DPR,0,0,DPR,0,0);
-  const pal=(typeof resolveWindPalette==="function")?resolveWindPalette():null;
-  x.fillStyle=pal?windColor(24,pal):cssVar("--wind");
-  x.fillRect(4,H/2-4,W-8,8);
-  // Pfeil (Strömungsrichtung), --ink für Kontrast
-  x.save();x.translate(W/2,H/2);x.rotate(Math.PI/2); // zeigt nach rechts als Beispiel
-  x.strokeStyle=cssVar("--ink");x.fillStyle=cssVar("--ink");
-  x.lineWidth=1.4;x.lineCap="round";
-  x.beginPath();x.moveTo(0,4.5);x.lineTo(0,-2);x.stroke();
-  x.beginPath();x.moveTo(0,-4.5);x.lineTo(-2.2,-1.6);x.lineTo(2.2,-1.6);x.closePath();x.fill();
-  x.restore();
-  return c;
-}
 function lgNowSwatch(){
   const c=document.createElement("canvas");
   const W=44,H=26,DPR=window.devicePixelRatio||1;
@@ -2984,18 +2970,71 @@ function lgSkySwatch(state){
   x.fillRect(4,H/2-4,W-8,8);
   return c;
 }
+function lgSkyWindHeroSwatch(){
+  // Breiter Ausschnitt für die Gruppe "Himmel & Wind": drei Modell-Reihen mit
+  // bewusst unterschiedlichen Zuständen/Intensitäten (inkl. wechselnd starkem
+  // Regen) plus die Windspur mit Richtungswechsel und einer Sturmböe.
+  // Nutzt dieselben Konstanten/Helfer wie der echte Chart (roundBar, windColor,
+  // drawWindArrow) — bleibt dadurch automatisch stimmig bei Design-Änderungen.
+  const c=document.createElement("canvas");
+  const W=272,H=72,DPR=window.devicePixelRatio||1;
+  c.width=W*DPR;c.height=H*DPR;c.style.width=W+"px";c.style.height=H+"px";
+  const ctx=c.getContext("2d");ctx.setTransform(DPR,0,0,DPR,0,0);
+
+  const SKY={ sun:cssVar('--c-sky-sun'), cloud:cssVar('--c-sky-cloud2'), rain:cssVar('--c-sky-rain') };
+  const trackY=12, trackGap=16, minTh=2, maxTh=8;
+  const rows=[
+    // AROME: unterschiedlich starker Regen
+    [{a:4,b:66,state:"rain",inten:.3},{a:66,b:136,state:"rain",inten:1},
+     {a:136,b:172,state:"cloud",inten:.4},{a:172,b:268,state:"rain",inten:.6}],
+    // ICON-D2: Sonne/Wolken-Wechsel
+    [{a:4,b:56,state:"cloud",inten:.5},{a:56,b:96,state:"sun",inten:.85},
+     {a:96,b:128,state:"cloud",inten:.3},{a:128,b:168,state:"sun",inten:.6},
+     {a:168,b:268,state:"cloud",inten:.5}],
+    // ECMWF: überwiegend Wolken, kurze Auflockerung
+    [{a:4,b:176,state:"cloud",inten:.35},{a:176,b:216,state:"sun",inten:.5},
+     {a:216,b:268,state:"cloud",inten:.3}],
+  ];
+  rows.forEach((segs,ti)=>{
+    const cy=trackY+ti*trackGap;
+    segs.forEach(s=>{
+      const th=minTh+(maxTh-minTh)*s.inten;
+      roundBar(ctx, s.a+1, cy-th/2, s.b-s.a-2, th, SKY[s.state]);
+    });
+  });
+
+  // Windspur: normale Böe, dann eine Sturmböe (>=70 km/h → orange-rot)
+  const pal=(typeof resolveWindPalette==="function")?resolveWindPalette():null;
+  const laneC=trackY+3*trackGap+6;
+  const windSegs=[
+    {a:4,b:150,speed:22,gust:38},
+    {a:150,b:268,speed:34,gust:74},
+  ];
+  windSegs.forEach(s=>{
+    const eff=(s.gust!=null&&s.gust>=70)?s.gust:s.speed;
+    const th=3+8*Math.max(0,Math.min(1,s.speed/60));
+    ctx.fillStyle=pal?windColor(eff,pal):cssVar('--wind');
+    ctx.fillRect(s.a, laneC-th/2, s.b-s.a, th);
+  });
+  const arrowCol=cssVar('--ink');
+  if(typeof drawWindArrow==="function"){
+    drawWindArrow(ctx, 76, laneC, 150, 9, arrowCol);
+    drawWindArrow(ctx, 210, laneC, 195, 9, arrowCol);
+  }
+  return c;
+}
 
 const LEGEND_SPEC=[
+  {group:"Himmel & Wind", hero:()=>lgSkyWindHeroSwatch(), rows:[
+    {term:"Himmelsspuren", desc:"Drei Streifen, Stunde für Stunde — je Modell: Farbe zeigt Sonne, Wolken oder Regen, die Dicke, wie ausgeprägt."},
+    {term:"Windband", desc:"Direkt darunter, nur AROME: Dicke&nbsp;= Windstärke, Pfeil&nbsp;= Richtung, in die er weht — ab Sturmböen orange-rot."},
+  ]},
   {group:"Temperatur-Charts", rows:[
     {swatch:()=>lgLineSwatch([]), term:"AROME", desc:"Hauptmodell — durchgezogene Linie."},
     {swatch:()=>lgLineSwatch([9,6]), term:"ICON-D2", desc:"Deutsches Modell — gestrichelt."},
     {swatch:()=>lgLineSwatch([2,5]), term:"ECMWF", desc:"Europäisches Modell — gepunktet."},
     {swatch:()=>lgGradientSwatch(RAMP.map(r=>r[1])), term:"Farbe = Temperatur", desc:"Kühl (blau) bis heiß (rot). Liegen die drei Linien eng zusammen, ist die Prognose sicher."},
     {swatch:()=>lgNowSwatch(), term:"Rote Linie", desc:"Die aktuelle Uhrzeit — die Zeit daneben wandert mit."},
-  ]},
-  {group:"Himmel & Wind", rows:[
-    {swatch:()=>lgSkySwatch("sun"), term:"Himmelsspuren", desc:"Drei Streifen (je Modell) über dem Chart: sonnig, bewölkt oder Regen — Stunde für Stunde."},
-    {swatch:()=>lgWindSwatch(), term:"Windband", desc:"Unter den Himmelsspuren (AROME): Dicke = Stärke, Pfeil = Richtung, in die der Wind weht. Ab Sturmböen färbt es sich orange-rot."},
   ]},
   {group:"Regen & Vorschau", rows:[
     {html:()=>SVG.drop, term:"Tropfen-Symbol", desc:"Erwartete Regenmenge in mm."},
@@ -3007,18 +3046,31 @@ function buildLegend(){
   const body=document.getElementById("legend-body");
   if(!body) return;
   body.innerHTML="";
+  const intro=document.createElement("p");
+  intro.className="lg-intro";
+  intro.textContent="Drei unabhängige Wettermodelle laufen parallel.";
+  body.appendChild(intro);
   LEGEND_SPEC.forEach(g=>{
     const grp=document.createElement("div");grp.className="lg-group";
     const t=document.createElement("div");t.className="lg-group-title";t.textContent=g.group;
     grp.appendChild(t);
+    if(g.hero){
+      const hero=document.createElement("div");hero.className="lg-hero";
+      hero.appendChild(g.hero());
+      grp.appendChild(hero);
+    }
     g.rows.forEach(r=>{
       const row=document.createElement("div");row.className="lg-row";
-      const sw=document.createElement("div");sw.className="lg-swatch";
-      if(r.swatch) sw.appendChild(r.swatch());
-      else if(r.html) sw.innerHTML=r.html();
+      if(r.swatch||r.html){
+        const sw=document.createElement("div");sw.className="lg-swatch";
+        if(r.swatch) sw.appendChild(r.swatch());
+        else if(r.html) sw.innerHTML=r.html();
+        row.appendChild(sw);
+      }
       const tx=document.createElement("div");tx.className="lg-text";
       tx.innerHTML=`<div class="lg-term">${r.term}</div><div class="lg-desc">${r.desc}</div>`;
-      row.appendChild(sw);row.appendChild(tx);grp.appendChild(row);
+      row.appendChild(tx);
+      grp.appendChild(row);
     });
     body.appendChild(grp);
   });
