@@ -19,7 +19,7 @@
    Runs synchronously in <head> BEFORE the body renders so the
    correct GUI is shown immediately (no layout flash).
    ============================================================ */
-window.APP_VERSION = "v15.3";
+window.APP_VERSION = "v15.4";
 
 // fetch mit Timeout: ein hängender Request darf nie die ganze Ladekette blockieren
 window.fetchT=function(url,opts,ms){
@@ -768,7 +768,8 @@ getUiMode();
   #watch-ui .wloc h1{font-size:var(--fs-base);font-weight:600;letter-spacing:-.01em;white-space:nowrap;
     overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1}
   #watch-ui .wloc .time{font-size:var(--fs-sm);color:var(--ink-3);font-weight:600;font-variant-numeric:tabular-nums;flex:none}
-  #watch-ui .wtheme-btn{flex:none;width:22px;height:22px;border-radius:50%;border:none;background:transparent;
+  #watch-ui .wtheme-btn{position:absolute;top:8px;right:8px;z-index:2;
+    width:22px;height:22px;border-radius:50%;border:none;background:transparent;
     color:var(--ink-3);display:grid;place-items:center;padding:0}
   #watch-ui .wtheme-btn svg{width:14px;height:14px}
   #watch-ui .whero{
@@ -1091,13 +1092,13 @@ getUiMode();
   <div class="wloc">
     <h1 id="wloc">WEATH3R</h1>
     <span class="time" id="wtime"></span>
+  </div>
+
+  <div class="whero">
     <button class="wtheme-btn" id="wtheme-toggle" aria-label="Hell/Dunkel umschalten">
       <svg id="icon-sun-w" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8"/></svg>
       <svg id="icon-moon-w" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:none"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>
     </button>
-  </div>
-
-  <div class="whero">
     <div class="whero-main">
       <div class="temp" id="wtemp">–<sup>°</sup></div>
       <div class="wicon" id="wicon" aria-hidden="true"></div>
