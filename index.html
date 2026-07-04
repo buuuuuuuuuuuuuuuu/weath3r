@@ -19,7 +19,7 @@
    Runs synchronously in <head> BEFORE the body renders so the
    correct GUI is shown immediately (no layout flash).
    ============================================================ */
-window.APP_VERSION = "v14.5";
+window.APP_VERSION = "v15.0";
 
 // fetch mit Timeout: ein hängender Request darf nie die ganze Ladekette blockieren
 window.fetchT=function(url,opts,ms){
@@ -679,8 +679,7 @@ getUiMode();
      ============================================================ */
   [data-ui-mode="watch"] #desktop-ui{display:none}
   [data-ui-mode="desktop"] #watch-ui{display:none}
-  /* in watch mode, force the compact black theme on the root, beating
-     :root and [data-theme] via the higher-specificity html[...] selector */
+  /* Watch Dark (Standard) — echtes OLED-Schwarz, maximal akkusparend */
   html[data-ui-mode="watch"]{
     --bg:#000;
     --card:#0e131b;
@@ -693,16 +692,34 @@ getUiMode();
     --feels:#ff6b5e;
     --warn:#ffb020;
   }
+  /* Watch Light (v15) — bewusst KEIN Weiß (OLED-Akku, watchOS-Look bleibt
+     dunkel), sondern die vorhandene Aurora-Dark-Palette vom Desktop, die
+     spürbar heller als reines Schwarz ist. Keine neuen Farbwerte. */
+  html[data-ui-mode="watch"][data-theme="light"]{
+    --bg:#150f1f;
+    --card:#1e1530;
+    --card-2:#241a3a;
+    --stroke:rgba(216,180,255,.10);
+    --ink:#f1ecf9;
+    --ink-2:#a99bc4;
+    --ink-3:#9486b0;
+    --rain:#3d9be9;
+    --feels:#ff6b5e;
+    --warn:#ffb020;
+  }
   [data-ui-mode="watch"] body{
     padding:calc(env(safe-area-inset-top) + 6px) 10px calc(env(safe-area-inset-bottom) + 14px);
     max-width:430px;margin:0 auto;background:#000;
   }
 
   /* ---------- Watch UI components (unique .w* class names) ---------- */
-  #watch-ui .wloc{display:flex;align-items:center;gap:6px;justify-content:center;margin-bottom:6px}
+  #watch-ui .wloc{display:flex;align-items:center;gap:6px;justify-content:space-between;margin-bottom:6px}
   #watch-ui .wloc h1{font-size:var(--fs-base);font-weight:600;letter-spacing:-.01em;white-space:nowrap;
-    overflow:hidden;text-overflow:ellipsis;max-width:80%}
-  #watch-ui .wloc .time{font-size:var(--fs-sm);color:var(--ink-3);font-weight:600;font-variant-numeric:tabular-nums}
+    overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1}
+  #watch-ui .wloc .time{font-size:var(--fs-sm);color:var(--ink-3);font-weight:600;font-variant-numeric:tabular-nums;flex:none}
+  #watch-ui .wtheme-btn{flex:none;width:22px;height:22px;border-radius:50%;border:none;background:transparent;
+    color:var(--ink-3);display:grid;place-items:center;padding:0}
+  #watch-ui .wtheme-btn svg{width:14px;height:14px}
   #watch-ui .whero{
     background:linear-gradient(160deg,var(--card-2),var(--card));
     border:1px solid var(--stroke);border-radius:var(--radius);
@@ -713,23 +730,36 @@ getUiMode();
   #watch-ui .whero .temp sup{font-size:.327em;font-weight:500;vertical-align:top;top:.16em;position:relative;color:var(--ink-2)}
   #watch-ui .whero .wicon{flex:none;width:clamp(28px,16vw,56px);height:clamp(28px,16vw,56px)}
   #watch-ui .whero .wicon svg{width:100%;height:100%;display:block;overflow:visible}
-  #watch-ui .wstats{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-  #watch-ui .wstat{flex:1 1 64px;min-width:64px;overflow:hidden;background:var(--card);border:1px solid var(--stroke);border-radius:var(--radius-sm);
-    padding:var(--sp-2) 4px;text-align:center}
-  #watch-ui .wstat .k{font-size:var(--fs-xs);letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
-  #watch-ui .wstat .v{font-size:clamp(13px, 6vw, 18px);font-weight:650;margin-top:3px;font-variant-numeric:tabular-nums;white-space:nowrap}
-  #watch-ui .wstat .u{font-size:var(--fs-xs);color:var(--ink-3);font-weight:600;margin-top:1px}
-  #watch-ui .wstat .v.gusty{color:var(--t-hot)} /* Böen >= 70 km/h */
+  #watch-ui .wcond{margin-top:6px;font-size:var(--fs-sm);font-weight:600;color:var(--ink-2);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #watch-ui .winline{display:flex;justify-content:space-between;gap:4px;margin-top:10px;
+    padding-top:9px;border-top:1px solid var(--stroke)}
+  #watch-ui .wi{flex:1;min-width:0;text-align:center}
+  #watch-ui .wi b{display:block;font-size:var(--fs-md);font-weight:650;font-variant-numeric:tabular-nums;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
+  #watch-ui .wi i{display:block;font-style:normal;font-size:9px;letter-spacing:.03em;
+    text-transform:uppercase;color:var(--ink-3);margin-top:1px;white-space:nowrap}
+  #watch-ui .wi b.gusty{color:var(--t-hot)}
   #watch-ui .wsection{margin-top:10px}
   #watch-ui .wsection .h{font-size:var(--fs-base);font-weight:700;letter-spacing:.04em;text-transform:uppercase;
     color:var(--ink-2);margin:0 4px 8px}
   #watch-ui .wrain{background:var(--card);border:1px solid var(--stroke);border-radius:var(--radius);padding:var(--sp-3) var(--sp-4)}
-  #watch-ui .wrain .summary{font-size:var(--fs-base);font-weight:600;margin-bottom:9px;line-height:1.3}
+  #watch-ui .wrain-head{display:flex;align-items:center;gap:8px;width:100%;background:none;border:none;padding:0;
+    text-align:left;color:inherit;font:inherit;cursor:pointer}
+  #watch-ui .wrain .summary{font-size:var(--fs-base);font-weight:600;margin-bottom:9px;line-height:1.3;flex:1}
   #watch-ui .wrain.dry .summary{color:var(--ink-2)}
+  #watch-ui .wchev{width:16px;height:16px;flex:none;color:var(--ink-3);transition:transform .2s ease;margin-bottom:9px}
+  #watch-ui #wrain-box.expanded .wchev{transform:rotate(180deg)}
   #watch-ui #wcv-rain{display:block;width:100%;height:48px;min-height:0} /* v12.1: min-height:0 schlägt die globale canvas{min-height:200px}-Regel */
+  #watch-ui .wradar-wrap{display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--stroke)}
+  #watch-ui #wrain-box.expanded .wradar-wrap{display:block}
+  #watch-ui #wcv-radar{display:block;width:100%;aspect-ratio:1;min-height:0;border-radius:var(--radius-sm);background:var(--card-2)}
+  #watch-ui .wradar-status{font-size:var(--fs-xs);color:var(--ink-3);text-align:center;margin-top:6px}
   #watch-ui .wdaily{background:var(--card);border:1px solid var(--stroke);border-radius:var(--radius);overflow:hidden}
-  #watch-ui .wdrow{display:flex;align-items:center;gap:8px;padding:var(--sp-2) var(--sp-3);border-top:1px solid var(--stroke-2, rgba(255,255,255,.06))}
-  #watch-ui .wdrow:first-child{border-top:none}
+  #watch-ui .wdrow-wrap{border-top:1px solid var(--stroke-2, rgba(255,255,255,.06))}
+  #watch-ui .wdrow-wrap:first-child{border-top:none}
+  #watch-ui .wdrow{display:flex;align-items:center;gap:6px;width:100%;padding:var(--sp-2) var(--sp-3);
+    background:none;border:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
   #watch-ui .wdrow .d{font-size:var(--fs-base);font-weight:600;flex:none;min-width:36px}
   #watch-ui .wdrow .d small{display:block;font-size:var(--fs-xs);color:var(--ink-3);font-weight:500}
   #watch-ui .wdrow .pr{font-size:var(--fs-sm);color:var(--rain-ink);font-variant-numeric:tabular-nums;margin-left:auto;font-weight:600;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -738,14 +768,19 @@ getUiMode();
   #watch-ui .wdrow .lo{font-size:var(--fs-base);color:var(--ink-2);min-width:18px;text-align:right;font-variant-numeric:tabular-nums}
   #watch-ui .wdrow .hi{font-size:var(--fs-base);font-weight:700;min-width:18px;font-variant-numeric:tabular-nums}
   #watch-ui .wdrow .bar{flex:0 1 34px;min-width:8px;width:auto;height:4px;border-radius:var(--radius-xs);background:linear-gradient(90deg,var(--c1),var(--c2))}
+  #watch-ui .wdchev{width:12px;height:12px;flex:none;color:var(--ink-3);transition:transform .2s ease;margin:0 0 0 2px}
+  #watch-ui .wdrow-wrap.open .wdchev{transform:rotate(180deg)}
+  #watch-ui .wddetail{display:none;padding:2px var(--sp-3) var(--sp-3)}
+  #watch-ui .wdrow-wrap.open .wddetail{display:block}
+  #watch-ui .wddetail canvas{display:block;width:100%;min-height:0}
   #watch-ui .wfoot{margin:var(--sp-4) 6px 0;font-size:var(--fs-xs);color:var(--ink-3);line-height:1.5;text-align:center}
   #watch-ui .wfoot a{color:var(--ink-2)}
   #watch-ui .werr{color:var(--feels);font-size:var(--fs-base);text-align:center;padding:var(--sp-4) var(--sp-2);line-height:1.5}
   @media (max-width:330px){
-    #watch-ui .wstat .v{font-size:var(--fs-md)}
+    #watch-ui .wi b{font-size:var(--fs-base)}
   }
   @media (max-width:174px){ /* µBrowser-Kleinstbreiten: Labels kompakter */
-    #watch-ui .wstat .k{font-size:9px;letter-spacing:.02em}
+    #watch-ui .wi i{font-size:8px;letter-spacing:.01em}
   }
 
   /* ---------- UI toggle button (both UIs) ---------- */
@@ -1005,6 +1040,10 @@ getUiMode();
   <div class="wloc">
     <h1 id="wloc">WEATH3R</h1>
     <span class="time" id="wtime"></span>
+    <button class="wtheme-btn" id="wtheme-toggle" aria-label="Hell/Dunkel umschalten">
+      <svg id="icon-sun-w" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8"/></svg>
+      <svg id="icon-moon-w" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:none"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>
+    </button>
   </div>
 
   <div class="whero">
@@ -1012,18 +1051,25 @@ getUiMode();
       <div class="temp" id="wtemp">–<sup>°</sup></div>
       <div class="wicon" id="wicon" aria-hidden="true"></div>
     </div>
-  </div>
-
-  <div class="wstats">
-    <div class="wstat"><div class="k">Regen</div><div class="v" id="wrain-mm">–</div><div class="u">mm</div></div>
-    <div class="wstat"><div class="k">Wind</div><div class="v" id="wwind">–</div><div class="u">km/h</div></div>
-    <div class="wstat"><div class="k">Gefühlt</div><div class="v" id="wfeels2">–</div></div>
+    <div class="wcond" id="wcond">–</div>
+    <div class="winline">
+      <span class="wi"><b id="wfeels2">–</b><i>Gefühlt</i></span>
+      <span class="wi"><b id="wwind">–</b><i>Wind</i></span>
+      <span class="wi"><b id="wrain-mm">–</b><i>Regen</i></span>
+    </div>
   </div>
 
   <div class="wsection">
     <div class="wrain" id="wrain-box">
-      <div class="summary" id="wrain-summary">–</div>
+      <button class="wrain-head" id="wrain-toggle" aria-expanded="false">
+        <div class="summary" id="wrain-summary">–</div>
+        <svg class="wchev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
       <canvas id="wcv-rain"></canvas>
+      <div class="wradar-wrap" id="wradar-wrap">
+        <canvas id="wcv-radar"></canvas>
+        <div class="wradar-status" id="wradar-status">Karte lädt…</div>
+      </div>
     </div>
   </div>
 
@@ -1870,11 +1916,13 @@ function applyTheme(theme){
   if(theme==="light") document.documentElement.setAttribute("data-theme","light");
   else document.documentElement.removeAttribute("data-theme");
   const sun=document.getElementById("icon-sun"), moon=document.getElementById("icon-moon");
-  if(sun&&moon){
+  const sunW=document.getElementById("icon-sun-w"), moonW=document.getElementById("icon-moon-w");
+  [[sun,moon],[sunW,moonW]].forEach(([s,m])=>{
+    if(!s||!m) return;
     // show the icon for the theme you'd switch TO
-    if(theme==="light"){ sun.style.display="none"; moon.style.display=""; }
-    else { sun.style.display=""; moon.style.display="none"; }
-  }
+    if(theme==="light"){ s.style.display="none"; m.style.display=""; }
+    else { s.style.display=""; m.style.display="none"; }
+  });
 }
 function toggleTheme(){
   const isLight=document.documentElement.getAttribute("data-theme")==="light";
@@ -1886,6 +1934,8 @@ function toggleTheme(){
 document.addEventListener("DOMContentLoaded",()=>{
   const btn=document.getElementById("theme-toggle");
   if(btn) btn.addEventListener("click", toggleTheme);
+  const btnW=document.getElementById("wtheme-toggle");
+  if(btnW) btnW.addEventListener("click", toggleTheme);
 });
 
 // Read a CSS custom property (theme-aware) for canvas drawing.
@@ -4258,6 +4308,8 @@ document.querySelectorAll(".app-version").forEach(el=>{
     u.searchParams.set("longitude",geo.lon);
     u.searchParams.set("current",["temperature_2m","apparent_temperature","precipitation","weather_code","cloud_cover","wind_speed_10m","wind_gusts_10m","wind_direction_10m"].join(","));
     u.searchParams.set("daily",["temperature_2m_max","temperature_2m_min","precipitation_sum","weather_code"].join(","));
+    // v15: schlanke Stundenwerte fürs Aufklappen einer Tageszeile (Sparkline + Himmelsstreifen)
+    u.searchParams.set("hourly",["temperature_2m","cloud_cover","precipitation"].join(","));
     u.searchParams.set("timezone","auto");
     u.searchParams.set("forecast_days","5");
     u.searchParams.set("wind_speed_unit","kmh");
@@ -4300,6 +4352,73 @@ document.querySelectorAll(".app-version").forEach(el=>{
       summary=stop?`Regen lässt gegen ${stop.label} nach`:"Regen hält an";}
     else{const b=pts.find(p=>p.mmh>=WET);summary=b?`Regen ab ca. ${b.label}`:"Kein Regen in den nächsten 2 Std.";}
     return {radar:true,totalMins:total,pts,summary};
+  }
+
+  // ===== Radarkarte-Snapshot (v15) — aufklappbar, EIN statisches Bild =====
+  // Kein Pinch-Zoom/Loop wie am Desktop (auf 190px unpraktisch) — nur der
+  // aktuellste Frame, auf einen ~50 km-Ausschnitt um den Standort zugeschnitten.
+  // Nutzt dieselbe Bright-Sky-Datenquelle wie die Desktop-Karte (AURORA-Modul).
+  let _radarMap=null, _radarLoading=false;
+  const RSTOPS=[ // identische Rampe wie die Desktop-Radarkarte (radarRGBA)
+    [0.1,[120,180,255,70]],[0.5,[80,150,255,140]],[1,[45,115,235,180]],
+    [2,[30,175,165,200]],[5,[70,200,90,215]],[10,[240,210,60,230]],
+    [20,[242,140,40,240]],[50,[232,60,50,250]],
+  ];
+  function radarSnapRGBA(mmh){
+    if(mmh<0.1) return [0,0,0,0];
+    if(mmh>=RSTOPS[RSTOPS.length-1][0]) return RSTOPS[RSTOPS.length-1][1];
+    for(let i=0;i<RSTOPS.length-1;i++){
+      const [a,ca]=RSTOPS[i],[b,cb]=RSTOPS[i+1];
+      if(mmh>=a&&mmh<=b){ const k=(mmh-a)/(b-a); return [0,1,2,3].map(j=>Math.round(ca[j]+(cb[j]-ca[j])*k)); }
+    }
+    return RSTOPS[0][1];
+  }
+  function drawRadarSnapshot(map){
+    const cv=document.getElementById("wcv-radar"); if(!cv) return;
+    const CROP=30; // ± Zellen um den Standort (≈60×60 km bei 1 km/Zelle)
+    const cx=Math.round(map.userX), cy=Math.round(map.userY);
+    const x0=Math.max(0,cx-CROP), x1=Math.min(map.w,cx+CROP);
+    const y0=Math.max(0,cy-CROP), y1=Math.min(map.h,cy+CROP);
+    const cw=x1-x0, ch=y1-y0;
+    if(cw<=0||ch<=0) return;
+    const W=cv.clientWidth||160, DPR2=Math.min(window.devicePixelRatio||1,2.5);
+    cv.width=W*DPR2; cv.height=W*DPR2; cv.style.height=W+"px";
+    const ctx=cv.getContext("2d"); ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,cv.width,cv.height);
+    const frame=map.frames[map.frames.length-1];
+    const cellPx=(W*DPR2)/cw;
+    for(let y=y0;y<y1;y++){
+      const row=frame.grid[y]||[];
+      for(let x=x0;x<x1;x++){
+        const v=row[x]; if(v==null||v<=0) continue;
+        const mmh=(v/100)*12;
+        const [r,g,b,a]=radarSnapRGBA(mmh);
+        if(a<=0) continue;
+        ctx.fillStyle=`rgba(${r},${g},${b},${(a/255).toFixed(2)})`;
+        ctx.fillRect((x-x0)*cellPx,(y-y0)*cellPx,cellPx+0.5,cellPx+0.5);
+      }
+    }
+    // Standort-Punkt
+    const ux=(cx-x0)*cellPx, uy=(cy-y0)*cellPx;
+    ctx.beginPath(); ctx.arc(ux,uy,4*DPR2,0,7);
+    ctx.fillStyle="rgba(255,90,77,.95)"; ctx.fill();
+    ctx.lineWidth=1.5*DPR2; ctx.strokeStyle="rgba(255,255,255,.9)"; ctx.stroke();
+  }
+  async function ensureRadarSnapshot(geo){
+    const statusEl=document.getElementById("wradar-status");
+    if(_radarMap){ drawRadarSnapshot(_radarMap); if(statusEl) statusEl.style.display="none"; return; }
+    if(_radarLoading) return;
+    _radarLoading=true;
+    if(statusEl){ statusEl.textContent="Karte lädt…"; statusEl.style.display=""; }
+    try{
+      const json=await AURORA.fetchRadarMap(geo);
+      const map=AURORA.buildRadarMap(json);
+      if(!map) throw new Error("keine Radardaten");
+      _radarMap=map;
+      drawRadarSnapshot(map);
+      if(statusEl) statusEl.style.display="none";
+    }catch(e){
+      if(statusEl){ statusEl.textContent="Karte nicht verfügbar"; statusEl.style.display=""; }
+    }finally{ _radarLoading=false; }
   }
   async function fetchMinutely(geo){
     const u=new URL("https://api.open-meteo.com/v1/forecast");
@@ -4373,7 +4492,64 @@ document.querySelectorAll(".app-version").forEach(el=>{
     const f=x=>(Math.round(x*10)/10).toString().replace(".",",");
     return f(sum)+" mm";
   }
-  function renderDaily(daily){
+  // Findet den Stunden-Index von Mitternacht (lokal) für Tag-Offset d,
+  // analog zu AURORA.dayStartIndex — hier lokal, da dieser Fetch getrennt läuft.
+  function wDayStart(times,d){
+    if(!times||!times.length) return null;
+    const first=new Date(times[0]);
+    const target=new Date(first); target.setHours(0,0,0,0); target.setDate(target.getDate()+d);
+    for(let i=0;i<times.length;i++){ if(new Date(times[i]).getTime()===target.getTime()) return i; }
+    return null;
+  }
+  function wSkyState(cloud,precip){
+    if(precip!=null && precip>=0.1) return "rain";
+    if(cloud!=null && cloud<40) return "sun";
+    return "cloud";
+  }
+  function drawDayDetail(cv, hourly, ds){
+    if(!cv||!hourly||ds==null) return;
+    const W=cv.clientWidth||160, DPR2=Math.min(window.devicePixelRatio||1,2.5);
+    const H=54;
+    cv.width=W*DPR2; cv.height=H*DPR2; cv.style.height=H+"px";
+    const ctx=cv.getContext("2d"); ctx.setTransform(DPR2,0,0,DPR2,0,0); ctx.clearRect(0,0,W,H);
+    const temps=[],clouds=[],precs=[];
+    for(let h=0;h<24;h++){
+      const i=ds+h;
+      temps.push(hourly.temperature_2m?hourly.temperature_2m[i]:null);
+      clouds.push(hourly.cloud_cover?hourly.cloud_cover[i]:null);
+      precs.push(hourly.precipitation?hourly.precipitation[i]:null);
+    }
+    // Himmelsstreifen (eine Reihe, wie die Desktop-Himmelsspuren — nur ein Modell)
+    const bandY=6, bandH=8;
+    const X=h=>2+(h/24)*(W-4);
+    let segStart=0, segState=wSkyState(clouds[0],precs[0]);
+    for(let h=1;h<=24;h++){
+      const st=h<24?wSkyState(clouds[h],precs[h]):null;
+      if(st!==segState){
+        const col=cssVar(segState==="sun"?"--c-sky-sun":segState==="rain"?"--c-sky-rain":"--c-sky-cloud2");
+        ctx.fillStyle=col;
+        const x0=X(segStart),x1=X(h);
+        ctx.beginPath();
+        const r=bandH/2;
+        ctx.moveTo(x0+r,bandY); ctx.arcTo(x1,bandY,x1,bandY+bandH,r);
+        ctx.arcTo(x1,bandY+bandH,x0,bandY+bandH,r); ctx.arcTo(x0,bandY+bandH,x0,bandY,r);
+        ctx.arcTo(x0,bandY,x1,bandY,r); ctx.closePath(); ctx.fill();
+        segStart=h; segState=st;
+      }
+    }
+    // Temperatur-Sparkline darunter
+    const valid=temps.filter(v=>v!=null);
+    if(valid.length){
+      const tMin=Math.min(...valid)-1, tMax=Math.max(...valid)+1;
+      const padT=bandY+bandH+8, padB=4;
+      const Y=t=>padT+(1-(t-tMin)/((tMax-tMin)||1))*(H-padT-padB);
+      ctx.beginPath();
+      temps.forEach((t,h)=>{ if(t==null) return; const x=X(h); h===0||temps[h-1]==null?ctx.moveTo(x,Y(t)):ctx.lineTo(x,Y(t)); });
+      ctx.strokeStyle=cssVar("--wind"); ctx.lineWidth=1.8; ctx.lineCap="round"; ctx.lineJoin="round"; ctx.stroke();
+    }
+  }
+  function renderDaily(wx){
+    const daily=wx&&wx.daily, hourly=wx&&wx.hourly;
     const el=document.getElementById("wdaily");if(!el||!daily||!daily.time)return;
     el.innerHTML="";
     const n=Math.min(4,daily.time.length);
@@ -4386,7 +4562,8 @@ document.querySelectorAll(".app-version").forEach(el=>{
       const loC=lo!=null?rgb(tempColor(lo)):"var(--ink-2)";
       const hiC=hi!=null?rgb(tempColor(hi)):"var(--ink)";
       const dayName=d===0?"Heute":WD[dt.getDay()];
-      const row=document.createElement("div");row.className="wdrow";
+      const wrap=document.createElement("div");wrap.className="wdrow-wrap";
+      const row=document.createElement("button");row.className="wdrow";row.setAttribute("aria-expanded","false");
       row.innerHTML=`
         <div class="d">${dayName}<small>${dt.getDate()}. ${MO[dt.getMonth()]}</small></div>
         <div class="pr ${dry?'dry':''}">${prTxt}</div>
@@ -4394,8 +4571,22 @@ document.querySelectorAll(".app-version").forEach(el=>{
           <span class="lo">${lo!=null?lo+'°':'–'}</span>
           <span class="bar" style="--c1:${loC};--c2:${hiC}"></span>
           <span class="hi" style="color:${hiC}">${hi!=null?hi+'°':'–'}</span>
-        </div>`;
-      el.appendChild(row);
+        </div>
+        <svg class="wchev wdchev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>`;
+      const detail=document.createElement("div");detail.className="wddetail";
+      const cv=document.createElement("canvas");detail.appendChild(cv);
+      let drawn=false;
+      row.addEventListener("click",()=>{
+        const open=wrap.classList.toggle("open");
+        row.setAttribute("aria-expanded",open?"true":"false");
+        if(open && !drawn){
+          const ds=wDayStart(hourly&&hourly.time, d);
+          drawDayDetail(cv, hourly, ds);
+          drawn=true;
+        }
+      });
+      wrap.appendChild(row); wrap.appendChild(detail);
+      el.appendChild(wrap);
     }
   }
   function tick(){
@@ -4417,10 +4608,13 @@ document.querySelectorAll(".app-version").forEach(el=>{
       try{
         const wic=document.getElementById("wicon");
         const hr=new Date().getHours(); const isDay=hr>=6&&hr<21;
+        const condTxt=weatherWord(code,cloud,precip);
         if(wic && typeof weatherIconSVG==="function"){
           wic.innerHTML=weatherIconSVG(code,cloud,precip,isDay);
-          wic.title=weatherWord(code,cloud,precip); // condition text kept as a11y tooltip
+          wic.title=condTxt; // weiterhin auch als a11y-Tooltip
         }
+        const condEl=document.getElementById("wcond");
+        if(condEl) condEl.textContent=condTxt;
       }catch(e){}
       const feels=cur.apparent_temperature!=null?Math.round(cur.apparent_temperature):null;
       const f=x=>(Math.round(x*10)/10).toString().replace(".",",");
@@ -4439,7 +4633,7 @@ document.querySelectorAll(".app-version").forEach(el=>{
         }
       }
       document.getElementById("wfeels2").textContent=feels!=null?`${feels}°`:"–";
-      renderDaily(wx.daily);
+      renderDaily(wx);
       const now=new Date();
       try{ const r=await fetchRadar(geo);_nc=buildRadarNowcast(r,now); }catch(e){_nc=null;}
       if(!_nc){try{const m=await fetchMinutely(geo);_nc=buildMinutelyNowcast(m,now);}catch(e){}}
@@ -4452,13 +4646,24 @@ document.querySelectorAll(".app-version").forEach(el=>{
       } else {
         document.getElementById("wrain-summary").textContent="Regenvorschau nicht verfügbar";
       }
+      const rtoggle=document.getElementById("wrain-toggle");
+      const rbox=document.getElementById("wrain-box");
+      if(rtoggle && rbox && !rtoggle.dataset.wired){
+        rtoggle.dataset.wired="1";
+        rtoggle.addEventListener("click",()=>{
+          const willExpand=!rbox.classList.contains("expanded");
+          rbox.classList.toggle("expanded", willExpand);
+          rtoggle.setAttribute("aria-expanded", willExpand?"true":"false");
+          if(willExpand) ensureRadarSnapshot(geo);
+        });
+      }
       document.getElementById("wstatus").textContent="";
     }catch(err){
       document.getElementById("wstatus").textContent="Fehler beim Laden";
       console.error(err);
     }
   }
-  window.addEventListener("resize",()=>{if(_nc)drawRainStrip(_nc);});
+  window.addEventListener("resize",()=>{if(_nc)drawRainStrip(_nc); if(_radarMap)drawRadarSnapshot(_radarMap);});
   window.addEventListener("load",()=>{if(_nc)drawRainStrip(_nc);});
   boot();
 })();
