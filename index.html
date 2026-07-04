@@ -19,7 +19,7 @@
    Runs synchronously in <head> BEFORE the body renders so the
    correct GUI is shown immediately (no layout flash).
    ============================================================ */
-window.APP_VERSION = "v14.4";
+window.APP_VERSION = "v14.5";
 
 // fetch mit Timeout: ein hängender Request darf nie die ganze Ladekette blockieren
 window.fetchT=function(url,opts,ms){
@@ -621,6 +621,16 @@ getUiMode();
   .lg-text{min-width:0;padding-top:1px}
   .lg-term{font-size:var(--fs-base);font-weight:600;color:var(--ink);line-height:1.25}
   .lg-desc{font-size:var(--fs-sm);color:var(--ink-2);line-height:1.4;margin-top:1px}
+  .acc-card{border:1px solid var(--stroke-2);border-radius:var(--radius-sm);
+    background:var(--card-2);padding:var(--sp-3);margin-top:var(--sp-2)}
+  .acc-head{display:flex;align-items:center;gap:var(--sp-2)}
+  .acc-head .lg-swatch{width:36px;height:22px}
+  .acc-name{font-size:var(--fs-base);font-weight:600;color:var(--ink)}
+  .acc-stats{display:flex;gap:var(--sp-2);margin-top:var(--sp-2)}
+  .acc-stat{flex:1;min-width:0;text-align:center;background:var(--card);
+    border-radius:var(--radius-xs);padding:6px 2px}
+  .acc-stat-lbl{font-size:var(--fs-xs);color:var(--ink-3);text-transform:uppercase;letter-spacing:.04em}
+  .acc-stat-val{font-size:var(--fs-sm);font-weight:700;color:var(--ink);margin-top:2px}
   .warn-item:first-child{margin-top:0}
   .warn-item .wi-head{display:flex;align-items:center;gap:8px;margin-bottom:5px}
   .warn-item .wi-dot{width:9px;height:9px;border-radius:50%;flex:none;background:var(--t-hot)}
@@ -1580,10 +1590,20 @@ const AURORA = (function(){
       const locKey=(+geo.lat).toFixed(2)+","+(+geo.lon).toFixed(2);
       const pred={};
       perModel.forEach((pm,mi)=>{
-        const dd=pm.daily;
-        if(dd && dd.time && dd.time[1]===dateStr && dd.temperature_2m_max && dd.temperature_2m_max[1]!=null){
-          pred[MODELS[mi].id]=dd.temperature_2m_max[1];
+        const dd=pm.daily, H=pm.hourly;
+        if(!(dd && dd.time && dd.time[1]===dateStr && dd.temperature_2m_max && dd.temperature_2m_max[1]!=null)) return;
+        const entry={ tmax: dd.temperature_2m_max[1] };
+        if(dd.precipitation_sum && dd.precipitation_sum[1]!=null) entry.precipSum=dd.precipitation_sum[1];
+        // mittlere Bewölkung "morgen" aus den Stundenwerten (dieselbe Quelle wie die Himmelsspuren)
+        if(H && H.time && H.cloud_cover){
+          const ds=dayStartIndex(H.time,1);
+          if(ds!=null){
+            let sum=0,n=0;
+            for(let h=0;h<24;h++){ const v=H.cloud_cover[ds+h]; if(v!=null){ sum+=v; n++; } }
+            if(n) entry.cloudAvg=sum/n;
+          }
         }
+        pred[MODELS[mi].id]=entry;
       });
       if(!Object.keys(pred).length) return;
       const key="w3_acc_pending";
@@ -2965,6 +2985,7 @@ async function resolveAccuracyLog(geo){
     if(!pending.length) return;
     let log=[]; try{ log=JSON.parse(localStorage.getItem("w3_acc_log")||"[]"); }catch(e){}
     const todayStr=new Date().toISOString().slice(0,10);
+    const RAIN_MM=0.5; // ab dieser Tagessumme gilt ein Tag als "Regentag"
     const stillPending=[];
     for(const entry of pending){
       if(!entry.date || entry.date>=todayStr){ stillPending.push(entry); continue; } // Zieltag noch nicht vorbei
@@ -2980,12 +3001,30 @@ async function resolveAccuracyLog(geo){
         if(!r.ok) throw new Error("http "+r.status);
         const j=await r.json();
         const obsType=j.sources && j.sources[0] && j.sources[0].observation_type;
-        const temps=(j.weather||[]).map(w=>w.temperature).filter(v=>v!=null);
+        const hours=j.weather||[];
+        const temps=hours.map(w=>w.temperature).filter(v=>v!=null);
         if(obsType==="forecast" || !temps.length) throw new Error("noch keine Messung");
-        const actual=Math.max(...temps);
+        const actualTmax=Math.max(...temps);
+        const precips=hours.map(w=>w.precipitation).filter(v=>v!=null);
+        const actualPrecipSum=precips.length?precips.reduce((a,b)=>a+b,0):null;
+        const clouds=hours.map(w=>w.cloud_cover).filter(v=>v!=null);
+        const actualCloudAvg=clouds.length?clouds.reduce((a,b)=>a+b,0)/clouds.length:null;
         const err={};
-        Object.keys(entry.pred).forEach(mid=>{ err[mid]=+(Math.abs(entry.pred[mid]-actual).toFixed(1)); });
-        log.push({date:entry.date, loc:entry.loc, actual, pred:entry.pred, err});
+        Object.keys(entry.pred).forEach(mid=>{
+          // v14.4 speicherte pred[mid] als reine Zahl (nur Temperatur) — alte
+          // Einträge bleiben so für die Temperatur-Auswertung nutzbar.
+          const raw=entry.pred[mid];
+          const p=(typeof raw==="number") ? {tmax:raw} : raw;
+          const e={ temp:+(Math.abs(p.tmax-actualTmax).toFixed(1)) };
+          if(p.precipSum!=null && actualPrecipSum!=null){
+            e.rainHit = ((p.precipSum>=RAIN_MM) === (actualPrecipSum>=RAIN_MM)) ? 1 : 0;
+          }
+          if(p.cloudAvg!=null && actualCloudAvg!=null){
+            e.skyHit = ((p.cloudAvg<50) === (actualCloudAvg<50)) ? 1 : 0;
+          }
+          err[mid]=e;
+        });
+        log.push({date:entry.date, loc:entry.loc, actualTmax, actualPrecipSum, actualCloudAvg, err});
         if(log.length>30) log=log.slice(-30);
       }catch(e){
         if(ageDays<10) stillPending.push(entry); // später erneut versuchen
@@ -3000,14 +3039,27 @@ function computeAccuracyStats(geo){
   const locKey=(geo && geo.lat!=null) ? (+geo.lat).toFixed(2)+","+(+geo.lon).toFixed(2) : null;
   const relevant=locKey ? log.filter(e=>e.loc===locKey) : log;
   const stats={};
-  (AURORA.MODELS||[]).forEach(m=>{ stats[m.id]={sum:0,n:0,label:m.label,dash:m.dash}; });
+  (AURORA.MODELS||[]).forEach(m=>{ stats[m.id]={tempSum:0,tempN:0,rainSum:0,rainN:0,skySum:0,skyN:0,label:m.label,dash:m.dash}; });
   relevant.forEach(e=>{
     Object.keys(e.err||{}).forEach(mid=>{
-      if(stats[mid]){ stats[mid].sum+=e.err[mid]; stats[mid].n++; }
+      const s=stats[mid]; if(!s) return;
+      const v=e.err[mid];
+      if(v.temp!=null){ s.tempSum+=v.temp; s.tempN++; }
+      if(v.rainHit!=null){ s.rainSum+=v.rainHit; s.rainN++; }
+      if(v.skyHit!=null){ s.skySum+=v.skyHit; s.skyN++; }
     });
   });
-  const rows=Object.values(stats).filter(s=>s.n>0).map(s=>({label:s.label, dash:s.dash, mae:s.sum/s.n, n:s.n}));
-  rows.sort((a,b)=>a.mae-b.mae);
+  // feste Modell-Reihenfolge statt Ranking — bei drei Kennzahlen gibt es
+  // kein einzelnes "bestes" Modell mehr, das eine Sortierung rechtfertigt.
+  const rows=(AURORA.MODELS||[]).map(m=>{
+    const s=stats[m.id];
+    return {
+      label:s.label, dash:s.dash,
+      tempMae: s.tempN? s.tempSum/s.tempN : null, tempN:s.tempN,
+      rainPct: s.rainN? Math.round(100*s.rainSum/s.rainN) : null, rainN:s.rainN,
+      skyPct:  s.skyN?  Math.round(100*s.skySum/s.skyN)  : null, skyN:s.skyN,
+    };
+  }).filter(r=>r.tempN>0);
   return { rows, days:relevant.length };
 }
 
@@ -3168,7 +3220,7 @@ function buildLegend(){
     body.appendChild(grp);
   });
 
-  // Treffergenauigkeit (v14.4): dynamische Gruppe, aus localStorage berechnet —
+  // Treffergenauigkeit (v14.5): dynamische Gruppe, aus localStorage berechnet —
   // steht bewusst als letzte Gruppe, da sie sich erst nach ein paar Tagen füllt.
   const geo=window.__currentGeo || (AURORA && AURORA.getOverride && AURORA.getOverride()) || (AURORA && AURORA.DEFAULT_LOC);
   const acc=computeAccuracyStats(geo);
@@ -3178,21 +3230,31 @@ function buildLegend(){
   if(acc.days<3){
     const row=document.createElement("div");row.className="lg-row";
     const tx=document.createElement("div");tx.className="lg-text";
-    tx.innerHTML=`<div class="lg-term">Sammelt Daten</div><div class="lg-desc">Seit heute wird für jedes Modell die Tages-Vorhersage gegen die echte DWD-Messung geprüft. Nach ein paar Tagen steht hier, welches Modell an diesem Standort am genauesten war.</div>`;
+    tx.innerHTML=`<div class="lg-term">Sammelt Daten</div><div class="lg-desc">Seit heute wird für jedes Modell die Tages-Vorhersage gegen die echte DWD-Messung geprüft — Temperatur, Regen und Himmel. Nach ein paar Tagen steht hier, wie genau jedes Modell an diesem Standort lag.</div>`;
     row.appendChild(tx); accGrp.appendChild(row);
   } else {
     const introRow=document.createElement("div");introRow.className="lg-row";
     const introTx=document.createElement("div");introTx.className="lg-text";
-    introTx.innerHTML=`<div class="lg-desc">⌀ Abweichung vom tatsächlichen Tageshöchstwert (DWD-Messung), letzte ${acc.days} Tage an diesem Standort.</div>`;
+    introTx.innerHTML=`<div class="lg-desc">Letzte ${acc.days}\u00A0Tage an diesem Standort. Temperatur als ⌀-Abweichung vom Tageshöchstwert, Regen/Himmel als Trefferquote (richtig zwischen trocken/nass bzw. sonnig/bewölkt unterschieden).</div>`;
     introRow.appendChild(introTx); accGrp.appendChild(introRow);
     acc.rows.forEach(r=>{
-      const row=document.createElement("div");row.className="lg-row";
+      const card=document.createElement("div");card.className="acc-card";
+      const head=document.createElement("div");head.className="acc-head";
       const sw=document.createElement("div");sw.className="lg-swatch";
       sw.appendChild(lgLineSwatch(r.dash));
-      const tx=document.createElement("div");tx.className="lg-text";
-      const maeStr=r.mae.toFixed(1).replace(".",",");
-      tx.innerHTML=`<div class="lg-term">${r.label}</div><div class="lg-desc">⌀ ${maeStr}\u00A0°C Abweichung · ${r.n}\u00A0Tage</div>`;
-      row.appendChild(sw);row.appendChild(tx);accGrp.appendChild(row);
+      const name=document.createElement("div");name.className="acc-name";name.textContent=r.label;
+      head.appendChild(sw);head.appendChild(name);
+      const statsRow=document.createElement("div");statsRow.className="acc-stats";
+      const maeStr=r.tempMae!=null ? r.tempMae.toFixed(1).replace(".",",")+"\u00A0°C" : "–";
+      const rainStr=r.rainPct!=null ? r.rainPct+"\u00A0%" : "–";
+      const skyStr=r.skyPct!=null ? r.skyPct+"\u00A0%" : "–";
+      [["Temp.",maeStr],["Regen",rainStr],["Himmel",skyStr]].forEach(([lbl,val])=>{
+        const st=document.createElement("div");st.className="acc-stat";
+        st.innerHTML=`<div class="acc-stat-lbl">${lbl}</div><div class="acc-stat-val">${val}</div>`;
+        statsRow.appendChild(st);
+      });
+      card.appendChild(head);card.appendChild(statsRow);
+      accGrp.appendChild(card);
     });
   }
   body.appendChild(accGrp);

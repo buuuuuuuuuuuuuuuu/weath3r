@@ -2,7 +2,7 @@
    - offline shell + last-data cache
    - immediate activation, then notifies open clients of updates
    ← bump CACHE on every deploy (matches APP_VERSION) */
-const CACHE = "weath3r-v14.4";
+const CACHE = "weath3r-v14.5";
 const ASSETS = [
   "./",
   "./index.html",
