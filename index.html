@@ -19,7 +19,7 @@
    Runs synchronously in <head> BEFORE the body renders so the
    correct GUI is shown immediately (no layout flash).
    ============================================================ */
-window.APP_VERSION = "v14.3";
+window.APP_VERSION = "v14.4";
 
 // fetch mit Timeout: ein hängender Request darf nie die ganze Ladekette blockieren
 window.fetchT=function(url,opts,ms){
@@ -1565,6 +1565,38 @@ const AURORA = (function(){
     return per.filter(p=>p.hourly.temperature_2m && p.hourly.temperature_2m.some(v=>v!=null));
   }
 
+  // ===== Treffergenauigkeit (v14.4): "Morgen"-Vorhersage jedes Modells
+  // wegschreiben, damit sie sich nach Ablauf des Tages gegen die echte
+  // DWD-Messung (Bright Sky /weather, historisch) prüfen lässt. Rein
+  // clientseitig, pro Gerät/Standort — kein Backend nötig. Darf den
+  // normalen Forecast-Flow niemals stören, daher komplett try/catch-
+  // umschlossen und fire-and-forget aufgerufen.
+  function captureModelPredictions(perModel, geo){
+    try{
+      const base=perModel.find(pm=>pm.daily&&pm.daily.time&&pm.daily.time.length>1);
+      if(!base) return;
+      const dateStr=base.daily.time[1]; // "morgen" laut API (respektiert timezone=auto)
+      if(!dateStr) return;
+      const locKey=(+geo.lat).toFixed(2)+","+(+geo.lon).toFixed(2);
+      const pred={};
+      perModel.forEach((pm,mi)=>{
+        const dd=pm.daily;
+        if(dd && dd.time && dd.time[1]===dateStr && dd.temperature_2m_max && dd.temperature_2m_max[1]!=null){
+          pred[MODELS[mi].id]=dd.temperature_2m_max[1];
+        }
+      });
+      if(!Object.keys(pred).length) return;
+      const key="w3_acc_pending";
+      let pending=[]; try{ pending=JSON.parse(localStorage.getItem(key)||"[]"); }catch(e){}
+      const already=pending.some(p=>p.date===dateStr && p.loc===locKey);
+      if(!already){
+        pending.push({date:dateStr, loc:locKey, pred, capturedAt:new Date().toISOString()});
+        if(pending.length>60) pending=pending.slice(-60); // Sicherheitsdeckel
+        localStorage.setItem(key, JSON.stringify(pending));
+      }
+    }catch(e){ /* Treffergenauigkeit ist ein Nice-to-have — nie den Forecast gefährden */ }
+  }
+
   async function fetchData(geo){
     const url=buildURL(geo);
     const res=await fetchT(url, 15000); // Multi-Modell-Abruf — etwas mehr Budget
@@ -1572,6 +1604,7 @@ const AURORA = (function(){
     const json=await res.json();
     const per=splitModels(json);
     if(!per.length) throw new Error("Keine Modelldaten");
+    captureModelPredictions(per, geo);
     return transform(per, geo);
   }
 
@@ -2918,6 +2951,66 @@ function escapeHtml(s){
   return (s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 }
 
+/* ===================== Treffergenauigkeit (v14.4) =====================
+   Gleicht offene Vorhersagen (aus captureModelPredictions, AURORA-Modul)
+   gegen die echte DWD-Messung ab, sobald der Zieltag vorbei ist. Nutzt
+   dieselbe Bright-Sky-API wie Warnungen/Radar (kein neuer Dienst). Rein
+   clientseitig, pro Standort (locKey), läuft fire-and-forget nach jedem
+   Laden — ein Fehlschlag hier darf die App nie beeinträchtigen. */
+async function resolveAccuracyLog(geo){
+  try{
+    if(!geo || geo.lat==null) return;
+    const locKey=(+geo.lat).toFixed(2)+","+(+geo.lon).toFixed(2);
+    let pending=[]; try{ pending=JSON.parse(localStorage.getItem("w3_acc_pending")||"[]"); }catch(e){}
+    if(!pending.length) return;
+    let log=[]; try{ log=JSON.parse(localStorage.getItem("w3_acc_log")||"[]"); }catch(e){}
+    const todayStr=new Date().toISOString().slice(0,10);
+    const stillPending=[];
+    for(const entry of pending){
+      if(!entry.date || entry.date>=todayStr){ stillPending.push(entry); continue; } // Zieltag noch nicht vorbei
+      const ageDays=(Date.now()-new Date(entry.capturedAt||entry.date).getTime())/86400000;
+      if(entry.loc!==locKey){
+        // andere Standort-Session — kurz aufheben, sonst verwerfen
+        if(ageDays<10) stillPending.push(entry);
+        continue;
+      }
+      try{
+        const url=`https://api.brightsky.dev/weather?date=${entry.date}&lat=${geo.lat}&lon=${geo.lon}&tz=Europe/Berlin`;
+        const r=await fetchT(url,10000);
+        if(!r.ok) throw new Error("http "+r.status);
+        const j=await r.json();
+        const obsType=j.sources && j.sources[0] && j.sources[0].observation_type;
+        const temps=(j.weather||[]).map(w=>w.temperature).filter(v=>v!=null);
+        if(obsType==="forecast" || !temps.length) throw new Error("noch keine Messung");
+        const actual=Math.max(...temps);
+        const err={};
+        Object.keys(entry.pred).forEach(mid=>{ err[mid]=+(Math.abs(entry.pred[mid]-actual).toFixed(1)); });
+        log.push({date:entry.date, loc:entry.loc, actual, pred:entry.pred, err});
+        if(log.length>30) log=log.slice(-30);
+      }catch(e){
+        if(ageDays<10) stillPending.push(entry); // später erneut versuchen
+      }
+    }
+    localStorage.setItem("w3_acc_pending", JSON.stringify(stillPending));
+    localStorage.setItem("w3_acc_log", JSON.stringify(log));
+  }catch(e){ /* nie den App-Start gefährden */ }
+}
+function computeAccuracyStats(geo){
+  let log=[]; try{ log=JSON.parse(localStorage.getItem("w3_acc_log")||"[]"); }catch(e){}
+  const locKey=(geo && geo.lat!=null) ? (+geo.lat).toFixed(2)+","+(+geo.lon).toFixed(2) : null;
+  const relevant=locKey ? log.filter(e=>e.loc===locKey) : log;
+  const stats={};
+  (AURORA.MODELS||[]).forEach(m=>{ stats[m.id]={sum:0,n:0,label:m.label,dash:m.dash}; });
+  relevant.forEach(e=>{
+    Object.keys(e.err||{}).forEach(mid=>{
+      if(stats[mid]){ stats[mid].sum+=e.err[mid]; stats[mid].n++; }
+    });
+  });
+  const rows=Object.values(stats).filter(s=>s.n>0).map(s=>({label:s.label, dash:s.dash, mae:s.sum/s.n, n:s.n}));
+  rows.sort((a,b)=>a.mae-b.mae);
+  return { rows, days:relevant.length };
+}
+
 /* ===================== Legend / explainer (v14) =====================
    Baut das Info-Modal aus LIVE gezeichneten Mustern — dieselben Tokens
    und Zeichenlogik wie die App selbst. Dadurch stimmt die Legende in
@@ -3074,6 +3167,35 @@ function buildLegend(){
     });
     body.appendChild(grp);
   });
+
+  // Treffergenauigkeit (v14.4): dynamische Gruppe, aus localStorage berechnet —
+  // steht bewusst als letzte Gruppe, da sie sich erst nach ein paar Tagen füllt.
+  const geo=window.__currentGeo || (AURORA && AURORA.getOverride && AURORA.getOverride()) || (AURORA && AURORA.DEFAULT_LOC);
+  const acc=computeAccuracyStats(geo);
+  const accGrp=document.createElement("div");accGrp.className="lg-group";
+  const accTitle=document.createElement("div");accTitle.className="lg-group-title";accTitle.textContent="Treffergenauigkeit";
+  accGrp.appendChild(accTitle);
+  if(acc.days<3){
+    const row=document.createElement("div");row.className="lg-row";
+    const tx=document.createElement("div");tx.className="lg-text";
+    tx.innerHTML=`<div class="lg-term">Sammelt Daten</div><div class="lg-desc">Seit heute wird für jedes Modell die Tages-Vorhersage gegen die echte DWD-Messung geprüft. Nach ein paar Tagen steht hier, welches Modell an diesem Standort am genauesten war.</div>`;
+    row.appendChild(tx); accGrp.appendChild(row);
+  } else {
+    const introRow=document.createElement("div");introRow.className="lg-row";
+    const introTx=document.createElement("div");introTx.className="lg-text";
+    introTx.innerHTML=`<div class="lg-desc">⌀ Abweichung vom tatsächlichen Tageshöchstwert (DWD-Messung), letzte ${acc.days} Tage an diesem Standort.</div>`;
+    introRow.appendChild(introTx); accGrp.appendChild(introRow);
+    acc.rows.forEach(r=>{
+      const row=document.createElement("div");row.className="lg-row";
+      const sw=document.createElement("div");sw.className="lg-swatch";
+      sw.appendChild(lgLineSwatch(r.dash));
+      const tx=document.createElement("div");tx.className="lg-text";
+      const maeStr=r.mae.toFixed(1).replace(".",",");
+      tx.innerHTML=`<div class="lg-term">${r.label}</div><div class="lg-desc">⌀ ${maeStr}\u00A0°C Abweichung · ${r.n}\u00A0Tage</div>`;
+      row.appendChild(sw);row.appendChild(tx);accGrp.appendChild(row);
+    });
+  }
+  body.appendChild(accGrp);
 }
 function openLegendModal(){ const m=document.getElementById("legend-modal"); if(m) m.style.display="flex"; buildLegend(); /* nach display:flex — Canvas braucht sichtbares Layout */ }
 function closeLegendModal(){ const m=document.getElementById("legend-modal"); if(m) m.style.display="none"; }
@@ -3165,6 +3287,7 @@ async function boot(manual){
   try{
     const { data, stale, age } = await AURORA.load();
     applyData(data);
+    if(data && data.geo){ resolveAccuracyLog(data.geo).catch(()=>{}); }
     if(stale){
       const mins=Math.round((age||0)/60000);
       setStatus(`Offline – zuletzt aktualisiert vor ${mins} Min.`);
