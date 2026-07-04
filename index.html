@@ -19,7 +19,7 @@
    Runs synchronously in <head> BEFORE the body renders so the
    correct GUI is shown immediately (no layout flash).
    ============================================================ */
-window.APP_VERSION = "v15.0";
+window.APP_VERSION = "v15.1";
 
 // fetch mit Timeout: ein hängender Request darf nie die ganze Ladekette blockieren
 window.fetchT=function(url,opts,ms){
@@ -1889,7 +1889,7 @@ const AURORA = (function(){
   }
 
   return { load, loadCache, MODELS, DEFAULT_LOC, fetchRadarMap, buildRadarMap,
-           searchPlaces, setOverride, getOverride, resolveName, radarInten, CACHE_TTL };
+           searchPlaces, setOverride, getOverride, resolveName, radarInten, CACHE_TTL, splitModels };
 })();
 
 </script>
@@ -3970,8 +3970,10 @@ document.addEventListener("visibilitychange", ()=>{
       const lineCol = anyRainComing ? "rgba(255,90,77,.9)"
                      : (isLight?"rgba(40,55,80,.4)":"rgba(255,255,255,.4)");
 
-      // the approach axis (user → upwind)
-      ctx.strokeStyle=lineCol;ctx.lineWidth=2.5;ctx.lineCap="round";
+      // the approach axis (user → upwind) — Dicke skaliert mit der
+      // Zuggeschwindigkeit (dasselbe Prinzip wie beim Windband: Dicke = Stärke)
+      const speedKmh=A.speed*60; // A.speed war in Zellen(≈km)/Minute
+      ctx.strokeStyle=lineCol;ctx.lineWidth=2+Math.min(3, speedKmh/25);ctx.lineCap="round";
       ctx.setLineDash(anyRainComing?[]:[2,5]);
       ctx.beginPath();ctx.moveTo(u.x,u.y);ctx.lineTo(endG.x,endG.y);ctx.stroke();
       ctx.setLineDash([]);
@@ -3983,24 +3985,41 @@ document.addEventListener("visibilitychange", ()=>{
       ctx.closePath();ctx.fillStyle=lineCol;ctx.fill();
 
       // time markers along the axis (each = when rain at that spot reaches you)
-      ctx.font="700 10px "+getComputedStyle(document.body).fontFamily;
+      // v15.1: die 60-/120-Minuten-Punkte zusätzlich als "1 Std"/"2 Std"-
+      // Distanzmarken hervorheben — dieselbe Analyse, nur deutlicher markiert.
       A.samples.forEach(s=>{
         const p=G(s.gx,s.gy);
-        const lbl=fmtTime(s.t);
-        const tw=ctx.measureText(lbl).width+10;
+        const hourLbl = s.min===60?"1 Std":s.min===120?"2 Std":null;
+        const timeLbl=fmtTime(s.t);
+        const dotR = hourLbl ? (s.wet?4.4:3.4) : (s.wet?3.4:2.4);
         // tick dot
-        ctx.beginPath();ctx.arc(p.x,p.y,s.wet?3.4:2.4,0,7);
+        ctx.beginPath();ctx.arc(p.x,p.y,dotR,0,7);
         ctx.fillStyle=s.wet?"rgba(255,90,77,.95)":(isLight?"rgba(40,55,80,.5)":"rgba(255,255,255,.5)");
         ctx.fill();
-        // label pill (clamped on-canvas)
+        if(hourLbl){ // Betonungsring für die 1h/2h-Marken
+          ctx.beginPath();ctx.arc(p.x,p.y,dotR+2.5,0,7);
+          ctx.strokeStyle=s.wet?"rgba(255,90,77,.55)":(isLight?"rgba(40,55,80,.35)":"rgba(255,255,255,.4)");
+          ctx.lineWidth=1.4; ctx.stroke();
+        }
+        const lbl=hourLbl||timeLbl, sub=hourLbl?timeLbl:null;
+        ctx.font="700 10px "+getComputedStyle(document.body).fontFamily;
+        const tw=Math.max(ctx.measureText(lbl).width, sub?ctx.measureText(sub).width*0.85:0)+10;
+        const boxH=sub?27:15;
         let lx=p.x+7; if(lx+tw>cssW-3) lx=p.x-7-tw;
-        let ly=p.y-7; ly=Math.max(2, Math.min(cssH-17, ly));
+        let ly=p.y-7; ly=Math.max(2, Math.min(cssH-3-boxH, ly));
+        // label pill (clamped on-canvas)
         ctx.fillStyle = s.wet ? "rgba(255,90,77,.95)"
                        : (isLight?"rgba(255,255,255,.9)":"rgba(21,15,31,.82)");
-        roundRect(ctx, lx, ly, tw, 15, 7); ctx.fill();
+        roundRect(ctx, lx, ly, tw, boxH, 7); ctx.fill();
         ctx.fillStyle = s.wet ? "#fff" : (isLight?"#1a2230":"#d9cfe6");
         ctx.textAlign="center";ctx.textBaseline="middle";
-        ctx.fillText(lbl, lx+tw/2, ly+8);
+        ctx.fillText(lbl, lx+tw/2, ly+(sub?10:8));
+        if(sub){
+          ctx.font="600 8px "+getComputedStyle(document.body).fontFamily;
+          ctx.globalAlpha=0.75;
+          ctx.fillText(sub, lx+tw/2, ly+20);
+          ctx.globalAlpha=1;
+        }
       });
 
       // headline pill near the user: arrival time or "kein Regen"
@@ -4306,9 +4325,10 @@ document.querySelectorAll(".app-version").forEach(el=>{
     const u=new URL("https://api.open-meteo.com/v1/forecast");
     u.searchParams.set("latitude",geo.lat);
     u.searchParams.set("longitude",geo.lon);
+    u.searchParams.set("models",AURORA.MODELS.map(m=>m.id).join(","));
     u.searchParams.set("current",["temperature_2m","apparent_temperature","precipitation","weather_code","cloud_cover","wind_speed_10m","wind_gusts_10m","wind_direction_10m"].join(","));
     u.searchParams.set("daily",["temperature_2m_max","temperature_2m_min","precipitation_sum","weather_code"].join(","));
-    // v15: schlanke Stundenwerte fürs Aufklappen einer Tageszeile (Sparkline + Himmelsstreifen)
+    // v15.1: schlanke Stundenwerte fürs Aufklappen einer Tageszeile (3-Modell-Vergleich: Sparklines + Himmelsstreifen)
     u.searchParams.set("hourly",["temperature_2m","cloud_cover","precipitation"].join(","));
     u.searchParams.set("timezone","auto");
     u.searchParams.set("forecast_days","5");
@@ -4506,52 +4526,61 @@ document.querySelectorAll(".app-version").forEach(el=>{
     if(cloud!=null && cloud<40) return "sun";
     return "cloud";
   }
-  function drawDayDetail(cv, hourly, ds){
-    if(!cv||!hourly||ds==null) return;
+  function drawDayDetail(cv, perModel, ds){
+    if(!cv||!perModel||!perModel.length||ds==null) return;
     const W=cv.clientWidth||160, DPR2=Math.min(window.devicePixelRatio||1,2.5);
-    const H=54;
+    const H=84;
     cv.width=W*DPR2; cv.height=H*DPR2; cv.style.height=H+"px";
     const ctx=cv.getContext("2d"); ctx.setTransform(DPR2,0,0,DPR2,0,0); ctx.clearRect(0,0,W,H);
-    const temps=[],clouds=[],precs=[];
-    for(let h=0;h<24;h++){
-      const i=ds+h;
-      temps.push(hourly.temperature_2m?hourly.temperature_2m[i]:null);
-      clouds.push(hourly.cloud_cover?hourly.cloud_cover[i]:null);
-      precs.push(hourly.precipitation?hourly.precipitation[i]:null);
-    }
-    // Himmelsstreifen (eine Reihe, wie die Desktop-Himmelsspuren — nur ein Modell)
-    const bandY=6, bandH=8;
     const X=h=>2+(h/24)*(W-4);
-    let segStart=0, segState=wSkyState(clouds[0],precs[0]);
-    for(let h=1;h<=24;h++){
-      const st=h<24?wSkyState(clouds[h],precs[h]):null;
-      if(st!==segState){
-        const col=cssVar(segState==="sun"?"--c-sky-sun":segState==="rain"?"--c-sky-rain":"--c-sky-cloud2");
-        ctx.fillStyle=col;
-        const x0=X(segStart),x1=X(h);
-        ctx.beginPath();
-        const r=bandH/2;
-        ctx.moveTo(x0+r,bandY); ctx.arcTo(x1,bandY,x1,bandY+bandH,r);
-        ctx.arcTo(x1,bandY+bandH,x0,bandY+bandH,r); ctx.arcTo(x0,bandY+bandH,x0,bandY,r);
-        ctx.arcTo(x0,bandY,x1,bandY,r); ctx.closePath(); ctx.fill();
-        segStart=h; segState=st;
+
+    // Drei Himmelsstreifen (je Modell) — wie am Desktop, nur kompakter.
+    const trackY=7, trackGap=11, th=4;
+    const models=perModel.slice(0,3);
+    models.forEach((pm,mi)=>{
+      const H_=pm.hourly||{};
+      const clouds=[],precs=[];
+      for(let h=0;h<24;h++){ const i=ds+h; clouds.push(H_.cloud_cover?H_.cloud_cover[i]:null); precs.push(H_.precipitation?H_.precipitation[i]:null); }
+      const cy=trackY+mi*trackGap;
+      let segStart=0, segState=wSkyState(clouds[0],precs[0]);
+      for(let h=1;h<=24;h++){
+        const st=h<24?wSkyState(clouds[h],precs[h]):null;
+        if(st!==segState){
+          const col=cssVar(segState==="sun"?"--c-sky-sun":segState==="rain"?"--c-sky-rain":"--c-sky-cloud2");
+          roundBar(ctx, X(segStart), cy-th/2, X(h)-X(segStart), th, col);
+          segStart=h; segState=st;
+        }
       }
-    }
-    // Temperatur-Sparkline darunter
-    const valid=temps.filter(v=>v!=null);
-    if(valid.length){
-      const tMin=Math.min(...valid)-1, tMax=Math.max(...valid)+1;
-      const padT=bandY+bandH+8, padB=4;
+    });
+
+    // Temperatur-Linien der 3 Modelle — Strichmuster wie im Legenden-Modal
+    // (AROME durchgezogen, ICON-D2 gestrichelt, ECMWF gepunktet).
+    const padT=trackY+(models.length-1)*trackGap+th+9, padB=6;
+    let tMin=Infinity,tMax=-Infinity;
+    const series=models.map(pm=>{
+      const arr=[];
+      for(let h=0;h<24;h++){ const i=ds+h; const v=pm.hourly&&pm.hourly.temperature_2m?pm.hourly.temperature_2m[i]:null; arr.push(v); if(v!=null){tMin=Math.min(tMin,v);tMax=Math.max(tMax,v);} }
+      return arr;
+    });
+    if(tMin<=tMax){
+      tMin-=1; tMax+=1;
       const Y=t=>padT+(1-(t-tMin)/((tMax-tMin)||1))*(H-padT-padB);
-      ctx.beginPath();
-      temps.forEach((t,h)=>{ if(t==null) return; const x=X(h); h===0||temps[h-1]==null?ctx.moveTo(x,Y(t)):ctx.lineTo(x,Y(t)); });
-      ctx.strokeStyle=cssVar("--wind"); ctx.lineWidth=1.8; ctx.lineCap="round"; ctx.lineJoin="round"; ctx.stroke();
+      ctx.strokeStyle=cssVar("--wind"); ctx.lineWidth=1.6; ctx.lineCap="round"; ctx.lineJoin="round";
+      series.forEach((arr,mi)=>{
+        ctx.setLineDash((AURORA.MODELS[mi]&&AURORA.MODELS[mi].dash)||[]);
+        ctx.beginPath();
+        let started=false;
+        arr.forEach((t,h)=>{ if(t==null) return; const x=X(h); if(!started){ctx.moveTo(x,Y(t));started=true;} else ctx.lineTo(x,Y(t)); });
+        ctx.stroke();
+      });
+      ctx.setLineDash([]);
     }
   }
   function renderDaily(wx){
-    const daily=wx&&wx.daily, hourly=wx&&wx.hourly;
+    const daily=wx&&wx.daily;
     const el=document.getElementById("wdaily");if(!el||!daily||!daily.time)return;
     el.innerHTML="";
+    const perModel=(AURORA.splitModels?AURORA.splitModels(wx):null)||[];
     const n=Math.min(4,daily.time.length);
     for(let d=0;d<n;d++){
       const dt=new Date(daily.time[d]);
@@ -4580,8 +4609,8 @@ document.querySelectorAll(".app-version").forEach(el=>{
         const open=wrap.classList.toggle("open");
         row.setAttribute("aria-expanded",open?"true":"false");
         if(open && !drawn){
-          const ds=wDayStart(hourly&&hourly.time, d);
-          drawDayDetail(cv, hourly, ds);
+          const ds=wDayStart(perModel[0]&&perModel[0].hourly&&perModel[0].hourly.time, d);
+          drawDayDetail(cv, perModel, ds);
           drawn=true;
         }
       });
