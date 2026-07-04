@@ -19,7 +19,7 @@
    Runs synchronously in <head> BEFORE the body renders so the
    correct GUI is shown immediately (no layout flash).
    ============================================================ */
-window.APP_VERSION = "v15.2";
+window.APP_VERSION = "v15.3";
 
 // fetch mit Timeout: ein hängender Request darf nie die ganze Ladekette blockieren
 window.fetchT=function(url,opts,ms){
@@ -691,6 +691,7 @@ getUiMode();
     --rain:#3d9be9;
     --feels:#ff6b5e;
     --warn:#ffb020;
+    --model-a:var(--wind); --model-b:var(--wind); --model-c:var(--wind);
   }
   /* Watch Light (v15) — bewusst KEIN Weiß (OLED-Akku, watchOS-Look bleibt
      dunkel), sondern die vorhandene Aurora-Dark-Palette vom Desktop, die
@@ -709,7 +710,57 @@ getUiMode();
   }
   [data-ui-mode="watch"] body{
     padding:calc(env(safe-area-inset-top) + 6px) 10px calc(env(safe-area-inset-bottom) + 14px);
-    max-width:430px;margin:0 auto;background:#000;
+    max-width:430px;margin:0 auto;background:var(--bg);
+  }
+
+  /* ===== Citrus Pop (v15.3) — Watch-Light-Theme, reines Design-Restyling.
+     Keine Info/Funktion geändert, nur Farben/Typo/Radien/Rahmen. Bewusst
+     sehr viel helle Fläche (Nutzer-Entscheidung trotz OLED-Hinweis). ===== */
+  html[data-ui-mode="watch"][data-theme="light"]{
+    --bg:#FF2E6E;
+    --card:#FCEE4B;
+    --card-2:#FFE879;
+    --stroke:rgba(23,24,26,.45);
+    --ink:#17181A;
+    --ink-2:#7A5A2E;
+    --ink-3:#7A5A2E;
+    --rain:#00AEEF;
+    --rain-ink:#0072A3;
+    --feels:#B0179B;
+    --model-a:#B0179B; --model-b:#00AEEF; --model-c:#7A5A2E;
+    --c-sky-sun:#FF7A1A; --c-sky-cloud2:#B79BD9; --c-sky-rain:#00AEEF;
+  }
+  html[data-ui-mode="watch"][data-theme="light"] body{
+    background:linear-gradient(160deg,#FF7A1A 0%,#FF2E6E 55%,#B0179B 100%);
+  }
+  html[data-ui-mode="watch"][data-theme="light"] #watch-ui .wfoot,
+  html[data-ui-mode="watch"][data-theme="light"] #watch-ui .wfoot a{color:#3A2010;font-weight:600}
+  html[data-ui-mode="watch"][data-theme="light"] #watch-ui .whero,
+  html[data-ui-mode="watch"][data-theme="light"] #watch-ui .wrain{
+    border:2.5px solid #17181A; box-shadow:3px 3px 0 #17181A;
+  }
+  html[data-ui-mode="watch"][data-theme="light"] #watch-ui .wdaily{
+    background:none; border:none; box-shadow:none;
+  }
+  html[data-ui-mode="watch"][data-theme="light"] #watch-ui .wdrow-wrap{
+    background:var(--card); border:2.5px solid #17181A; border-radius:12px;
+    box-shadow:3px 3px 0 #17181A; margin-bottom:7px;
+  }
+  html[data-ui-mode="watch"][data-theme="light"] #watch-ui .wdrow-wrap:last-child{margin-bottom:0}
+  html[data-ui-mode="watch"][data-theme="light"] #watch-ui .winline{border-top:2.5px dashed #17181A}
+  html[data-ui-mode="watch"][data-theme="light"] #watch-ui .wcond{color:#B0179B;font-weight:700}
+  html[data-ui-mode="watch"][data-theme="light"] #watch-ui .whero .temp,
+  html[data-ui-mode="watch"][data-theme="light"] #watch-ui .wi b,
+  html[data-ui-mode="watch"][data-theme="light"] #watch-ui .wloc h1,
+  html[data-ui-mode="watch"][data-theme="light"] #watch-ui .summary{font-weight:800}
+  html[data-ui-mode="watch"][data-theme="light"] #watch-ui .wchev,
+  html[data-ui-mode="watch"][data-theme="light"] #watch-ui .wdchev{color:#17181A}
+  html[data-ui-mode="watch"][data-theme="light"] #watch-ui .wtheme-btn{
+    background:#FCEE4B; border:2px solid #17181A; color:#17181A;
+  }
+  html[data-ui-mode="watch"][data-theme="light"] #watch-ui .wfoot .ui-toggle{
+    background:#17181A; color:#FCEE4B; border:none; border-radius:20px;
+    padding:6px 14px; font-weight:700;
   }
 
   /* ---------- Watch UI components (unique .w* class names) ---------- */
@@ -4565,9 +4616,11 @@ document.querySelectorAll(".app-version").forEach(el=>{
     if(tMin<=tMax){
       tMin-=1; tMax+=1;
       const Y=t=>padT+(1-(t-tMin)/((tMax-tMin)||1))*(H-padT-padB);
-      ctx.strokeStyle=cssVar("--wind"); ctx.lineWidth=1.6; ctx.lineCap="round"; ctx.lineJoin="round";
+      ctx.lineWidth=1.6; ctx.lineCap="round"; ctx.lineJoin="round";
+      const windFallback=cssVar("--wind");
       series.forEach((arr,mi)=>{
         ctx.setLineDash((AURORA.MODELS[mi]&&AURORA.MODELS[mi].dash)||[]);
+        ctx.strokeStyle=cssVar(["--model-a","--model-b","--model-c"][mi], windFallback);
         ctx.beginPath();
         let started=false;
         arr.forEach((t,h)=>{ if(t==null) return; const x=X(h); if(!started){ctx.moveTo(x,Y(t));started=true;} else ctx.lineTo(x,Y(t)); });
