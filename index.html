@@ -19,7 +19,7 @@
    Runs synchronously in <head> BEFORE the body renders so the
    correct GUI is shown immediately (no layout flash).
    ============================================================ */
-window.APP_VERSION = "v16.8";
+window.APP_VERSION = "v16.7";
 
 // fetch mit Timeout: ein hängender Request darf nie die ganze Ladekette blockieren
 window.fetchT=function(url,opts,ms){
@@ -3742,12 +3742,7 @@ async function boot(manual){
       __lastLoadOk=Date.now(); // nur frische Daten zählen — stale löst beim nächsten Fokus einen Retry aus
     }
   }catch(err){
-    // v16.8: Der file://-Hinweis erschien bisher bei JEDEM Fehler (auch bei
-    // reinen API-Ausfällen) — irreführend. Jetzt nur noch, wenn die Seite
-    // tatsächlich nicht über http(s) läuft (der ursprüngliche Anlass).
-    const hint = location.protocol.startsWith("http") ? "" :
-      " — Datei muss über http(s) geöffnet werden, nicht in einer Vorschau.";
-    setStatus("Fehler: "+(err&&err.message?err.message:err)+hint);
+    setStatus("Fehler: "+(err&&err.message?err.message:err)+" — Datei muss über http(s) geöffnet werden, nicht in einer Vorschau.");
     console.error(err);
   }finally{
     __loading=false;
