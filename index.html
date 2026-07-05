@@ -19,7 +19,7 @@
    Runs synchronously in <head> BEFORE the body renders so the
    correct GUI is shown immediately (no layout flash).
    ============================================================ */
-window.APP_VERSION = "v15.6";
+window.APP_VERSION = "v15.8";
 
 // fetch mit Timeout: ein hängender Request darf nie die ganze Ladekette blockieren
 window.fetchT=function(url,opts,ms){
@@ -575,7 +575,8 @@ getUiMode();
     box-shadow:0 20px 60px rgba(0,0,0,.4);
   }
   .modal-head{display:flex;align-items:center;gap:10px;margin-bottom:12px}
-  .modal-head h3{font-size:var(--fd-sm);font-weight:600;color:var(--ink)}
+  .modal-head h3{font-size:var(--fd-sm);font-weight:600;color:var(--ink);
+    min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .modal-close{
     margin-left:auto;width:var(--btn-round);height:var(--btn-round);border-radius:50%;flex:none;
     border:1px solid var(--stroke);background:var(--card-2);color:var(--ink-2);
@@ -719,7 +720,9 @@ getUiMode();
   html[data-ui-mode="watch"][data-theme="light"] #watch-ui .wfoot,
   html[data-ui-mode="watch"][data-theme="light"] #watch-ui .wfoot a{color:#3A2010;font-weight:600}
   html[data-ui-mode="watch"][data-theme="light"] #watch-ui .whero,
-  html[data-ui-mode="watch"][data-theme="light"] #watch-ui .wrain{
+  html[data-ui-mode="watch"][data-theme="light"] #watch-ui .wrain,
+  html[data-ui-mode="watch"][data-theme="light"] #watch-ui .warn-strip,
+  html[data-ui-mode="watch"][data-theme="light"] .modal{
     border:2.5px solid #17181A; box-shadow:3px 3px 0 #17181A;
   }
   html[data-ui-mode="watch"][data-theme="light"] #watch-ui .wdaily{
@@ -775,6 +778,15 @@ getUiMode();
   #watch-ui .wi i{display:block;font-style:normal;font-size:9px;letter-spacing:.03em;
     text-transform:uppercase;color:var(--ink-3);margin-top:1px;white-space:nowrap}
   #watch-ui .wi b.gusty{color:var(--t-hot)}
+  /* v15.6: kompakte Warn-Zeile in der Watch-Hero-Karte — nutzt dieselben
+     .warn-strip-Regeln wie Desktop, hier nur auf die winzige Watch-Breite
+     verkleinert (Text/Icon/Abstand), Farb-/Schweregrad-Logik unverändert. */
+  #watch-ui .warn-strip{
+    margin-top:9px;padding:7px var(--sp-2);gap:6px;
+  }
+  #watch-ui .warn-strip .ws-ic{width:14px;height:14px}
+  #watch-ui .warn-strip .ws-text{font-size:var(--fs-xs)}
+  #watch-ui .warn-strip .ws-chev{width:12px;height:12px}
   #watch-ui .wsection{margin-top:10px}
   #watch-ui .wsection .h{font-size:var(--fs-base);font-weight:700;letter-spacing:.04em;text-transform:uppercase;
     color:var(--ink-2);margin:0 4px 8px}
@@ -811,6 +823,18 @@ getUiMode();
   #watch-ui .wfoot{margin:var(--sp-4) 6px 0;font-size:var(--fs-xs);color:var(--ink-3);line-height:1.5;text-align:center}
   #watch-ui .wfoot a{color:var(--ink-2)}
   #watch-ui .werr{color:var(--feels);font-size:var(--fs-base);text-align:center;padding:var(--sp-4) var(--sp-2);line-height:1.5}
+  /* v15.6: Warnungs-Modal ist auf der Watch erreichbar (Tap auf die
+     Warn-Zeile). Das Standard-Modal ist für Telefon-Breiten ausgelegt —
+     hier nur Innenabstände/Titelgröße auf die winzige Breite verdichtet,
+     Inhalt/Struktur bleibt identisch zur Desktop-Ansicht. */
+  [data-ui-mode="watch"] .modal-overlay{padding:8px}
+  [data-ui-mode="watch"] .modal{padding:var(--sp-3);max-height:88vh}
+  [data-ui-mode="watch"] .modal-head{gap:6px;margin-bottom:8px}
+  [data-ui-mode="watch"] .modal-head h3{font-size:var(--fs-md)}
+  [data-ui-mode="watch"] .modal-close{width:26px;height:26px}
+  [data-ui-mode="watch"] .warn-item{padding:var(--sp-2) var(--sp-3);margin-top:8px}
+  [data-ui-mode="watch"] .warn-item .wi-event{font-size:var(--fs-sm)}
+  [data-ui-mode="watch"] .warn-item .wi-desc{font-size:var(--fs-xs)}
   @media (max-width:330px){
     #watch-ui .wi b{font-size:var(--fs-base)}
   }
@@ -1051,8 +1075,11 @@ getUiMode();
     <div class="modal-body" id="legend-body"></div>
   </div>
 </div>
+</div><!-- /#desktop-ui -->
 
-<!-- Weather warning modal -->
+<!-- Weather warning modal (v15.6: gemeinsam für Desktop + Watch — liegt
+     bewusst außerhalb von #desktop-ui/#watch-ui, sonst würde display:none
+     des jeweils inaktiven UI-Modus das Modal mit verstecken) -->
 <div class="modal-overlay" id="warn-modal" style="display:none">
   <div class="modal" role="dialog" aria-modal="true" aria-label="Wetterwarnungen">
     <div class="modal-head">
@@ -1064,7 +1091,6 @@ getUiMode();
     <div class="modal-body" id="warn-body"></div>
   </div>
 </div>
-</div><!-- /#desktop-ui -->
 
 <!-- ============================ APPLE WATCH UI ============================ -->
 <div id="watch-ui">
@@ -1088,6 +1114,11 @@ getUiMode();
       <span class="wi"><b id="wwind">–</b><i>Wind</i></span>
       <span class="wi"><b id="wrain-mm">–</b><i>Regen</i></span>
     </div>
+    <button class="warn-strip" id="warn-strip-w" style="display:none" aria-label="Wetterwarnung anzeigen">
+      <svg class="ws-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.6 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.6a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+      <span class="ws-text" id="warn-strip-text-w"></span>
+      <svg class="ws-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+    </button>
   </div>
 
   <div class="wsection">
@@ -1920,7 +1951,8 @@ const AURORA = (function(){
   }
 
   return { load, loadCache, MODELS, DEFAULT_LOC, fetchRadarMap, buildRadarMap,
-           searchPlaces, setOverride, getOverride, resolveName, radarInten, CACHE_TTL, splitModels };
+           searchPlaces, setOverride, getOverride, resolveName, radarInten, CACHE_TTL, splitModels,
+           fetchAlerts };
 })();
 
 </script>
@@ -2997,11 +3029,13 @@ function fmtAlertTime(iso){
 function applyAlerts(alerts){
   __alerts=alerts||[];
   const wx=document.getElementById("wx-icon");
-  const strip=document.getElementById("warn-strip");
-  const stripTxt=document.getElementById("warn-strip-text");
-  if(!strip) return;
+  const strips=[
+    {el:document.getElementById("warn-strip"),   txt:document.getElementById("warn-strip-text")},
+    {el:document.getElementById("warn-strip-w"), txt:document.getElementById("warn-strip-text-w")},
+  ].filter(s=>s.el);
+  if(!strips.length) return;
   if(!__alerts.length){
-    strip.style.display="none";
+    strips.forEach(s=>s.el.style.display="none");
     if(wx && wx.innerHTML.trim()) wx.style.display="grid";  // restore weather icon
     return;
   }
@@ -3009,16 +3043,20 @@ function applyAlerts(alerts){
   // Hero-Wetter-Icon bleibt sichtbar (der Streifen ist auffällig genug).
   // v15.6: der zusätzliche kompakte warn-btn im Hero wurde entfernt — er
   // clashte optisch mit dem Wetter-Icon und war neben dem Streifen redundant.
+  // v15.7: dieselbe Warn-Zeile gibt es jetzt auch in der Watch-Hero-Karte
+  // (warn-strip-w) — beide Streifen zeigen denselben Text/Schweregrad und
+  // teilen sich dasselbe Warnungs-Modal.
   if(wx && wx.innerHTML.trim()) wx.style.display="grid";
   const maxSev=Math.max(...__alerts.map(a=>a.sev));
   // Streifen: wichtigste Warnung als Kurztext, Rest als "+N"
-  if(strip && stripTxt){
-    const top=__alerts[0]; // bereits nach Schwere sortiert
-    const extra=__alerts.length>1?` +${__alerts.length-1}`:"";
-    stripTxt.textContent=(top.event||"Wetterwarnung")+extra;
-    strip.classList.toggle("sev-3", maxSev>=3);
-    strip.style.display="flex";
-  }
+  const top=__alerts[0]; // bereits nach Schwere sortiert
+  const extra=__alerts.length>1?` +${__alerts.length-1}`:"";
+  const stripText=(top.event||"Wetterwarnung")+extra;
+  strips.forEach(s=>{
+    if(s.txt) s.txt.textContent=stripText;
+    s.el.classList.toggle("sev-3", maxSev>=3);
+    s.el.style.display="flex";
+  });
   // build modal body
   const body=document.getElementById("warn-body");
   if(body){
@@ -3335,6 +3373,8 @@ function closeWarnModal(){ const m=document.getElementById("warn-modal"); if(m) 
 document.addEventListener("DOMContentLoaded",()=>{
   const strip=document.getElementById("warn-strip");
   if(strip) strip.addEventListener("click", openWarnModal);
+  const stripW=document.getElementById("warn-strip-w");
+  if(stripW) stripW.addEventListener("click", openWarnModal);
   const close=document.getElementById("warn-close");
   if(close) close.addEventListener("click", closeWarnModal);
   const overlay=document.getElementById("warn-modal");
@@ -4051,20 +4091,24 @@ document.addEventListener("visibilitychange", ()=>{
         ctx.globalAlpha=1;
       });
 
-      // Playback-Marker (C, v15.5): kleiner Ring, der auf der Achse an die
-      // Position des gerade abgespielten Frames wandert. min-Offset des aktuellen
-      // Frames relativ zu "jetzt" → Position entlang derselben speed·min-Skala
-      // wie die Ankunftspunkte, damit er synchron zum Loop läuft.
+      // Playback-Marker (C, v15.5, Fix v15.8): kleiner Ring, der auf der Achse
+      // an die Position des gerade abgespielten Frames wandert.
+      // Bug bis v15.7: dist=A.speed*frameMin wuchs MIT frameMin — der Marker
+      // lief also mit fortschreitender Zeit vom Standort WEG (Richtung 2-Std-
+      // Punkt), statt sich ihm zu nähern. Jetzt linear interpoliert: Start am
+      // 1-Std-Punkt bei frameMin=0 ("jetzt"), Ankunft am Standort bei
+      // frameMin=120 (Ende der 2h-Prognose-Animation). Der 2-Std-Punkt bleibt
+      // eine statische Referenzmarke, die der Marker nicht anläuft.
       if(A.speed>0){
         const frameMin=(map.frames[idx].time.getTime()-Date.now())/60000;
-        if(frameMin>2 && frameMin<=125){                 // nur vorwärts, im Achsen-Bereich
-          const dist=A.speed*frameMin;
-          const mg=G(A.userX+uw.x*dist, A.userY+uw.y*dist);
-          ctx.beginPath();ctx.arc(mg.x,mg.y,5.5,0,7);
-          ctx.strokeStyle=isLight?"#1a2230":"#fff"; ctx.lineWidth=2; ctx.stroke();
-          ctx.beginPath();ctx.arc(mg.x,mg.y,2,0,7);
-          ctx.fillStyle=isLight?"#1a2230":"#fff"; ctx.fill();
-        }
+        const TOTAL_MIN=120;
+        const frac=Math.max(0, Math.min(1, frameMin/TOTAL_MIN));
+        const dist=A.speed*60*(1-frac);
+        const mg=G(A.userX+uw.x*dist, A.userY+uw.y*dist);
+        ctx.beginPath();ctx.arc(mg.x,mg.y,5.5,0,7);
+        ctx.strokeStyle=isLight?"#1a2230":"#fff"; ctx.lineWidth=2; ctx.stroke();
+        ctx.beginPath();ctx.arc(mg.x,mg.y,2,0,7);
+        ctx.fillStyle=isLight?"#1a2230":"#fff"; ctx.fill();
       }
 
       // headline pill near the user: arrival time or "kein Regen"
@@ -4689,12 +4733,19 @@ document.querySelectorAll(".app-version").forEach(el=>{
     tick();setInterval(tick,30000);
     const geo=await getLocation();
     try{
-      const wx=await fetchWeather(geo);
+      const wxPromise=fetchWeather(geo);
+      // v15.7: DWD-Warnungen über dieselbe Bright-Sky-Quelle wie Desktop
+      // (AURORA.fetchAlerts) — die Watch-UI hat ihren eigenen boot()-Zyklus
+      // und durchläuft den Desktop-Ladepfad (inkl. applyAlerts) im
+      // Watch-Modus nie, muss die Warnungen also selbst abrufen.
+      const alertsPromise=AURORA.fetchAlerts(geo).catch(()=>[]);
+      const wx=await wxPromise;
       try{await resolveName(geo);}catch(e){}
       document.getElementById("wloc").textContent=geo.name||"Mein Standort";
       const cur=wx.current||{};
       const code=cur.weather_code,cloud=cur.cloud_cover,precip=cur.precipitation;
       document.getElementById("wtemp").innerHTML=`${Math.round(cur.temperature_2m)}<sup>°</sup>`;
+      applyAlerts(await alertsPromise); // füllt warn-strip-w + gemeinsames Warnungs-Modal
       try{
         const wic=document.getElementById("wicon");
         const hr=new Date().getHours(); const isDay=hr>=6&&hr<21;
