@@ -19,7 +19,7 @@
    Runs synchronously in <head> BEFORE the body renders so the
    correct GUI is shown immediately (no layout flash).
    ============================================================ */
-window.APP_VERSION = "v16.5";
+window.APP_VERSION = "v16.6";
 
 // fetch mit Timeout: ein hängender Request darf nie die ganze Ladekette blockieren
 window.fetchT=function(url,opts,ms){
@@ -2555,11 +2555,16 @@ function drawChart(canvasId, day, opts){
   /* --- NOW marker --- */
   if(day.now!=null){
     const nx=X(day.now);
-    // v16.1: Punkt saß bisher exakt bei y=padT — genau dort, wo bei aktiven
-    // DWD-Warnungen auch der Warnbalken sitzt (siehe oben). Jetzt etwas höher,
-    // in den bisher leeren Rand über dem eigentlichen Chart-Inhalt, damit sich
-    // beide nicht mehr überlappen.
-    const nowY = padT - 6;
+    // v16.1: Punkt saß bei y=padT — der oberen KANTE des Warnbalkens, nicht
+    // seiner Mitte. Das sah wie eine Kollision aus, nicht wie ein bewusst
+    // gestalteter Bezug zwischen beiden Elementen.
+    // v16.6: Jetzt exakt auf der vertikalen Mitte der obersten Warnzeile
+    // zentriert (die Zeile sitzt bei padT bis padT+3, Mitte = padT+1.5) —
+    // wie eine Perle auf einem Faden, statt zwei knapp benachbarter,
+    // versetzter Elemente. Gilt unabhängig davon, ob an diesem Tag gerade
+    // eine Warnung aktiv ist (dann bleibt es die feste Bezugsposition knapp
+    // über den Himmelsspuren).
+    const nowY = padT + 1.5;
     ctx.setLineDash([3,3]);
     ctx.strokeStyle="rgba(255,90,77,.9)";ctx.lineWidth=1.5;
     ctx.beginPath();ctx.moveTo(nx,nowY);ctx.lineTo(nx,H-padB);ctx.stroke();
