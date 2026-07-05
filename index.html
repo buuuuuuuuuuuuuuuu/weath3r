@@ -19,7 +19,7 @@
    Runs synchronously in <head> BEFORE the body renders so the
    correct GUI is shown immediately (no layout flash).
    ============================================================ */
-window.APP_VERSION = "v15.8";
+window.APP_VERSION = "v15.9";
 
 // fetch mit Timeout: ein hängender Request darf nie die ganze Ladekette blockieren
 window.fetchT=function(url,opts,ms){
@@ -1950,9 +1950,157 @@ const AURORA = (function(){
     }
   }
 
+  // ===== Annäherungs-Achse: Windschätzung + Ankunfts-Samples (v15.9) =====
+  // Ursprünglich Desktop-only (radarMapUI), jetzt hierher verschoben, damit
+  // die Watch-UI dieselbe — bereits gefixte — Logik wiederverwenden kann,
+  // statt eine zweite, potenziell abweichende Kopie zu pflegen.
+  const APPROACH_WET_CELL=0.3;            // mm/h counted as "raining" for a cell
+  function approachCellMMH(grid,x,y){
+    const row=grid[y]; if(!row) return 0;
+    let v=row[x]; if(v==null||v<0) v=0;
+    return (v/100)*12;
+  }
+  function approachFrameCentroid(grid,w,h){
+    let sx=0,sy=0,m=0;
+    for(let y=0;y<h;y++){const row=grid[y];if(!row)continue;
+      for(let x=0;x<w;x++){let v=row[x];if(v==null||v<=0)continue;
+        const mmh=(v/100)*12; if(mmh<APPROACH_WET_CELL)continue;
+        sx+=x*mmh; sy+=y*mmh; m+=mmh;}}
+    return m>0 ? {x:sx/m, y:sy/m, mass:m} : null;
+  }
+  function approachUserWet(grid,ux,uy,w,h){
+    // sample the user cell + 8-neighbourhood, take the max
+    let mx=0;
+    const cx=Math.round(ux),cy=Math.round(uy);
+    for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
+      const x=cx+dx,y=cy+dy; if(x<0||y<0||x>=w||y>=h)continue;
+      mx=Math.max(mx, approachCellMMH(grid,x,y));
+    }
+    return mx;
+  }
+  // ---- drift by cross-correlation (matches the visible motion in the loop) ---
+  function approachCoarsen(grid,w,h,D){
+    const cw=Math.ceil(w/D), ch=Math.ceil(h/D);
+    const out=new Float32Array(cw*ch);
+    for(let y=0;y<h;y++){const row=grid[y];if(!row)continue;
+      for(let x=0;x<w;x++){let v=row[x];if(v==null||v<0)v=0;const mmh=(v/100)*12;
+        if(mmh<APPROACH_WET_CELL)continue;
+        out[((y/D)|0)*cw+((x/D)|0)]+=mmh;}}
+    let sum=0; for(let i=0;i<out.length;i++) sum+=out[i];
+    return {data:out,cw,ch,sum};
+  }
+  // Best integer shift s (coarse cells) s.t. B(p) ≈ A(p−s): i.e. the pattern in
+  // B is A moved by +s. Returns the displacement (where the rain moved TO).
+  function approachBestShift(A,B,cw,ch,maxS){
+    let bestScore=-1; const scored=[];
+    for(let sy=-maxS;sy<=maxS;sy++){
+      for(let sx=-maxS;sx<=maxS;sx++){
+        let dot=0,na=0,nb=0;
+        for(let y=0;y<ch;y++){
+          const by=y+sy; if(by<0||by>=ch)continue;
+          for(let x=0;x<cw;x++){
+            const bx=x+sx; if(bx<0||bx>=cw)continue;
+            const a=A[y*cw+x], b=B[by*cw+bx];
+            dot+=a*b; na+=a*a; nb+=b*b;
+          }
+        }
+        if(na>0&&nb>0){
+          const nc=dot/Math.sqrt(na*nb);
+          scored.push({sx,sy,nc});
+          if(nc>bestScore) bestScore=nc;
+        }
+      }
+    }
+    if(bestScore<0) return null;
+    // Direction fidelity (v15.5): correlation-weighted centroid of all shifts
+    // near the peak, instead of the single smallest shift (biased the angle
+    // along elongated rain bands).
+    const tol=0.04;
+    let wsum=0, wx=0, wy=0;
+    scored.forEach(s=>{
+      if(s.nc>=bestScore-tol){
+        const w=s.nc-(bestScore-tol);
+        wsum+=w; wx+=w*s.sx; wy+=w*s.sy;
+      }
+    });
+    if(wsum<=0) return null;
+    return { sx:wx/wsum, sy:wy/wsum, score:bestScore };
+  }
+  // Estimate drift velocity (fine cells per minute, direction rain MOVES to).
+  function approachEstimateDrift(frames,w,h){
+    const nowMs=Date.now();
+    const cand=[];
+    frames.forEach(f=>{ if(f.time.getTime()>=nowMs-6*60000){ cand.push(f); } });
+    const use = cand.length>=2 ? cand : frames;
+    if(use.length<2) return null;
+    const D = Math.max(1, Math.round(Math.max(w,h)/64));
+    const maxS = 12;
+    let A=null, B=null, ai=0, bi=0;
+    for(let i=0;i<use.length;i++){ const c=approachCoarsen(use[i].grid,w,h,D); if(c.sum>40){ A=c; ai=i; break; } }
+    if(!A) return null;
+    for(let j=use.length-1;j>ai;j--){
+      const dtMin=(use[j].time-use[ai].time)/60000;
+      if(dtMin<15||dtMin>75) continue;
+      const c=approachCoarsen(use[j].grid,w,h,D); if(c.sum>40){ B=c; bi=j; break; }
+    }
+    if(!B){
+      for(let j=use.length-1;j>ai;j--){ const c=approachCoarsen(use[j].grid,w,h,D); if(c.sum>40){ B=c; bi=j; break; } }
+    }
+    if(!B) return null;
+    const dtMin=(use[bi].time-use[ai].time)/60000; if(dtMin<1) return null;
+    const s=approachBestShift(A.data,B.data,A.cw,A.ch,maxS);
+    if(!s || s.score<0.3) return null;
+    return { vx:(s.sx*D)/dtMin, vy:(s.sy*D)/dtMin, score:s.score };
+  }
+  function approachBearingLabel(dx,dy){
+    const ang=(Math.atan2(dx, -dy)*180/Math.PI+360)%360;
+    const dirs=["N","NO","O","SO","S","SW","W","NW"];
+    return dirs[Math.round(ang/45)%8];
+  }
+  // Public: run the full approach-axis analysis for a radar map (as built by
+  // buildRadarMap/buildRadarMap). Returns {vel,speed,arrival,fromDir,upwind,
+  // samples,userX,userY} — samples are the +30/60/90/120-min anchor points.
+  function analyseApproach(map){
+    if(!map||!map.frames||!map.frames.length) return null;
+    const {w,h,userX,userY,frames}=map;
+    const nowMs=Date.now();
+    let vel = approachEstimateDrift(frames,w,h);
+    if(!vel){
+      const cs=[];
+      frames.forEach((f)=>{const c=approachFrameCentroid(f.grid,w,h); if(c&&c.mass>20) cs.push({t:f.time.getTime(),x:c.x,y:c.y});});
+      if(cs.length>=2){
+        const a=cs[0], b=cs[cs.length-1];
+        const dtMin=(b.t-a.t)/60000;
+        if(dtMin>1){ vel={ vx:(b.x-a.x)/dtMin, vy:(b.y-a.y)/dtMin }; }
+      }
+    }
+    let arrival=null;
+    for(let i=0;i<frames.length;i++){
+      if(frames[i].time.getTime()<nowMs-3*60000) continue;
+      if(approachUserWet(frames[i].grid,userX,userY,w,h)>=APPROACH_WET_CELL){ arrival={i,t:frames[i].time}; break; }
+    }
+    let upwind=null, samples=[], fromDir=null;
+    const speed = vel? Math.hypot(vel.vx,vel.vy) : 0;
+    const nowFrame = frames.reduce((best,f,i)=>Math.abs(f.time-Date.now())<Math.abs(frames[best].time-Date.now())?i:best,0);
+    const curGrid = frames[nowFrame].grid;
+    if(vel && speed>0.02){
+      const ux=-vel.vx/speed, uy=-vel.vy/speed;
+      upwind={x:ux,y:uy};
+      fromDir=approachBearingLabel(ux,uy);
+      [30,60,90,120].forEach(min=>{
+        const dist=speed*min;
+        const gx=userX+ux*dist, gy=userY+uy*dist;
+        if(gx<0||gy<0||gx>=w||gy>=h) return;
+        const wetMMH=approachUserWet(curGrid,gx,gy,w,h);
+        samples.push({ min, gx, gy, t:new Date(nowMs+min*60000), wet:wetMMH>=APPROACH_WET_CELL, mmh:wetMMH });
+      });
+    }
+    return { vel, speed, arrival, fromDir, upwind, samples, userX, userY };
+  }
+
   return { load, loadCache, MODELS, DEFAULT_LOC, fetchRadarMap, buildRadarMap,
            searchPlaces, setOverride, getOverride, resolveName, radarInten, CACHE_TTL, splitModels,
-           fetchAlerts };
+           fetchAlerts, analyseApproach };
 })();
 
 </script>
@@ -3651,171 +3799,10 @@ document.addEventListener("visibilitychange", ()=>{
   // (if at all) rain reaches the user's pixel, and (c) the bearing it comes
   // from. All distances are in grid cells (= km on the DWD RV grid).
   let analysis=null;
-  const WET_CELL=0.3;            // mm/h counted as "raining" for a cell
-  function cellMMH(grid,x,y){
-    const row=grid[y]; if(!row) return 0;
-    let v=row[x]; if(v==null||v<0) v=0;
-    return (v/100)*12;
-  }
-  function frameCentroid(grid,w,h){
-    let sx=0,sy=0,m=0;
-    for(let y=0;y<h;y++){const row=grid[y];if(!row)continue;
-      for(let x=0;x<w;x++){let v=row[x];if(v==null||v<=0)continue;
-        const mmh=(v/100)*12; if(mmh<WET_CELL)continue;
-        sx+=x*mmh; sy+=y*mmh; m+=mmh;}}
-    return m>0 ? {x:sx/m, y:sy/m, mass:m} : null;
-  }
-  function userWet(grid,ux,uy,w,h){
-    // sample the user cell + 8-neighbourhood, take the max
-    let mx=0;
-    const cx=Math.round(ux),cy=Math.round(uy);
-    for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
-      const x=cx+dx,y=cy+dy; if(x<0||y<0||x>=w||y>=h)continue;
-      mx=Math.max(mx, cellMMH(grid,x,y));
-    }
-    return mx;
-  }
-
-  // ---- drift by cross-correlation (matches the visible motion in the loop) ---
-  // Down-sample a frame's rain field to a coarse intensity grid.
-  function coarsen(grid,w,h,D){
-    const cw=Math.ceil(w/D), ch=Math.ceil(h/D);
-    const out=new Float32Array(cw*ch);
-    for(let y=0;y<h;y++){const row=grid[y];if(!row)continue;
-      for(let x=0;x<w;x++){let v=row[x];if(v==null||v<0)v=0;const mmh=(v/100)*12;
-        if(mmh<WET_CELL)continue;
-        out[((y/D)|0)*cw+((x/D)|0)]+=mmh;}}
-    let sum=0; for(let i=0;i<out.length;i++) sum+=out[i];
-    return {data:out,cw,ch,sum};
-  }
-  // Best integer shift s (coarse cells) s.t. B(p) ≈ A(p−s): i.e. the pattern in
-  // B is A moved by +s. Returns the displacement (where the rain moved TO).
-  // For smooth bands the correlation is ambiguous ALONG the band (aperture
-  // problem), so among all near-optimal shifts we keep the smallest-magnitude
-  // one — that recovers the true perpendicular (front) motion and suppresses
-  // spurious slide along the band.
-  function bestShift(A,B,cw,ch,maxS){
-    let bestScore=-1; const scored=[];
-    for(let sy=-maxS;sy<=maxS;sy++){
-      for(let sx=-maxS;sx<=maxS;sx++){
-        let dot=0,na=0,nb=0;
-        for(let y=0;y<ch;y++){
-          const by=y+sy; if(by<0||by>=ch)continue;
-          for(let x=0;x<cw;x++){
-            const bx=x+sx; if(bx<0||bx>=cw)continue;
-            const a=A[y*cw+x], b=B[by*cw+bx];
-            dot+=a*b; na+=a*a; nb+=b*b;
-          }
-        }
-        if(na>0&&nb>0){
-          const nc=dot/Math.sqrt(na*nb);
-          scored.push({sx,sy,nc});
-          if(nc>bestScore) bestScore=nc;
-        }
-      }
-    }
-    if(bestScore<0) return null;
-    // Direction fidelity (v15.5): instead of picking the single smallest shift
-    // (which biased the angle along elongated rain bands), take the
-    // correlation-weighted centroid of ALL shifts near the peak. This yields the
-    // true mean motion vector, so the drawn arrow matches the movement you see
-    // when the loop plays. Sub-cell precision as a bonus.
-    const tol=0.04;
-    let wsum=0, wx=0, wy=0;
-    scored.forEach(s=>{
-      if(s.nc>=bestScore-tol){
-        const w=s.nc-(bestScore-tol);   // weight: how far above the threshold
-        wsum+=w; wx+=w*s.sx; wy+=w*s.sy;
-      }
-    });
-    if(wsum<=0) return null;
-    return { sx:wx/wsum, sy:wy/wsum, score:bestScore };
-  }
-  // Estimate drift velocity (fine cells per minute, direction rain MOVES to).
-  function estimateDrift(frames,w,h){
-    const nowMs=Date.now();
-    // frames at/after "now" with meaningful rain
-    const cand=[];
-    frames.forEach(f=>{ if(f.time.getTime()>=nowMs-6*60000){ cand.push(f); } });
-    const use = cand.length>=2 ? cand : frames;
-    if(use.length<2) return null;
-    const D = Math.max(1, Math.round(Math.max(w,h)/64));   // ~64px coarse grid
-    const maxS = 12;                                        // ≤ ~48 fine cells of shift
-    // pair the earliest rainy frame with one ~30 min later (≥ 4 frames apart)
-    let A=null, B=null, ai=0, bi=0;
-    for(let i=0;i<use.length;i++){ const c=coarsen(use[i].grid,w,h,D); if(c.sum>40){ A=c; ai=i; break; } }
-    if(!A) return null;
-    for(let j=use.length-1;j>ai;j--){
-      const dtMin=(use[j].time-use[ai].time)/60000;
-      if(dtMin<15||dtMin>75) continue;
-      const c=coarsen(use[j].grid,w,h,D); if(c.sum>40){ B=c; bi=j; break; }
-    }
-    if(!B){ // fall back to the last rainy frame
-      for(let j=use.length-1;j>ai;j--){ const c=coarsen(use[j].grid,w,h,D); if(c.sum>40){ B=c; bi=j; break; } }
-    }
-    if(!B) return null;
-    const dtMin=(use[bi].time-use[ai].time)/60000; if(dtMin<1) return null;
-    const s=bestShift(A.data,B.data,A.cw,A.ch,maxS);
-    if(!s || s.score<0.3) return null;                     // no confident motion
-    // coarse shift → fine cells → per minute
-    return { vx:(s.sx*D)/dtMin, vy:(s.sy*D)/dtMin, score:s.score };
-  }
-  function bearingLabel(dx,dy){
-    // Input vector points FROM the user TOWARD the rain source (east-positive x,
-    // south-positive y on the DWD grid). That is exactly the "rain comes from"
-    // direction. Convert to a compass label (0°=N, 90°=E).
-    const ang=(Math.atan2(dx, -dy)*180/Math.PI+360)%360;
-    const dirs=["N","NO","O","SO","S","SW","W","NW"];
-    return dirs[Math.round(ang/45)%8];
-  }
+  // v15.9: die Drift-/Ankunfts-Analyse lebt jetzt zentral in AURORA.analyseApproach
+  // (gemeinsam mit der Watch-UI genutzt, statt einer zweiten separaten Kopie).
   function analyse(){
-    analysis=null;
-    if(!map||!map.frames.length) return;
-    const {w,h,userX,userY,frames}=map;
-    const nowMs=Date.now();
-
-    // 1) rain-field drift. Primary: cross-correlation between frames (matches
-    //    the motion you see when playing the loop). Fallback: centroid track.
-    let vel = estimateDrift(frames,w,h);   // {vx,vy} fine cells/min, or null
-    if(!vel){
-      const cs=[];
-      frames.forEach((f)=>{const c=frameCentroid(f.grid,w,h); if(c&&c.mass>20) cs.push({t:f.time.getTime(),x:c.x,y:c.y});});
-      if(cs.length>=2){
-        const a=cs[0], b=cs[cs.length-1];
-        const dtMin=(b.t-a.t)/60000;
-        if(dtMin>1){ vel={ vx:(b.x-a.x)/dtMin, vy:(b.y-a.y)/dtMin }; }
-      }
-    }
-
-    // 2) arrival at the user's own cell (authoritative — straight from the forecast)
-    let arrival=null;
-    for(let i=0;i<frames.length;i++){
-      if(frames[i].time.getTime()<nowMs-3*60000) continue;
-      if(userWet(frames[i].grid,userX,userY,w,h)>=WET_CELL){ arrival={i,t:frames[i].time}; break; }
-    }
-
-    // 3) build the "approach axis": a line from the user pointing UPWIND
-    //    (where incoming rain comes from = opposite the drift), and sample the
-    //    CURRENT rain field at the positions that would advect onto the user at
-    //    +30/+60/+90/+120 min. Each sample → does rain there reach the user, when.
-    let upwind=null, samples=[], fromDir=null;
-    const speed = vel? Math.hypot(vel.vx,vel.vy) : 0;   // cells per minute
-    const nowFrame = frames.reduce((best,f,i)=>Math.abs(f.time-Date.now())<Math.abs(frames[best].time-Date.now())?i:best,0);
-    const curGrid = frames[nowFrame].grid;
-    if(vel && speed>0.02){                               // need a usable drift (>~1.2 km/h)
-      const ux=-vel.vx/speed, uy=-vel.vy/speed;          // unit vector pointing upwind
-      upwind={x:ux,y:uy};
-      fromDir=bearingLabel(ux,uy);
-      [30,60,90,120].forEach(min=>{
-        const dist=speed*min;                            // cells the rain travels in `min`
-        const gx=userX+ux*dist, gy=userY+uy*dist;        // where that rain sits now
-        if(gx<0||gy<0||gx>=w||gy>=h) return;             // off the map → skip
-        const wetMMH=userWet(curGrid,gx,gy,w,h);
-        samples.push({ min, gx, gy, t:new Date(nowMs+min*60000), wet:wetMMH>=WET_CELL, mmh:wetMMH });
-      });
-    }
-
-    analysis={ vel, speed, arrival, fromDir, upwind, samples, userX, userY };
+    analysis = map ? AURORA.analyseApproach(map) : null;
   }
 
   function isLightTheme(){ return document.documentElement.getAttribute("data-theme")==="light"; }
@@ -4463,11 +4450,13 @@ document.querySelectorAll(".app-version").forEach(el=>{
     return {radar:true,totalMins:total,pts,summary};
   }
 
-  // ===== Radarkarte-Snapshot (v15) — aufklappbar, EIN statisches Bild =====
-  // Kein Pinch-Zoom/Loop wie am Desktop (auf 190px unpraktisch) — nur der
-  // aktuellste Frame, auf einen ~50 km-Ausschnitt um den Standort zugeschnitten.
-  // Nutzt dieselbe Bright-Sky-Datenquelle wie die Desktop-Karte (AURORA-Modul).
-  let _radarMap=null, _radarLoading=false;
+  // ===== Radarkarte-Snapshot (v15, Animation+Achse v15.9) — aufklappbar =====
+  // Kein Pinch-Zoom wie am Desktop (auf 190px unpraktisch), aber jetzt eine
+  // einfache Frame-Loop-Animation plus eine vereinfachte Annäherungs-Achse
+  // (Richtung + 1h/2h-Punkte + mitlaufender Marker), auf einen ~60km-
+  // Ausschnitt um den Standort zugeschnitten. Nutzt dieselbe Bright-Sky-
+  // Datenquelle und dieselbe Analyse-Funktion wie die Desktop-Karte (AURORA).
+  let _radarMap=null, _radarLoading=false, _radarAnalysis=null, _radarIdx=0, _radarTimer=null;
   const RSTOPS=[ // identische Rampe wie die Desktop-Radarkarte (radarRGBA)
     [0.1,[120,180,255,70]],[0.5,[80,150,255,140]],[1,[45,115,235,180]],
     [2,[30,175,165,200]],[5,[70,200,90,215]],[10,[240,210,60,230]],
@@ -4482,8 +4471,15 @@ document.querySelectorAll(".app-version").forEach(el=>{
     }
     return RSTOPS[0][1];
   }
-  function drawRadarSnapshot(map){
+  function fmtRelW(dt){
+    const dm=Math.round((dt.getTime()-Date.now())/60000);
+    if(dm<=0) return "jetzt";
+    return "+"+dm+" Min.";
+  }
+  function drawRadarSnapshot(map, idx){
     const cv=document.getElementById("wcv-radar"); if(!cv) return;
+    if(idx==null) idx=_radarIdx;
+    idx=Math.max(0, Math.min(map.frames.length-1, idx));
     const CROP=30; // ± Zellen um den Standort (≈60×60 km bei 1 km/Zelle)
     const cx=Math.round(map.userX), cy=Math.round(map.userY);
     const x0=Math.max(0,cx-CROP), x1=Math.min(map.w,cx+CROP);
@@ -4492,9 +4488,11 @@ document.querySelectorAll(".app-version").forEach(el=>{
     if(cw<=0||ch<=0) return;
     const W=cv.clientWidth||160, DPR2=Math.min(window.devicePixelRatio||1,2.5);
     cv.width=W*DPR2; cv.height=W*DPR2; cv.style.height=W+"px";
-    const ctx=cv.getContext("2d"); ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,cv.width,cv.height);
-    const frame=map.frames[map.frames.length-1];
-    const cellPx=(W*DPR2)/cw;
+    const ctx=cv.getContext("2d"); ctx.setTransform(DPR2,0,0,DPR2,0,0); ctx.clearRect(0,0,W,W);
+    const frame=map.frames[idx];
+    const cellPx=W/cw;
+    // grid → canvas (crop-relative)
+    const P=(gx,gy)=>({x:(gx-x0)*cellPx, y:(gy-y0)*cellPx});
     for(let y=y0;y<y1;y++){
       const row=frame.grid[y]||[];
       for(let x=x0;x<x1;x++){
@@ -4503,18 +4501,100 @@ document.querySelectorAll(".app-version").forEach(el=>{
         const [r,g,b,a]=radarSnapRGBA(mmh);
         if(a<=0) continue;
         ctx.fillStyle=`rgba(${r},${g},${b},${(a/255).toFixed(2)})`;
-        ctx.fillRect((x-x0)*cellPx,(y-y0)*cellPx,cellPx+0.5,cellPx+0.5);
+        ctx.fillRect((x-x0)*cellPx,(y-y0)*cellPx,cellPx+0.3,cellPx+0.3);
       }
     }
-    // Standort-Punkt
-    const ux=(cx-x0)*cellPx, uy=(cy-y0)*cellPx;
-    ctx.beginPath(); ctx.arc(ux,uy,4*DPR2,0,7);
+    const u=P(cx,cy);
+    const isLight=document.documentElement.getAttribute("data-theme")==="light";
+
+    // ---- vereinfachte Annäherungs-Achse (v15.9): Richtung + 1h/2h-Punkte +
+    //      mitlaufender Marker. Dieselbe Analyse wie am Desktop (AURORA.
+    //      analyseApproach), nur ohne Range-Ringe/Kompass/Text-Pills — auf
+    //      dem winzigen Watch-Canvas reichen Linie, Punkte und Marker. Alles
+    //      außerhalb des Canvas wird per Clip einfach abgeschnitten (die
+    //      1h/2h-Punkte liegen bei schnellen Fronten oft außerhalb des
+    //      60km-Ausschnitts — das ist gewollt, kein Fehler).
+    const A=_radarAnalysis;
+    if(A && A.upwind){
+      ctx.save();
+      ctx.beginPath(); ctx.rect(0,0,W,W); ctx.clip();
+      const uw=A.upwind;
+      const anyRainComing=A.samples.some(s=>s.wet);
+      const lineCol=anyRainComing?"rgba(255,90,77,.9)":(isLight?"rgba(40,55,80,.4)":"rgba(255,255,255,.4)");
+      const farG={x:cx+uw.x*CROP*2.2, y:cy+uw.y*CROP*2.2}; // deutlich über den Canvas-Rand hinaus, Clip kappt
+      const far=P(farG.x,farG.y);
+      ctx.strokeStyle=lineCol; ctx.lineWidth=1.6; ctx.lineCap="round";
+      ctx.setLineDash(anyRainComing?[]:[2,4]);
+      ctx.beginPath(); ctx.moveTo(u.x,u.y); ctx.lineTo(far.x,far.y); ctx.stroke();
+      ctx.setLineDash([]);
+      const ang=Math.atan2(u.y-far.y, u.x-far.x), hl=7;
+      ctx.beginPath(); ctx.moveTo(u.x,u.y);
+      ctx.lineTo(u.x-hl*Math.cos(ang-0.4), u.y-hl*Math.sin(ang-0.4));
+      ctx.lineTo(u.x-hl*Math.cos(ang+0.4), u.y-hl*Math.sin(ang+0.4));
+      ctx.closePath(); ctx.fillStyle=lineCol; ctx.fill();
+
+      // 30/60/90/120-min-Punkte: 1h/2h etwas größer + kurzes Label, 30/90 nur Punkt
+      A.samples.forEach(s=>{
+        const p=P(s.gx,s.gy);
+        const isHour=s.min===60||s.min===120;
+        const r=isHour?3.2:1.8;
+        ctx.beginPath(); ctx.arc(p.x,p.y,r,0,7);
+        ctx.fillStyle=s.wet?"rgba(255,90,77,.95)":(isLight?"rgba(40,55,80,.6)":"rgba(255,255,255,.6)");
+        ctx.fill();
+        if(isHour){
+          const lbl=s.min===60?"1h":"2h";
+          ctx.font="700 8px "+getComputedStyle(document.body).fontFamily;
+          ctx.textAlign="center"; ctx.textBaseline="middle";
+          ctx.fillStyle=isLight?"#1a2230":"#f1ecf9";
+          // kleines Label leicht versetzt neben dem Punkt (nie exakt drauf)
+          let lx=p.x+8, ly=p.y-8;
+          if(lx>W-6) lx=p.x-8;
+          if(ly<6) ly=p.y+8;
+          ctx.fillText(lbl, lx, ly);
+        }
+      });
+
+      // Playback-Marker (Fix v15.8, geteilt mit Desktop): Start am 1h-Punkt
+      // bei frameMin=0 ("jetzt"), Ankunft am Standort bei frameMin=120.
+      if(A.speed>0){
+        const frameMin=(frame.time.getTime()-Date.now())/60000;
+        const frac=Math.max(0, Math.min(1, frameMin/120));
+        const dist=A.speed*60*(1-frac);
+        const mg=P(A.userX+uw.x*dist, A.userY+uw.y*dist);
+        ctx.beginPath(); ctx.arc(mg.x,mg.y,3.5,0,7);
+        ctx.strokeStyle=isLight?"#1a2230":"#fff"; ctx.lineWidth=1.6; ctx.stroke();
+        ctx.beginPath(); ctx.arc(mg.x,mg.y,1.3,0,7);
+        ctx.fillStyle=isLight?"#1a2230":"#fff"; ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    // Standort-Punkt (immer oben drauf)
+    ctx.beginPath(); ctx.arc(u.x,u.y,4,0,7);
     ctx.fillStyle="rgba(255,90,77,.95)"; ctx.fill();
-    ctx.lineWidth=1.5*DPR2; ctx.strokeStyle="rgba(255,255,255,.9)"; ctx.stroke();
+    ctx.lineWidth=1.5; ctx.strokeStyle="rgba(255,255,255,.9)"; ctx.stroke();
+
+    const relEl=document.getElementById("wradar-status");
+    if(relEl && !_radarLoading){
+      const dir=A&&A.fromDir?` · aus ${A.fromDir}`:"";
+      relEl.textContent=fmtRelW(frame.time)+dir;
+      relEl.style.display="";
+    }
+  }
+  function startRadarAnim(){
+    stopRadarAnim();
+    if(!_radarMap || _radarMap.frames.length<2) return;
+    _radarTimer=setInterval(()=>{
+      _radarIdx=(_radarIdx+1)%_radarMap.frames.length;
+      drawRadarSnapshot(_radarMap, _radarIdx);
+    }, 700);
+  }
+  function stopRadarAnim(){
+    if(_radarTimer){ clearInterval(_radarTimer); _radarTimer=null; }
   }
   async function ensureRadarSnapshot(geo){
     const statusEl=document.getElementById("wradar-status");
-    if(_radarMap){ drawRadarSnapshot(_radarMap); if(statusEl) statusEl.style.display="none"; return; }
+    if(_radarMap){ drawRadarSnapshot(_radarMap, _radarIdx); startRadarAnim(); return; }
     if(_radarLoading) return;
     _radarLoading=true;
     if(statusEl){ statusEl.textContent="Karte lädt…"; statusEl.style.display=""; }
@@ -4523,11 +4603,19 @@ document.querySelectorAll(".app-version").forEach(el=>{
       const map=AURORA.buildRadarMap(json);
       if(!map) throw new Error("keine Radardaten");
       _radarMap=map;
-      drawRadarSnapshot(map);
-      if(statusEl) statusEl.style.display="none";
+      _radarAnalysis=AURORA.analyseApproach(map);
+      // Start bei dem Frame, der am nächsten an "jetzt" liegt (wie Desktop)
+      let best=0,bd=1e9;
+      map.frames.forEach((f,i)=>{const d=Math.abs(f.time.getTime()-Date.now());if(d<bd){bd=d;best=i;}});
+      _radarIdx=best;
+      _radarLoading=false; // vor drawRadarSnapshot, damit die Zeit-Zeile sofort gesetzt wird
+      drawRadarSnapshot(map, _radarIdx);
+      if(statusEl) statusEl.style.display="";
+      startRadarAnim();
     }catch(e){
       if(statusEl){ statusEl.textContent="Karte nicht verfügbar"; statusEl.style.display=""; }
-    }finally{ _radarLoading=false; }
+      _radarLoading=false;
+    }
   }
   async function fetchMinutely(geo){
     const u=new URL("https://api.open-meteo.com/v1/forecast");
@@ -4738,9 +4826,11 @@ document.querySelectorAll(".app-version").forEach(el=>{
       // (AURORA.fetchAlerts) — die Watch-UI hat ihren eigenen boot()-Zyklus
       // und durchläuft den Desktop-Ladepfad (inkl. applyAlerts) im
       // Watch-Modus nie, muss die Warnungen also selbst abrufen.
-      const alertsPromise=AURORA.fetchAlerts(geo).catch(()=>[]);
+      const alertsPromise=AURORA.fetchAlerts(geo).catch(e=>{ console.warn("watch alerts fetch failed:", e); return []; });
       const wx=await wxPromise;
       try{await resolveName(geo);}catch(e){}
+      window.__currentGeo=geo; // v15.9: auch im Watch-Modus setzen — das ?debug=alerts-Tool
+                                // griff hier bisher auf den (nie befüllten) Desktop-Wert zurück
       document.getElementById("wloc").textContent=geo.name||"Mein Standort";
       const cur=wx.current||{};
       const code=cur.weather_code,cloud=cur.cloud_cover,precip=cur.precipitation;
@@ -4796,6 +4886,7 @@ document.querySelectorAll(".app-version").forEach(el=>{
           rbox.classList.toggle("expanded", willExpand);
           rtoggle.setAttribute("aria-expanded", willExpand?"true":"false");
           if(willExpand) ensureRadarSnapshot(geo);
+          else stopRadarAnim();
         });
       }
       document.getElementById("wstatus").textContent="";
