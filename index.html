@@ -19,7 +19,7 @@
    Runs synchronously in <head> BEFORE the body renders so the
    correct GUI is shown immediately (no layout flash).
    ============================================================ */
-window.APP_VERSION = "v16.2";
+window.APP_VERSION = "v16.4";
 
 // fetch mit Timeout: ein hängender Request darf nie die ganze Ladekette blockieren
 window.fetchT=function(url,opts,ms){
@@ -724,7 +724,12 @@ getUiMode();
     --rain-ink:#3E7A70;
     --feels:#EFA3BF;
     --model-a:#EFA3BF; --model-b:#7EC4B8; --model-c:#D8B65C;
-    --c-sky-sun:#EFA3BF; --c-sky-cloud2:#D8B65C; --c-sky-rain:#7EC4B8;
+    /* v16.4: Himmelszustände müssen intuitiv bleiben, unabhängig vom
+       Deko-Farbschema — Sonne warm, Wolke neutral-grau, Regen kühl. Vorher
+       standen hier 1:1 die Modell-Akzentfarben (Pink/Senfgelb), das ließ
+       "bewölkt" wie Sonne/Gelb aussehen. Wolke nutzt jetzt --ink-2 (bereits
+       ein neutraler Grauton im Theme), Sonne ein warmes Gold statt Pink. */
+    --c-sky-sun:#D8A857; --c-sky-cloud2:#9A87A0; --c-sky-rain:#7EC4B8;
   }
   html[data-ui-mode="watch"][data-theme="light"] body{
     background:linear-gradient(160deg,#E4F2FA 0%,#CDE6F5 55%,#F3D9E6 100%);
@@ -2436,6 +2441,7 @@ function drawChart(canvasId, day, opts){
   }
 
   /* --- DWD warning bands (time-aligned, top of plot) --- */
+  cv._warnHit=null; // pro Zeichnung neu — nur gesetzt, wenn unten ein Dreieck gezeichnet wird
   if(day.alerts && day.alerts.length){
     const sevCol=[cssVar("--t-mild"),cssVar("--t-warm"),cssVar("--t-hot"),cssVar("--t-scorch")];
     day.alerts.forEach((al,i)=>{
@@ -2450,6 +2456,17 @@ function drawChart(canvasId, day, opts){
       // solid top marker bar
       roundBar(ctx, xa+1, ay, xb-xa-2, 3, col);
     });
+    // Tippbares Warndreieck (v16.3): am Anfang des wichtigsten Bandes
+    // (day.alerts ist bereits nach Schwere sortiert) — öffnet dasselbe
+    // Modal wie der Warn-Streifen im Hero. Trefferfläche großzügiger als
+    // das gezeichnete Icon (Touch-Ziel), am Canvas-Element hinterlegt und
+    // vom Klick-Handler weiter unten ausgelesen.
+    const top=day.alerts[0];
+    const topFrom=Math.max(0,Math.min(24,top.from));
+    const topCol=sevCol[top.sev!=null?top.sev:2];
+    const ix=X(topFrom)+9, iy=padT+1.5;
+    drawWarnTriangleIcon(ctx, ix, iy, 5, topCol);
+    cv._warnHit={x:ix-12, y:iy-12, w:24, h:24};
   }
 
   /* --- PRECIP areas (bottom) --- */
@@ -2602,6 +2619,27 @@ function roundRect(ctx,x,y,w,h,r){
 function roundBar(ctx,x,y,w,h,col){
   if(w<=0)return;
   ctx.fillStyle=col;roundRect(ctx,x,y,w,h,h/2);ctx.fill();
+}
+// Kleines Warndreieck (Umriss + Ausrufezeichen), nachgebaut aus dem
+// Hero-Warn-Icon, für den anklickbaren Hinweis auf den Warnbändern im
+// Tages-Chart (v16.3).
+function drawWarnTriangleIcon(ctx, cx, cy, r, color){
+  const h=r*1.7;
+  ctx.save();
+  ctx.strokeStyle=color; ctx.lineWidth=1.4; ctx.lineJoin="round"; ctx.lineCap="round";
+  ctx.beginPath();
+  ctx.moveTo(cx, cy-h*0.55);
+  ctx.lineTo(cx-r, cy+h*0.45);
+  ctx.lineTo(cx+r, cy+h*0.45);
+  ctx.closePath();
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(cx, cy-h*0.12); ctx.lineTo(cx, cy+h*0.08);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(cx, cy+h*0.28, 0.9, 0, 7);
+  ctx.fillStyle=color; ctx.fill();
+  ctx.restore();
 }
 
 /* ---------- Daily list ---------- */
@@ -2935,6 +2973,28 @@ if(window.ResizeObserver){
     if(el) ro.observe(el);
   });
 }
+
+// Tippbares Warndreieck auf den Tages-Charts (v16.3): dieselbe Trefferfläche,
+// die drawChart bei jedem Redraw an cv._warnHit hinterlegt (null, wenn an
+// diesem Tag keine Warnung anliegt). Einmalig verdrahtet, nicht in renderAll —
+// sonst würden sich bei jedem Redraw weitere Listener aufstapeln.
+["cv-today","cv-thu","cv-fri"].forEach(id=>{
+  const el=document.getElementById(id);
+  if(!el) return;
+  el.addEventListener("click", e=>{
+    const hit=el._warnHit; if(!hit) return;
+    const r=el.getBoundingClientRect();
+    const x=e.clientX-r.left, y=e.clientY-r.top;
+    if(x>=hit.x && x<=hit.x+hit.w && y>=hit.y && y<=hit.y+hit.h) openWarnModal();
+  });
+  el.addEventListener("mousemove", e=>{
+    const hit=el._warnHit;
+    if(!hit){ el.style.cursor=""; return; }
+    const r=el.getBoundingClientRect();
+    const x=e.clientX-r.left, y=e.clientY-r.top;
+    el.style.cursor=(x>=hit.x && x<=hit.x+hit.w && y>=hit.y && y<=hit.y+hit.h) ? "pointer" : "";
+  });
+});
 
 let rt;
 window.addEventListener("resize",()=>{clearTimeout(rt);rt=setTimeout(renderAll,150)});
