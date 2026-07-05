@@ -19,7 +19,7 @@
    Runs synchronously in <head> BEFORE the body renders so the
    correct GUI is shown immediately (no layout flash).
    ============================================================ */
-window.APP_VERSION = "v15.4";
+window.APP_VERSION = "v15.5";
 
 // fetch mit Timeout: ein hängender Request darf nie die ganze Ladekette blockieren
 window.fetchT=function(url,opts,ms){
@@ -3711,16 +3711,21 @@ document.addEventListener("visibilitychange", ()=>{
       }
     }
     if(bestScore<0) return null;
-    // keep shifts within a small tolerance of the best, take the smallest |s|
-    const tol=0.02;
-    let pick=null, pickMag=Infinity;
+    // Direction fidelity (v15.5): instead of picking the single smallest shift
+    // (which biased the angle along elongated rain bands), take the
+    // correlation-weighted centroid of ALL shifts near the peak. This yields the
+    // true mean motion vector, so the drawn arrow matches the movement you see
+    // when the loop plays. Sub-cell precision as a bonus.
+    const tol=0.04;
+    let wsum=0, wx=0, wy=0;
     scored.forEach(s=>{
       if(s.nc>=bestScore-tol){
-        const mag=s.sx*s.sx+s.sy*s.sy;
-        if(mag<pickMag){ pickMag=mag; pick=s; }
+        const w=s.nc-(bestScore-tol);   // weight: how far above the threshold
+        wsum+=w; wx+=w*s.sx; wy+=w*s.sy;
       }
     });
-    return pick ? {sx:pick.sx, sy:pick.sy, score:bestScore} : null;
+    if(wsum<=0) return null;
+    return { sx:wx/wsum, sy:wy/wsum, score:bestScore };
   }
   // Estimate drift velocity (fine cells per minute, direction rain MOVES to).
   function estimateDrift(frames,w,h){
@@ -4036,43 +4041,67 @@ document.addEventListener("visibilitychange", ()=>{
       ctx.lineTo(u.x-hl*Math.cos(ang+0.4), u.y-hl*Math.sin(ang+0.4));
       ctx.closePath();ctx.fillStyle=lineCol;ctx.fill();
 
-      // time markers along the axis (each = when rain at that spot reaches you)
-      // v15.1: die 60-/120-Minuten-Punkte zusätzlich als "1 Std"/"2 Std"-
-      // Distanzmarken hervorheben — dieselbe Analyse, nur deutlicher markiert.
+      // time markers along the axis. (A, v15.5): only the +1h and +2h points get
+      // a full label; the 30/90-min points are just small perpendicular ticks.
+      // axis unit direction (from user outward) for drawing perpendicular ticks
+      const axLen=Math.hypot(endG.x-u.x, endG.y-u.y)||1;
+      const axx=(endG.x-u.x)/axLen, axy=(endG.y-u.y)/axLen;
+      const perpx=-axy, perpy=axx;
       A.samples.forEach(s=>{
         const p=G(s.gx,s.gy);
         const hourLbl = s.min===60?"1 Std":s.min===120?"2 Std":null;
-        const timeLbl=fmtTime(s.t);
-        const dotR = hourLbl ? (s.wet?4.4:3.4) : (s.wet?3.4:2.4);
-        // tick dot
-        ctx.beginPath();ctx.arc(p.x,p.y,dotR,0,7);
-        ctx.fillStyle=s.wet?"rgba(255,90,77,.95)":(isLight?"rgba(40,55,80,.5)":"rgba(255,255,255,.5)");
-        ctx.fill();
-        if(hourLbl){ // Betonungsring für die 1h/2h-Marken
-          ctx.beginPath();ctx.arc(p.x,p.y,dotR+2.5,0,7);
-          ctx.strokeStyle=s.wet?"rgba(255,90,77,.55)":(isLight?"rgba(40,55,80,.35)":"rgba(255,255,255,.4)");
-          ctx.lineWidth=1.4; ctx.stroke();
+        if(!hourLbl){
+          // half-hour tick: short perpendicular dash across the axis
+          const tk=3.5;
+          ctx.beginPath();
+          ctx.moveTo(p.x-perpx*tk, p.y-perpy*tk);
+          ctx.lineTo(p.x+perpx*tk, p.y+perpy*tk);
+          ctx.strokeStyle=s.wet?"rgba(255,90,77,.9)":(isLight?"rgba(40,55,80,.5)":"rgba(255,255,255,.55)");
+          ctx.lineWidth=1.6; ctx.lineCap="round"; ctx.stroke();
+          return;
         }
-        const lbl=hourLbl||timeLbl, sub=hourLbl?timeLbl:null;
+        const timeLbl=fmtTime(s.t);
+        const dotR = s.wet?4.4:3.4;
+        // emphasised dot for the hour marks
+        ctx.beginPath();ctx.arc(p.x,p.y,dotR,0,7);
+        ctx.fillStyle=s.wet?"rgba(255,90,77,.95)":(isLight?"rgba(40,55,80,.6)":"rgba(255,255,255,.6)");
+        ctx.fill();
+        ctx.beginPath();ctx.arc(p.x,p.y,dotR+2.5,0,7);
+        ctx.strokeStyle=s.wet?"rgba(255,90,77,.55)":(isLight?"rgba(40,55,80,.35)":"rgba(255,255,255,.4)");
+        ctx.lineWidth=1.4; ctx.stroke();
+        const lbl=hourLbl, sub=timeLbl;
         ctx.font="700 10px "+getComputedStyle(document.body).fontFamily;
-        const tw=Math.max(ctx.measureText(lbl).width, sub?ctx.measureText(sub).width*0.85:0)+10;
-        const boxH=sub?27:15;
+        const tw=Math.max(ctx.measureText(lbl).width, ctx.measureText(sub).width*0.85)+10;
+        const boxH=27;
         let lx=p.x+7; if(lx+tw>cssW-3) lx=p.x-7-tw;
         let ly=p.y-7; ly=Math.max(2, Math.min(cssH-3-boxH, ly));
-        // label pill (clamped on-canvas)
         ctx.fillStyle = s.wet ? "rgba(255,90,77,.95)"
                        : (isLight?"rgba(255,255,255,.9)":"rgba(21,15,31,.82)");
         roundRect(ctx, lx, ly, tw, boxH, 7); ctx.fill();
         ctx.fillStyle = s.wet ? "#fff" : (isLight?"#1a2230":"#d9cfe6");
         ctx.textAlign="center";ctx.textBaseline="middle";
-        ctx.fillText(lbl, lx+tw/2, ly+(sub?10:8));
-        if(sub){
-          ctx.font="600 8px "+getComputedStyle(document.body).fontFamily;
-          ctx.globalAlpha=0.75;
-          ctx.fillText(sub, lx+tw/2, ly+20);
-          ctx.globalAlpha=1;
-        }
+        ctx.fillText(lbl, lx+tw/2, ly+10);
+        ctx.font="600 8px "+getComputedStyle(document.body).fontFamily;
+        ctx.globalAlpha=0.75;
+        ctx.fillText(sub, lx+tw/2, ly+20);
+        ctx.globalAlpha=1;
       });
+
+      // Playback-Marker (C, v15.5): kleiner Ring, der auf der Achse an die
+      // Position des gerade abgespielten Frames wandert. min-Offset des aktuellen
+      // Frames relativ zu "jetzt" → Position entlang derselben speed·min-Skala
+      // wie die Ankunftspunkte, damit er synchron zum Loop läuft.
+      if(A.speed>0){
+        const frameMin=(map.frames[idx].time.getTime()-Date.now())/60000;
+        if(frameMin>2 && frameMin<=125){                 // nur vorwärts, im Achsen-Bereich
+          const dist=A.speed*frameMin;
+          const mg=G(A.userX+uw.x*dist, A.userY+uw.y*dist);
+          ctx.beginPath();ctx.arc(mg.x,mg.y,5.5,0,7);
+          ctx.strokeStyle=isLight?"#1a2230":"#fff"; ctx.lineWidth=2; ctx.stroke();
+          ctx.beginPath();ctx.arc(mg.x,mg.y,2,0,7);
+          ctx.fillStyle=isLight?"#1a2230":"#fff"; ctx.fill();
+        }
+      }
 
       // headline pill near the user: arrival time or "kein Regen"
       const head = A.arrival ? `Regen ~${fmtTime(A.arrival.t)}`+(A.fromDir?` · aus ${A.fromDir}`:"")
