@@ -19,7 +19,7 @@
    Runs synchronously in <head> BEFORE the body renders so the
    correct GUI is shown immediately (no layout flash).
    ============================================================ */
-window.APP_VERSION = "v16.4";
+window.APP_VERSION = "v16.5";
 
 // fetch mit Timeout: ein hängender Request darf nie die ganze Ladekette blockieren
 window.fetchT=function(url,opts,ms){
@@ -4202,19 +4202,21 @@ document.addEventListener("visibilitychange", ()=>{
         ctx.globalAlpha=1;
       });
 
-      // Playback-Marker (C, v15.5, Fix v15.8): kleiner Ring, der auf der Achse
-      // an die Position des gerade abgespielten Frames wandert.
+      // Playback-Marker (C, v15.5, Fix v15.8, Fix v16.5): kleiner Ring, der
+      // auf der Achse an die Position des gerade abgespielten Frames wandert.
       // Bug bis v15.7: dist=A.speed*frameMin wuchs MIT frameMin — der Marker
-      // lief also mit fortschreitender Zeit vom Standort WEG (Richtung 2-Std-
-      // Punkt), statt sich ihm zu nähern. Jetzt linear interpoliert: Start am
-      // 1-Std-Punkt bei frameMin=0 ("jetzt"), Ankunft am Standort bei
-      // frameMin=120 (Ende der 2h-Prognose-Animation). Der 2-Std-Punkt bleibt
-      // eine statische Referenzmarke, die der Marker nicht anläuft.
+      // lief also mit fortschreitender Zeit vom Standort WEG.
+      // v15.8 hatte ihn nur auf der HALBEN Achse laufen lassen (1-Std-Punkt
+      // → Standort) — dadurch blieb der 2-Std-Punkt in der Animation
+      // ungenutzt, obwohl die Animation als "2h-Vorschau" beworben wird.
+      // Jetzt läuft er über die GANZE Achse, synchron zur ganzen 2h-Laufzeit:
+      // Start am 2-Std-Punkt bei frameMin=0 ("jetzt"), genau am 1-Std-Punkt
+      // bei frameMin=60, Ankunft am Standort bei frameMin=120.
       if(A.speed>0){
         const frameMin=(map.frames[idx].time.getTime()-Date.now())/60000;
         const TOTAL_MIN=120;
         const frac=Math.max(0, Math.min(1, frameMin/TOTAL_MIN));
-        const dist=A.speed*60*(1-frac);
+        const dist=A.speed*TOTAL_MIN*(1-frac);
         const mg=G(A.userX+uw.x*dist, A.userY+uw.y*dist);
         ctx.beginPath();ctx.arc(mg.x,mg.y,5.5,0,7);
         ctx.strokeStyle=isLight?"#1a2230":"#fff"; ctx.lineWidth=2; ctx.stroke();
@@ -4678,12 +4680,14 @@ document.querySelectorAll(".app-version").forEach(el=>{
         }
       });
 
-      // Playback-Marker (Fix v15.8, geteilt mit Desktop): Start am 1h-Punkt
-      // bei frameMin=0 ("jetzt"), Ankunft am Standort bei frameMin=120.
+      // Playback-Marker (Fix v15.8, Fix v16.5, geteilt mit Desktop): läuft
+      // über die GANZE Achse, synchron zur ganzen 2h-Laufzeit — Start am
+      // 2h-Punkt bei frameMin=0, genau am 1h-Punkt bei frameMin=60, Ankunft
+      // am Standort bei frameMin=120.
       if(A.speed>0){
         const frameMin=(frame.time.getTime()-Date.now())/60000;
         const frac=Math.max(0, Math.min(1, frameMin/120));
-        const dist=A.speed*60*(1-frac);
+        const dist=A.speed*120*(1-frac);
         const mg=P(A.userX+uw.x*dist, A.userY+uw.y*dist);
         ctx.beginPath(); ctx.arc(mg.x,mg.y,3.5,0,7);
         ctx.strokeStyle=isLight?"#1a2230":"#fff"; ctx.lineWidth=1.6; ctx.stroke();
