@@ -19,7 +19,7 @@
    Runs synchronously in <head> BEFORE the body renders so the
    correct GUI is shown immediately (no layout flash).
    ============================================================ */
-window.APP_VERSION = "v15.5";
+window.APP_VERSION = "v15.6";
 
 // fetch mit Timeout: ein hängender Request darf nie die ganze Ladekette blockieren
 window.fetchT=function(url,opts,ms){
@@ -223,7 +223,7 @@ getUiMode();
      ohne die visuelle Größe zu ändern. ::before spannt die Hit-Area auf. */
   .iconbtn,.radar-play,.locsheet-close,.modal-close,.notify-btn{position:relative}
   .iconbtn::before,.radar-play::before,.locsheet-close::before,.modal-close::before,
-  .notify-btn::before,.warn-btn::before{
+  .notify-btn::before{
     content:"";position:absolute;inset:-6px;border-radius:inherit;
   }
 
@@ -507,15 +507,6 @@ getUiMode();
   .footnote b{color:var(--ink-2);font-weight:600}
 
   /* ---------- Weather warning button + badge ---------- */
-  .warn-btn{
-    position:relative;flex:none;
-    width:var(--btn-round);height:var(--btn-round);border-radius:50%;
-    border:1px solid rgba(255,138,61,.4);
-    background:rgba(255,138,61,.14);
-    color:var(--t-hot);display:grid;place-items:center;cursor:pointer;
-    margin:0 4px;transition:.2s;
-  }
-  .warn-btn:hover{background:rgba(255,138,61,.24)}
   /* Prominenter Warn-Streifen (v14.1): sichtbarer als das reine Icon,
      bei "Bedrohung für Leben/Besitz" angemessen auffällig. */
   .warn-strip{
@@ -533,14 +524,6 @@ getUiMode();
     border-color:var(--t-scorch);background:rgba(255,90,77,.16);
   }
   .warn-strip.sev-3 .ws-ic{color:var(--t-scorch)}
-  .warn-btn svg{width:50%;height:50%}
-  .warn-btn.sev-3{border-color:rgba(255,90,77,.6);background:rgba(255,90,77,.18);color:var(--t-scorch)}
-  .warn-count{
-    position:absolute;top:-4px;right:-4px;
-    min-width:15px;height:15px;padding:0 3px;border-radius:var(--radius-pill);
-    background:var(--t-scorch);color:#fff;font-size:var(--fs-xs);font-weight:700;
-    display:grid;place-items:center;line-height:1;
-  }
   /* ---------- Hero weather icon ---------- */
   .wx-icon{
     flex:1 1 auto;width:clamp(56px,20vw,100px);height:clamp(56px,20vw,100px);
@@ -939,10 +922,6 @@ getUiMode();
         </div>
       </div>
       <button class="wx-icon" id="wx-icon" aria-label="Aktuelles Wetter" style="display:none"></button>
-      <button class="warn-btn" id="warn-btn" aria-label="Wetterwarnung anzeigen" style="display:none">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.6 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.6a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
-        <span class="warn-count" id="warn-count"></span>
-      </button>
     </div>
     <button class="warn-strip" id="warn-strip" style="display:none" aria-label="Wetterwarnung anzeigen">
       <svg class="ws-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.6 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.6a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
@@ -2870,14 +2849,6 @@ function fitHeroHeights(){
     iconEl.style.width=iconSize+"px";
     iconEl.style.height=iconSize+"px";
   }
-  // The warning button takes over the same hero slot when alerts are active —
-  // scale it identically so it never sits tiny in a tall slot. Its SVG is
-  // sized at 50% in CSS, so it grows along automatically.
-  const warnEl=document.getElementById("warn-btn");
-  if(warnEl){
-    warnEl.style.width=iconSize+"px";
-    warnEl.style.height=iconSize+"px";
-  }
 }
 let __fitHeroTimer;
 function scheduleFitHero(){
@@ -3025,26 +2996,21 @@ function fmtAlertTime(iso){
 }
 function applyAlerts(alerts){
   __alerts=alerts||[];
-  const btn=document.getElementById("warn-btn");
-  const cnt=document.getElementById("warn-count");
   const wx=document.getElementById("wx-icon");
   const strip=document.getElementById("warn-strip");
   const stripTxt=document.getElementById("warn-strip-text");
-  if(!btn) return;
+  if(!strip) return;
   if(!__alerts.length){
-    btn.style.display="none";
-    if(strip) strip.style.display="none";
+    strip.style.display="none";
     if(wx && wx.innerHTML.trim()) wx.style.display="grid";  // restore weather icon
     return;
   }
   // v14.1: Der prominente Warn-Streifen übernimmt die Kommunikation. Das
-  // Hero-Wetter-Icon bleibt sichtbar (der Streifen ist auffällig genug),
-  // der kompakte warn-btn bleibt als zweites Tap-Ziel erhalten.
+  // Hero-Wetter-Icon bleibt sichtbar (der Streifen ist auffällig genug).
+  // v15.6: der zusätzliche kompakte warn-btn im Hero wurde entfernt — er
+  // clashte optisch mit dem Wetter-Icon und war neben dem Streifen redundant.
   if(wx && wx.innerHTML.trim()) wx.style.display="grid";
-  btn.style.display="grid";
   const maxSev=Math.max(...__alerts.map(a=>a.sev));
-  btn.classList.toggle("sev-3", maxSev>=3);
-  if(cnt) cnt.textContent=__alerts.length>1?__alerts.length:"";
   // Streifen: wichtigste Warnung als Kurztext, Rest als "+N"
   if(strip && stripTxt){
     const top=__alerts[0]; // bereits nach Schwere sortiert
@@ -3367,8 +3333,6 @@ function closeLegendModal(){ const m=document.getElementById("legend-modal"); if
 function openWarnModal(){ const m=document.getElementById("warn-modal"); if(m) m.style.display="flex"; }
 function closeWarnModal(){ const m=document.getElementById("warn-modal"); if(m) m.style.display="none"; }
 document.addEventListener("DOMContentLoaded",()=>{
-  const btn=document.getElementById("warn-btn");
-  if(btn) btn.addEventListener("click", openWarnModal);
   const strip=document.getElementById("warn-strip");
   if(strip) strip.addEventListener("click", openWarnModal);
   const close=document.getElementById("warn-close");
