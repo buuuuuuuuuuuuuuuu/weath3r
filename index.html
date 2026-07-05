@@ -19,7 +19,7 @@
    Runs synchronously in <head> BEFORE the body renders so the
    correct GUI is shown immediately (no layout flash).
    ============================================================ */
-window.APP_VERSION = "v16.6";
+window.APP_VERSION = "v16.7";
 
 // fetch mit Timeout: ein hängender Request darf nie die ganze Ladekette blockieren
 window.fetchT=function(url,opts,ms){
@@ -2444,15 +2444,21 @@ function drawChart(canvasId, day, opts){
   cv._warnHit=null; // pro Zeichnung neu — nur gesetzt, wenn unten ein Dreieck gezeichnet wird
   if(day.alerts && day.alerts.length){
     const sevCol=[cssVar("--t-mild"),cssVar("--t-warm"),cssVar("--t-hot"),cssVar("--t-scorch")];
+    // v16.7: Balken+Icon liegen jetzt auf der ursprünglichen Zeit-Punkt-Höhe
+    // (padT-6, im bisher leeren Rand über dem Chart-Inhalt) — nicht mehr bei
+    // padT. Der Zeit-Punkt selbst bleibt unverändert auf seiner angestammten
+    // Position; die Warnzeile zieht zu ihm, nicht umgekehrt (Richtung auf
+    // Nutzerwunsch getauscht gegenüber v16.6).
+    const warnY = padT - 6;
     day.alerts.forEach((al,i)=>{
       const from=Math.max(0,Math.min(24,al.from)), to=Math.max(0,Math.min(24,al.to));
       if(to<=from) return;
       const col=sevCol[al.sev!=null?al.sev:2];
-      const ay=padT + i*5;          // stack multiple warnings thinly
+      const ay=warnY-1.5 + i*5;      // stack multiple warnings thinly
       const xa=X(from), xb=X(to);
-      // translucent fill spanning full plot height
+      // translucent fill spanning from the marker row down through the plot
       ctx.fillStyle=col+"22";
-      ctx.fillRect(xa, padT, xb-xa, (H-padB)-padT);
+      ctx.fillRect(xa, ay, xb-xa, (H-padB)-ay);
       // solid top marker bar
       roundBar(ctx, xa+1, ay, xb-xa-2, 3, col);
     });
@@ -2464,7 +2470,7 @@ function drawChart(canvasId, day, opts){
     const top=day.alerts[0];
     const topFrom=Math.max(0,Math.min(24,top.from));
     const topCol=sevCol[top.sev!=null?top.sev:2];
-    const ix=X(topFrom)+9, iy=padT+1.5;
+    const ix=X(topFrom)+9, iy=warnY;
     drawWarnTriangleIcon(ctx, ix, iy, 5, topCol);
     cv._warnHit={x:ix-12, y:iy-12, w:24, h:24};
   }
@@ -2555,16 +2561,11 @@ function drawChart(canvasId, day, opts){
   /* --- NOW marker --- */
   if(day.now!=null){
     const nx=X(day.now);
-    // v16.1: Punkt saß bei y=padT — der oberen KANTE des Warnbalkens, nicht
-    // seiner Mitte. Das sah wie eine Kollision aus, nicht wie ein bewusst
-    // gestalteter Bezug zwischen beiden Elementen.
-    // v16.6: Jetzt exakt auf der vertikalen Mitte der obersten Warnzeile
-    // zentriert (die Zeile sitzt bei padT bis padT+3, Mitte = padT+1.5) —
-    // wie eine Perle auf einem Faden, statt zwei knapp benachbarter,
-    // versetzter Elemente. Gilt unabhängig davon, ob an diesem Tag gerade
-    // eine Warnung aktiv ist (dann bleibt es die feste Bezugsposition knapp
-    // über den Himmelsspuren).
-    const nowY = padT + 1.5;
+    // v16.1: Punkt saß bei y=padT — der oberen KANTE des Warnbalkens.
+    // v16.6 hatte versucht, den Punkt stattdessen zur Warnlinie zu schieben
+    // (Mitte bei padT+1.5) — falsche Richtung. v16.7: zurück auf die
+    // angestammte Position; die Warnzeile (Balken+Icon) zieht jetzt zu IHR.
+    const nowY = padT - 6;
     ctx.setLineDash([3,3]);
     ctx.strokeStyle="rgba(255,90,77,.9)";ctx.lineWidth=1.5;
     ctx.beginPath();ctx.moveTo(nx,nowY);ctx.lineTo(nx,H-padB);ctx.stroke();
