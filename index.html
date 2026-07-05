@@ -19,7 +19,7 @@
    Runs synchronously in <head> BEFORE the body renders so the
    correct GUI is shown immediately (no layout flash).
    ============================================================ */
-window.APP_VERSION = "v16.0";
+window.APP_VERSION = "v16.2";
 
 // fetch mit Timeout: ein hängender Request darf nie die ganze Ladekette blockieren
 window.fetchT=function(url,opts,ms){
@@ -520,6 +520,16 @@ getUiMode();
   .warn-strip .ws-text{flex:1;min-width:0;font-size:var(--fs-base);font-weight:600;
     line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .warn-strip .ws-chev{width:16px;height:16px;flex:none;color:var(--ink-3)}
+  /* v16.2: alle 4 Schweregrade — dieselbe Skala wie die Warnbänder in der
+     Tages-Detail-Ansicht (sevCol). sev-2 ist der Basis-Stil oben (t-hot). */
+  .warn-strip.sev-0{
+    border-color:var(--t-mild);background:rgba(155,212,90,.16);
+  }
+  .warn-strip.sev-0 .ws-ic{color:var(--t-mild)}
+  .warn-strip.sev-1{
+    border-color:var(--t-warm);background:rgba(244,196,48,.16);
+  }
+  .warn-strip.sev-1 .ws-ic{color:var(--t-warm)}
   .warn-strip.sev-3{
     border-color:var(--t-scorch);background:rgba(255,90,77,.16);
   }
@@ -621,6 +631,7 @@ getUiMode();
   .warn-item.sev-3 .wi-dot{background:var(--t-scorch)}
   .warn-item.sev-2 .wi-dot{background:var(--t-hot)}
   .warn-item.sev-1 .wi-dot{background:var(--t-warm)}
+  .warn-item.sev-0 .wi-dot{background:var(--t-mild)}
   .warn-item .wi-event{font-size:var(--fs-base);font-weight:600;color:var(--ink)}
   .warn-item .wi-time{font-size:var(--fs-xs);color:var(--ink-3);margin-bottom:6px}
   .warn-item .wi-desc{font-size:var(--fs-sm);line-height:1.5;color:var(--ink-2)}
@@ -727,9 +738,16 @@ getUiMode();
     border:2.5px solid #4A3F52; box-shadow:3px 3px 0 #4A3F52;
   }
   /* Warnstreifen ging in ersten Mockups etwas im Card-Rosa unter — hier
-     kräftiger getönt, damit er trotz des sanften Gesamtlooks auffällt. */
+     kräftiger getönt, damit er trotz des sanften Gesamtlooks auffällt.
+     v16.2: alle 4 Schweregrade eigen getönt (statt nur sev-3 vs. Rest). */
   html[data-ui-mode="watch"][data-theme="light"] #watch-ui .warn-strip{
-    background:rgba(255,111,94,.28);
+    background:rgba(255,138,61,.28);
+  }
+  html[data-ui-mode="watch"][data-theme="light"] #watch-ui .warn-strip.sev-0{
+    background:rgba(155,212,90,.30);
+  }
+  html[data-ui-mode="watch"][data-theme="light"] #watch-ui .warn-strip.sev-1{
+    background:rgba(244,196,48,.30);
   }
   html[data-ui-mode="watch"][data-theme="light"] #watch-ui .warn-strip.sev-3{
     background:rgba(255,90,77,.34);
@@ -2419,7 +2437,7 @@ function drawChart(canvasId, day, opts){
 
   /* --- DWD warning bands (time-aligned, top of plot) --- */
   if(day.alerts && day.alerts.length){
-    const sevCol=["#9bd45a","#f4c430","#ff8a3d","#ff5a4d"];
+    const sevCol=[cssVar("--t-mild"),cssVar("--t-warm"),cssVar("--t-hot"),cssVar("--t-scorch")];
     day.alerts.forEach((al,i)=>{
       const from=Math.max(0,Math.min(24,al.from)), to=Math.max(0,Math.min(24,al.to));
       if(to<=from) return;
@@ -2520,13 +2538,18 @@ function drawChart(canvasId, day, opts){
   /* --- NOW marker --- */
   if(day.now!=null){
     const nx=X(day.now);
+    // v16.1: Punkt saß bisher exakt bei y=padT — genau dort, wo bei aktiven
+    // DWD-Warnungen auch der Warnbalken sitzt (siehe oben). Jetzt etwas höher,
+    // in den bisher leeren Rand über dem eigentlichen Chart-Inhalt, damit sich
+    // beide nicht mehr überlappen.
+    const nowY = padT - 6;
     ctx.setLineDash([3,3]);
     ctx.strokeStyle="rgba(255,90,77,.9)";ctx.lineWidth=1.5;
-    ctx.beginPath();ctx.moveTo(nx,padT);ctx.lineTo(nx,H-padB);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(nx,nowY);ctx.lineTo(nx,H-padB);ctx.stroke();
     ctx.setLineDash([]);
     // dot at top
     ctx.fillStyle="#ff5a4d";
-    ctx.beginPath();ctx.arc(nx,padT,3.2,0,7);ctx.fill();
+    ctx.beginPath();ctx.arc(nx,nowY,3.2,0,7);ctx.fill();
     // v13: current time rides ALONG the marker (P1) — no more fixed header label.
     // Placed just right of the dot; flips left when the marker nears the right edge.
     if(opts.nowLabel){
@@ -2536,7 +2559,7 @@ function drawChart(canvasId, day, opts){
       ctx.fillStyle=cssVar("--ink-3");
       ctx.textBaseline="middle";
       ctx.textAlign = flip ? "right" : "left";
-      ctx.fillText(opts.nowLabel, flip ? nx-6 : nx+6, padT+1);
+      ctx.fillText(opts.nowLabel, flip ? nx-6 : nx+6, nowY+1);
       ctx.textAlign="left"; ctx.textBaseline="alphabetic";
     }
   }
@@ -3220,7 +3243,8 @@ function applyAlerts(alerts){
   const stripText=(top.event||"Wetterwarnung")+extra;
   strips.forEach(s=>{
     if(s.txt) s.txt.textContent=stripText;
-    s.el.classList.toggle("sev-3", maxSev>=3);
+    s.el.classList.remove("sev-0","sev-1","sev-2","sev-3");
+    s.el.classList.add("sev-"+Math.max(0,Math.min(3,maxSev)));
     s.el.style.display="flex";
   });
   // build modal body
@@ -3387,6 +3411,21 @@ function lgSkySwatch(state){
   x.fillRect(4,H/2-4,W-8,8);
   return c;
 }
+function lgWarnSwatch(sev){
+  // Farbfleck für einen der 4 Warn-Schweregrade — dieselbe Skala wie die
+  // Warnbänder in der Tages-Detail-Ansicht und der Warn-Streifen im Hero.
+  const c=document.createElement("canvas");
+  const W=44,H=26,DPR=window.devicePixelRatio||1;
+  c.width=W*DPR;c.height=H*DPR;c.style.width=W+"px";c.style.height=H+"px";
+  const x=c.getContext("2d");x.setTransform(DPR,0,0,DPR,0,0);
+  const tok=["--t-mild","--t-warm","--t-hot","--t-scorch"][sev]||"--t-hot";
+  x.fillStyle=cssVar(tok);
+  const r=4,bx=4,by=H/2-6,bw=W-8,bh=12;
+  x.beginPath();x.moveTo(bx+r,by);x.arcTo(bx+bw,by,bx+bw,by+bh,r);
+  x.arcTo(bx+bw,by+bh,bx,by+bh,r);x.arcTo(bx,by+bh,bx,by,r);x.arcTo(bx,by,bx+bw,by,r);
+  x.closePath();x.fill();
+  return c;
+}
 function lgSkyWindHeroSwatch(){
   // Breiter Ausschnitt für die Gruppe "Himmel & Wind": drei Modell-Reihen mit
   // bewusst unterschiedlichen Zuständen/Intensitäten (inkl. wechselnd starkem
@@ -3445,6 +3484,13 @@ const LEGEND_SPEC=[
   {group:"Himmel & Wind", hero:()=>lgSkyWindHeroSwatch(), rows:[
     {term:"Himmelsspuren", desc:"Drei Streifen, Stunde für Stunde — je Modell: Farbe zeigt Sonne, Wolken oder Regen, die Dicke, wie ausgeprägt."},
     {term:"Windband", desc:"Direkt darunter, nur AROME: Dicke&nbsp;= Windstärke, Pfeil&nbsp;= Richtung, in die er weht — ab Sturmböen orange-rot."},
+  ]},
+  {group:"Wetterwarnungen", rows:[
+    {term:"Vier Stufen", desc:"DWD-Warnungen sind nach Schwere eingefärbt — im Warn-Streifen oben in der App und als Balken oben im Tages-Chart, exakt dieselbe Farbskala."},
+    {swatch:()=>lgWarnSwatch(0), term:"Gering", desc:"Kleinere Beeinträchtigungen möglich, meist folgenlos."},
+    {swatch:()=>lgWarnSwatch(1), term:"Mäßig", desc:"Spürbare Auswirkungen, mit Vorsicht meist unproblematisch."},
+    {swatch:()=>lgWarnSwatch(2), term:"Schwer", desc:"Deutliche Gefahr, z.\u00A0B. Sturmböen oder Starkregen."},
+    {swatch:()=>lgWarnSwatch(3), term:"Extrem", desc:"Erhebliche Gefahr für Leib und Leben."},
   ]},
   {group:"Temperatur-Charts", rows:[
     {swatch:()=>lgLineSwatch([]), term:"AROME", desc:"Hauptmodell — durchgezogene Linie."},
