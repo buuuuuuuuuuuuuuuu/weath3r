@@ -2,7 +2,7 @@
    - offline shell + last-data cache
    - immediate activation, then notifies open clients of updates
    ← bump CACHE on every deploy (matches APP_VERSION) */
-const CACHE = "weath3r-v16.9";
+const CACHE = "weath3r-v17.0";
 // ACHTUNG (v16.8-Audit): Diese Dateien liegen auf GitHub Pages, sind aber
 // NICHT Teil der üblichen 6-Datei-Auslieferung (dort heißen die Icons
 // icon192.png etc. — ohne Bindestrich, und ein manifest.webmanifest ist gar

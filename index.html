@@ -19,7 +19,7 @@
    Runs synchronously in <head> BEFORE the body renders so the
    correct GUI is shown immediately (no layout flash).
    ============================================================ */
-window.APP_VERSION = "v16.9";
+window.APP_VERSION = "v17.0";
 
 // fetch mit Timeout: ein hängender Request darf nie die ganze Ladekette blockieren
 window.fetchT=function(url,opts,ms){
@@ -1736,7 +1736,11 @@ const AURORA = (function(){
       if(!base) return;
       const dateStr=base.daily.time[1]; // "morgen" laut API (respektiert timezone=auto)
       if(!dateStr) return;
-      const locKey=(+geo.lat).toFixed(2)+","+(+geo.lon).toFixed(2);
+      // Standort-Schlüssel wie accLocKey() (dort dokumentiert), hier aber
+      // inline, weil diese Funktion in einem eigenen <script>-Block vor der
+      // accLocKey-Definition liegt. v17.0: .toFixed(1) statt (2) — stabil
+      // gegen GPS-Drift, sonst kommen nie ≥3 Tage am selben Key zusammen.
+      const locKey=(+geo.lat).toFixed(1)+","+(+geo.lon).toFixed(1);
       const pred={};
       perModel.forEach((pm,mi)=>{
         const dd=pm.daily, H=pm.hourly;
@@ -3388,6 +3392,18 @@ function escapeHtml(s){
   return (s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 }
 
+// v17.0: Standort-Schlüssel für die Treffergenauigkeit. FRÜHER .toFixed(2)
+// (~1,1 km Raster) — das lag so fein, dass schon GPS-Drift von wenigen Metern
+// über eine Rundungsgrenze sprang (z. B. 52.455 → mal "52.46", mal "52.45").
+// Folge: Vorhersage unter Key A gespeichert, Anzeige filterte später mit Key B
+// → nie ≥3 Tage am "selben" Standort → dauerhaft "Sammelt Daten".
+// Jetzt .toFixed(1) (~11 km Raster): der ganze Bezirk fällt in eine Zelle,
+// fürs Wetter mehr als fein genug, und stabil gegen GPS-Jitter.
+function accLocKey(geo){
+  if(!geo || geo.lat==null || geo.lon==null) return null;
+  return (+geo.lat).toFixed(1)+","+(+geo.lon).toFixed(1);
+}
+
 /* ===================== Treffergenauigkeit (v14.4) =====================
    Gleicht offene Vorhersagen (aus captureModelPredictions, AURORA-Modul)
    gegen die echte DWD-Messung ab, sobald der Zieltag vorbei ist. Nutzt
@@ -3397,7 +3413,24 @@ function escapeHtml(s){
 async function resolveAccuracyLog(geo){
   try{
     if(!geo || geo.lat==null) return;
-    const locKey=(+geo.lat).toFixed(2)+","+(+geo.lon).toFixed(2);
+    // v17.0: Einmalige Migration bestehender Einträge auf das gröbere
+    // Standort-Raster. Alte Keys (z. B. "52.46,13.58") werden auf accLocKey
+    // umgerundet, sonst würden bereits gesammelte Tage nach dem Update aus
+    // der Anzeige fallen. Verlustfrei, idempotent (Flag in localStorage).
+    try{
+      if(localStorage.getItem("w3_acc_keymig")!=="1"){
+        const regrid=k=>{ const m=/^(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)$/.exec(k||"");
+          return m ? (+m[1]).toFixed(1)+","+(+m[2]).toFixed(1) : k; };
+        for(const K of ["w3_acc_log","w3_acc_pending"]){
+          let arr=[]; try{ arr=JSON.parse(localStorage.getItem(K)||"[]"); }catch(e){}
+          let changed=false;
+          arr.forEach(e=>{ if(e && e.loc){ const nk=regrid(e.loc); if(nk!==e.loc){ e.loc=nk; changed=true; } } });
+          if(changed) localStorage.setItem(K, JSON.stringify(arr));
+        }
+        localStorage.setItem("w3_acc_keymig","1");
+      }
+    }catch(e){}
+    const locKey=accLocKey(geo);
     let pending=[]; try{ pending=JSON.parse(localStorage.getItem("w3_acc_pending")||"[]"); }catch(e){}
     if(!pending.length) return;
     let log=[]; try{ log=JSON.parse(localStorage.getItem("w3_acc_log")||"[]"); }catch(e){}
@@ -3453,7 +3486,7 @@ async function resolveAccuracyLog(geo){
 }
 function computeAccuracyStats(geo){
   let log=[]; try{ log=JSON.parse(localStorage.getItem("w3_acc_log")||"[]"); }catch(e){}
-  const locKey=(geo && geo.lat!=null) ? (+geo.lat).toFixed(2)+","+(+geo.lon).toFixed(2) : null;
+  const locKey=accLocKey(geo);
   const relevant=locKey ? log.filter(e=>e.loc===locKey) : log;
   const stats={};
   (AURORA.MODELS||[]).forEach(m=>{ stats[m.id]={tempSum:0,tempN:0,rainSum:0,rainN:0,skySum:0,skyN:0,label:m.label,dash:m.dash}; });
