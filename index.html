@@ -19,7 +19,7 @@
    Runs synchronously in <head> BEFORE the body renders so the
    correct GUI is shown immediately (no layout flash).
    ============================================================ */
-window.APP_VERSION = "v17.2";
+window.APP_VERSION = "v17.3";
 
 // fetch mit Timeout: ein hängender Request darf nie die ganze Ladekette blockieren
 window.fetchT=function(url,opts,ms){
@@ -261,16 +261,55 @@ getUiMode();
   }
   .locgps-btn:hover{border-color:rgba(120,160,220,.45)}
   .locgps-btn svg{width:16px;height:16px;color:var(--rain)}
+  /* Favoriten (v17.3) — gleiche Bauart wie .locgps-btn, plus die Liste darunter */
+  .locfav-current{
+    width:100%;margin-top:8px;display:flex;align-items:center;gap:9px;justify-content:center;
+    font-size:var(--fs-base);font-weight:600;color:var(--ink);background:var(--card-2);
+    border:1px solid var(--stroke);border-radius:var(--radius-sm);padding:var(--sp-3);cursor:pointer;transition:.15s;
+  }
+  .locfav-current:hover{border-color:rgba(120,160,220,.45)}
+  .locfav-current .lfc-star{width:16px;height:16px;color:var(--ink-3);flex:none}
+  .locfav-current.saved .lfc-star{color:var(--t-warm);fill:var(--t-warm)}
+  .locfav-list{margin-top:10px;display:flex;flex-direction:column;gap:0}
+  .locfav-list:not(:empty){border-top:1px solid var(--stroke-2);margin-top:12px;padding-top:2px}
+  .locfav-row{
+    display:flex;align-items:center;gap:8px;width:100%;
+    border-top:1px solid var(--stroke-2);padding:var(--sp-2) 0;
+  }
+  .locfav-row:first-child{border-top:none}
+  .locfav-row .lf-btn{
+    flex:1;min-width:0;text-align:left;background:none;border:none;cursor:pointer;
+    color:var(--ink);font-family:var(--font);display:flex;flex-direction:column;gap:1px;padding:var(--sp-2) var(--sp-1);
+  }
+  .locfav-row .lf-btn:hover{background:var(--stroke-2)}
+  .locfav-row .lf-name{font-size:var(--fs-base);font-weight:600;display:flex;align-items:center;gap:6px}
+  .locfav-row .lf-name .lf-current-dot{width:6px;height:6px;border-radius:50%;background:var(--rain);flex:none}
+  .locfav-row .lf-sub{font-size:var(--fs-sm);color:var(--ink-3)}
+  .locfav-row .lf-remove{
+    flex:none;width:30px;height:30px;border-radius:50%;border:none;background:none;
+    color:var(--ink-3);display:grid;place-items:center;cursor:pointer;
+  }
+  .locfav-row .lf-remove:hover{background:var(--stroke-2);color:var(--feels)}
+  .locfav-row .lf-remove svg{width:15px;height:15px}
   .locresults{margin-top:10px;display:flex;flex-direction:column;gap:0}
   .locresult{
     text-align:left;background:none;border:none;border-top:1px solid var(--stroke-2);
     padding:var(--sp-3) var(--sp-1);cursor:pointer;color:var(--ink);font-family:var(--font);
-    display:flex;flex-direction:column;gap:2px;
+    display:flex;align-items:center;gap:8px;
   }
   .locresult:first-child{border-top:none}
   .locresult:hover{background:var(--stroke-2)}
+  .locresult .lr-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
   .locresult .lr-name{font-size:var(--fs-base);font-weight:600}
   .locresult .lr-sub{font-size:var(--fs-sm);color:var(--ink-3)}
+  .locresult .lr-star{
+    flex:none;width:30px;height:30px;border-radius:50%;border:none;background:none;
+    color:var(--ink-3);display:grid;place-items:center;cursor:pointer;
+  }
+  .locresult .lr-star:hover{background:var(--stroke-2)}
+  .locresult .lr-star svg{width:16px;height:16px}
+  .locresult .lr-star.saved{color:var(--t-warm)}
+  .locresult .lr-star.saved svg{fill:var(--t-warm)}
   .locsheet-hint{margin-top:10px;font-size:var(--fs-sm);color:var(--ink-3);line-height:1.5;min-height:16px}
   .locsheet-hint.err{color:var(--feels)}
 
@@ -988,6 +1027,11 @@ getUiMode();
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="4"/></svg>
         Aktuellen Standort verwenden (GPS)
       </button>
+      <button class="locfav-current" id="locfav-current-btn">
+        <svg class="lfc-star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5l2.9 6.6 7.1.7-5.4 4.7 1.6 7-6.2-3.8-6.2 3.8 1.6-7-5.4-4.7 7.1-.7z"/></svg>
+        <span class="lfc-text" id="locfav-current-text">Aktuellen Ort merken</span>
+      </button>
+      <div class="locfav-list" id="locfav-list"></div>
       <div class="locresults" id="locresults"></div>
       <div class="locsheet-hint" id="locsheet-hint"></div>
     </div>
@@ -3946,15 +3990,83 @@ document.addEventListener("visibilitychange", ()=>{
   const gpsBtn=document.getElementById("locgps-btn");
   const results=document.getElementById("locresults");
   const hint=document.getElementById("locsheet-hint");
+  const favBtn=document.getElementById("locfav-current-btn");
+  const favBtnText=document.getElementById("locfav-current-text");
+  const favList=document.getElementById("locfav-list");
   if(!btn||!sheet) return;
 
   let searchTimer=null;
+
+  // ---- Favoriten (v17.3): einfache Liste in localStorage, kein simultanes
+  // Rendering — nur zum Merken und schnellen Umschalten (bestehender
+  // chooseGeo/boot(true)-Mechanismus, unverändert). Auf 8 gedeckelt, damit
+  // die Liste im Sheet übersichtlich bleibt.
+  const FAV_KEY="weath3r_favorites", FAV_MAX=8;
+  function loadFavs(){
+    try{ const a=JSON.parse(localStorage.getItem(FAV_KEY)||"[]"); return Array.isArray(a)?a:[]; }catch(e){ return []; }
+  }
+  function saveFavs(list){ try{ localStorage.setItem(FAV_KEY, JSON.stringify(list)); }catch(e){} }
+  function sameSpot(a,b){
+    return a && b && Math.abs(a.lat-b.lat)<0.01 && Math.abs(a.lon-b.lon)<0.01;
+  }
+  function findFavIdx(list, geo){ return list.findIndex(f=>sameSpot(f,geo)); }
+  function addFav(geo){
+    if(!geo || geo.lat==null || geo.lon==null) return;
+    const list=loadFavs();
+    if(findFavIdx(list,geo)>=0) return; // schon gemerkt
+    list.push({ lat:+geo.lat, lon:+geo.lon, name:geo.name||"Unbenannter Ort" });
+    while(list.length>FAV_MAX) list.shift(); // älteste raus, bis zur Grenze — robust auch falls die Liste (z. B. durch alte Daten) schon vorher zu groß war
+    saveFavs(list);
+  }
+  function removeFav(geo){
+    const list=loadFavs();
+    const i=findFavIdx(list,geo);
+    if(i>=0){ list.splice(i,1); saveFavs(list); }
+  }
+
+  function renderFavCurrentBtn(){
+    if(!favBtn) return;
+    const cur=window.__currentGeo;
+    if(!cur || cur.lat==null){ favBtn.style.display="none"; return; }
+    favBtn.style.display="flex";
+    const saved=findFavIdx(loadFavs(), cur)>=0;
+    favBtn.classList.toggle("saved", saved);
+    if(favBtnText) favBtnText.textContent=saved
+      ? `${cur.name||"Dieser Ort"} gemerkt`
+      : `${cur.name||"Diesen Ort"} merken`;
+  }
+
+  function renderFavList(){
+    if(!favList) return;
+    const list=loadFavs();
+    favList.innerHTML="";
+    const cur=window.__currentGeo;
+    list.slice().reverse().forEach(f=>{ // zuletzt gemerkt zuerst
+      const row=document.createElement("div");
+      row.className="locfav-row";
+      const isCurrent=sameSpot(f,cur);
+      row.innerHTML=`
+        <button class="lf-btn" type="button">
+          <span class="lf-name">${isCurrent?'<span class="lf-current-dot"></span>':""}${escapeHtml(f.name)}</span>
+        </button>
+        <button class="lf-remove" type="button" aria-label="Favorit entfernen">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>`;
+      row.querySelector(".lf-btn").addEventListener("click", ()=>chooseGeo({lat:f.lat, lon:f.lon, name:f.name}));
+      row.querySelector(".lf-remove").addEventListener("click", e=>{
+        e.stopPropagation(); removeFav(f); renderFavList(); renderFavCurrentBtn();
+      });
+      favList.appendChild(row);
+    });
+  }
 
   function open(){
     sheet.hidden=false;
     hint.className="locsheet-hint"; hint.textContent="";
     results.innerHTML="";
     input.value="";
+    renderFavCurrentBtn();
+    renderFavList();
     setTimeout(()=>input.focus(), 50);
   }
   function close(){ sheet.hidden=true; }
@@ -3971,12 +4083,31 @@ document.addEventListener("visibilitychange", ()=>{
     results.innerHTML="";
     if(!list.length){ hint.className="locsheet-hint"; hint.textContent="Keine Treffer."; return; }
     hint.textContent="";
+    const favs=loadFavs();
     list.forEach(r=>{
       const b=document.createElement("button");
       b.className="locresult";
       const sub=[r.admin1, r.country].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(" · ");
-      b.innerHTML=`<span class="lr-name">${escapeHtml(r.name)}</span><span class="lr-sub">${escapeHtml(sub||"")}</span>`;
-      b.addEventListener("click", ()=>chooseGeo({ lat:r.lat, lon:r.lon, name:r.name }));
+      const geo={lat:r.lat, lon:r.lon, name:r.name};
+      const saved=findFavIdx(favs, geo)>=0;
+      b.innerHTML=`
+        <span class="lr-text">
+          <span class="lr-name">${escapeHtml(r.name)}</span>
+          <span class="lr-sub">${escapeHtml(sub||"")}</span>
+        </span>
+        <button class="lr-star${saved?" saved":""}" type="button" aria-label="Als Favorit speichern">
+          <svg viewBox="0 0 24 24" fill="${saved?"currentColor":"none"}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5l2.9 6.6 7.1.7-5.4 4.7 1.6 7-6.2-3.8-6.2 3.8 1.6-7-5.4-4.7 7.1-.7z"/></svg>
+        </button>`;
+      b.querySelector(".lr-text").addEventListener("click", ()=>chooseGeo(geo));
+      const starBtn=b.querySelector(".lr-star");
+      starBtn.addEventListener("click", e=>{
+        e.stopPropagation();
+        if(starBtn.classList.contains("saved")){ removeFav(geo); }
+        else{ addFav(geo); }
+        starBtn.classList.toggle("saved");
+        starBtn.querySelector("svg").setAttribute("fill", starBtn.classList.contains("saved")?"currentColor":"none");
+        renderFavCurrentBtn(); renderFavList();
+      });
       results.appendChild(b);
     });
   }
@@ -4006,6 +4137,12 @@ document.addEventListener("visibilitychange", ()=>{
   closeBtn.addEventListener("click", close);
   sheet.addEventListener("click", e=>{ if(e.target===sheet) close(); });
   gpsBtn.addEventListener("click", useGPS);
+  if(favBtn) favBtn.addEventListener("click", ()=>{
+    const cur=window.__currentGeo;
+    if(!cur) return;
+    if(findFavIdx(loadFavs(), cur)>=0) removeFav(cur); else addFav(cur);
+    renderFavCurrentBtn(); renderFavList();
+  });
   input.addEventListener("input", ()=>{ clearTimeout(searchTimer); searchTimer=setTimeout(doSearch, 280); });
   input.addEventListener("keydown", e=>{
     if(e.key==="Enter"){ e.preventDefault(); clearTimeout(searchTimer); doSearch(); }
