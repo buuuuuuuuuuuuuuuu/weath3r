@@ -19,7 +19,7 @@
    Runs synchronously in <head> BEFORE the body renders so the
    correct GUI is shown immediately (no layout flash).
    ============================================================ */
-window.APP_VERSION = "v16.9";
+window.APP_VERSION = "v18.0";
 
 // fetch mit Timeout: ein hängender Request darf nie die ganze Ladekette blockieren
 window.fetchT=function(url,opts,ms){
@@ -1586,6 +1586,19 @@ const AURORA = (function(){
   //   intensity 0.5  ↔  2 mm/h   (moderate)
   function radarInten(mmh){ return Math.max(0, Math.min(1, Math.sqrt(mmh/8))); }
 
+  // Gemeinsame Formulierung für alle drei Nowcast-Quellen (Desktop-Radar,
+  // Watch-Radar über AURORA.buildRadarNowcast, Watch-Fallback über
+  // buildMinutelyNowcast) — Audit v18 fand hier abweichenden Text zwischen
+  // Desktop und Watch; jetzt eine einzige Quelle der Wahrheit.
+  function nowcastSummaryText(pts, WET){
+    if(pts[0].mmh>=WET){
+      const stop=pts.find((p,i)=>i>0 && p.mmh<WET);
+      return stop ? `Regen lässt gegen ${stop.label} nach` : "Regen hält die nächste Stunde an";
+    }
+    const begin=pts.find(p=>p.mmh>=WET);
+    return begin ? `Regen ab ca. ${begin.label}` : "Kein Niederschlag in den nächsten 2 Std.";
+  }
+
   function buildRadarNowcast(j, now){
     if(!j || !Array.isArray(j.radar) || !j.radar.length) return null;
     const pos=j.latlon_position||{x:0,y:0};
@@ -1617,19 +1630,8 @@ const AURORA = (function(){
       return { mins, mmh:p.mmh, inten:radarInten(p.mmh), label:hh+":"+pad(mm) };
     });
     const totalMins=pts[pts.length-1].mins||120;
-
-    // textual summary (threshold ~0.1 mm/h = just-about-noticeable)
-    const WET=0.1;
-    let summary;
-    const fmt=p=>p.label;
-    if(pts[0].mmh>=WET){
-      const stop=pts.find((p,i)=>i>0 && p.mmh<WET);
-      summary = stop ? `Regen lässt gegen ${fmt(stop)} nach` : "Regen hält die nächste Stunde an";
-    } else {
-      const begin=pts.find(p=>p.mmh>=WET);
-      summary = begin ? `Regen ab ca. ${fmt(begin)}` : "Kein Niederschlag in den nächsten 2 Std.";
-    }
-    return { radar:true, totalMins, pts, summary, ts:slice[0].time.toISOString() };
+    const summary=nowcastSummaryText(pts, 0.1);
+    return { radar:true, totalMins, pts, summary };
   }
 
   // ---- DWD radar MAP (larger area for the expandable map view) ----
@@ -2141,7 +2143,7 @@ const AURORA = (function(){
 
   return { load, loadCache, MODELS, DEFAULT_LOC, fetchRadarMap, buildRadarMap,
            searchPlaces, setOverride, getOverride, resolveName, radarInten, CACHE_TTL, splitModels,
-           fetchAlerts, analyseApproach };
+           fetchAlerts, analyseApproach, getLocation, fetchRadar, buildRadarNowcast, nowcastSummaryText };
 })();
 
 </script>
@@ -2205,6 +2207,19 @@ const RAMP = [
   [28, [255,138,61]],   // hot
   [33, [255,90,77]],    // scorching
 ];
+// v18 (Code-Audit): inColor war 3× identisch dupliziert (Desktop-Mini-Chart,
+// Desktop-Erweitert, Watch) — eine gemeinsame Quelle statt drei Kopien, die
+// künftig hätten auseinanderdriften können.
+function inColor(v){
+  // v 0..1 → hellgrün → türkis → blau (Niederschlags-Intensität)
+  const stops=[[0,[46,204,113]],[.5,[26,160,170]],[1,[40,110,230]]];
+  for(let i=0;i<stops.length-1;i++){
+    const[a,ca]=stops[i],[b,cb]=stops[i+1];
+    if(v>=a&&v<=b){const k=(v-a)/(b-a);return [0,1,2].map(j=>Math.round(ca[j]+(cb[j]-ca[j])*k));}
+  }
+  return stops[stops.length-1][1];
+}
+
 function tempColor(t){
   if(t<=RAMP[0][0]) return RAMP[0][1];
   if(t>=RAMP[RAMP.length-1][0]) return RAMP[RAMP.length-1][1];
@@ -2775,17 +2790,7 @@ function drawNowcast(canvasId){
     ctx.fillStyle=cssVar("--c-axis");
     ctx.fillText(lbl, x0-4, Math.max(y, 7));
   });
-
-  // intensity → colour: light green → teal → blue (matches reference)
-  function inColor(v){
-    // v 0..1
-    const stops=[[0,[46,204,113]],[.5,[26,160,170]],[1,[40,110,230]]];
-    for(let i=0;i<stops.length-1;i++){
-      const[a,ca]=stops[i],[b,cb]=stops[i+1];
-      if(v>=a&&v<=b){const k=(v-a)/(b-a);return [0,1,2].map(j=>Math.round(ca[j]+(cb[j]-ca[j])*k));}
-    }
-    return stops[stops.length-1][1];
-  }
+  // v18: inColor() ist jetzt die gemeinsame globale Version (siehe oben)
 
   const pts=NOWCAST.pts;
   const n=pts.length;
@@ -2876,14 +2881,7 @@ function drawNowcastRadar(canvasId){
     ctx.fillText(lbl, x1+5, Math.max(y, 7));
   });
 
-  function inColor(v){
-    const stops=[[0,[46,204,113]],[.5,[26,160,170]],[1,[40,110,230]]];
-    for(let i=0;i<stops.length-1;i++){
-      const[a,ca]=stops[i],[b,cb]=stops[i+1];
-      if(v>=a&&v<=b){const k=(v-a)/(b-a);return [0,1,2].map(j=>Math.round(ca[j]+(cb[j]-ca[j])*k));}
-    }
-    return stops[stops.length-1][1];
-  }
+  // v18: inColor() ist jetzt die gemeinsame globale Version
 
   const pts=NOWCAST.pts;
   const n=pts.length;
@@ -4511,7 +4509,6 @@ document.querySelectorAll(".app-version").forEach(el=>{
   if(document.documentElement.dataset.uiMode!=="watch") return;
   "use strict";
   const DPR=Math.min(window.devicePixelRatio||1,2.5);
-  const DEFAULT_LOC={lat:52.45,lon:13.57,name:"Treptow-Köpenick"};
   const WD=["So.","Mo.","Di.","Mi.","Do.","Fr.","Sa."];
   const MO=["Jan.","Feb.","März","Apr.","Mai","Juni","Juli","Aug.","Sep.","Okt.","Nov.","Dez."];
   const pad=n=>String(n).padStart(2,"0");
@@ -4521,18 +4518,10 @@ document.querySelectorAll(".app-version").forEach(el=>{
 
   // v11: weatherWord dedupliziert — nutzt die globale Version aus Block 2
 
-  function getLocation(){
-    return new Promise(resolve=>{
-      // honour the same manual override the desktop UI uses
-      try{ const r=localStorage.getItem("weath3r_loc_override"); if(r){ const o=JSON.parse(r); if(o&&o.lat!=null){ resolve(o); return; } } }catch(e){}
-      if(!navigator.geolocation){resolve(DEFAULT_LOC);return;}
-      navigator.geolocation.getCurrentPosition(
-        p=>resolve({lat:+p.coords.latitude.toFixed(3),lon:+p.coords.longitude.toFixed(3),name:null}),
-        ()=>resolve(DEFAULT_LOC),
-        {timeout:6000,maximumAge:10*60*1000}
-      );
-    });
-  }
+  // v18 (Code-Audit): getLocation/DEFAULT_LOC dedupliziert — die lokale
+  // DEFAULT_LOC-Kopie war leicht abweichend ("Treptow-Köpenick" ohne ", Berlin").
+  const DEFAULT_LOC=AURORA.DEFAULT_LOC;
+  const getLocation=AURORA.getLocation;
   const resolveName=AURORA.resolveName; // v11: dedupliziert — kanonische Version lebt in AURORA
   async function fetchWeather(geo){
     const u=new URL("https://api.open-meteo.com/v1/forecast");
@@ -4551,41 +4540,11 @@ document.querySelectorAll(".app-version").forEach(el=>{
     return res.json();
   }
   const radarInten=AURORA.radarInten; // v11: dedupliziert — kanonische Version lebt in AURORA
-  async function fetchRadar(geo){
-    const now=new Date(),end=new Date(now.getTime()+125*60*1000);
-    const u=new URL("https://api.brightsky.dev/radar");
-    u.searchParams.set("lat",geo.lat);u.searchParams.set("lon",geo.lon);
-    u.searchParams.set("distance",1000);u.searchParams.set("format","plain");
-    u.searchParams.set("date",now.toISOString());u.searchParams.set("last_date",end.toISOString());
-    const res=await fetchT(u.toString(), 12000);
-    if(!res.ok)throw new Error("Radar "+res.status);
-    return res.json();
-  }
-  function buildRadarNowcast(j,now){
-    if(!j||!Array.isArray(j.radar)||!j.radar.length)return null;
-    const pos=j.latlon_position||{x:0,y:0};
-    const px=Math.max(0,Math.round(pos.x)),py=Math.max(0,Math.round(pos.y));
-    const frames=[];
-    j.radar.forEach(fr=>{
-      const t=new Date(fr.timestamp);let v=0;
-      try{const g=fr.precipitation_5;const row=g[py]!=null?g[py]:g[0];v=row[px]!=null?row[px]:row[0];}catch(e){v=0;}
-      if(v==null||v<0)v=0;
-      frames.push({time:t,mmh:(v/100)*12});
-    });
-    if(!frames.length)return null;
-    let s=frames.length-1;
-    for(let i=0;i<frames.length;i++){if(frames[i].time>=now){s=Math.max(0,i-1);break;}}
-    const slice=frames.slice(s);if(!slice.length)return null;
-    const t0=slice[0].time.getTime();
-    const pts=slice.map(p=>({mins:Math.round((p.time.getTime()-t0)/60000),mmh:p.mmh,inten:radarInten(p.mmh),
-      label:p.time.getHours()+":"+pad(p.time.getMinutes())}));
-    const total=pts[pts.length-1].mins||120;
-    const WET=0.1;let summary;
-    if(pts[0].mmh>=WET){const stop=pts.find((p,i)=>i>0&&p.mmh<WET);
-      summary=stop?`Regen lässt gegen ${stop.label} nach`:"Regen hält an";}
-    else{const b=pts.find(p=>p.mmh>=WET);summary=b?`Regen ab ca. ${b.label}`:"Kein Regen in den nächsten 2 Std.";}
-    return {radar:true,totalMins:total,pts,summary};
-  }
+  // v18 (Code-Audit): fetchRadar/buildRadarNowcast dedupliziert — die lokalen
+  // Kopien waren textlich leicht auseinandergedriftet ("Regen hält an" vs.
+  // "Regen hält die nächste Stunde an"). Jetzt dieselbe Quelle wie Desktop.
+  const fetchRadar=AURORA.fetchRadar;
+  const buildRadarNowcast=AURORA.buildRadarNowcast;
 
   // ===== Radarkarte-Snapshot (v15, Animation+Achse v15.9) — aufklappbar =====
   // Kein Pinch-Zoom wie am Desktop (auf 190px unpraktisch), aber jetzt eine
@@ -4774,9 +4733,7 @@ document.querySelectorAll(".app-version").forEach(el=>{
     const pts=slice.map(p=>({mins:Math.round((p.time.getTime()-t0)/60000),mmh:p.mmh,inten:radarInten(p.mmh),
       label:p.time.getHours()+":"+pad(p.time.getMinutes())}));
     const total=pts[pts.length-1].mins||120;
-    const WET=0.1;let summary;
-    if(pts[0].mmh>=WET){const stop=pts.find((p,i)=>i>0&&p.mmh<WET);summary=stop?`Regen lässt gegen ${stop.label} nach`:"Regen hält an";}
-    else{const b=pts.find(p=>p.mmh>=WET);summary=b?`Regen ab ca. ${b.label}`:"Kein Regen in den nächsten 2 Std.";}
+    const summary=AURORA.nowcastSummaryText(pts, 0.1);
     return {radar:false,totalMins:total,pts,summary};
   }
   function drawRainStrip(nc){
@@ -4790,10 +4747,7 @@ document.querySelectorAll(".app-version").forEach(el=>{
     const total=nc.totalMins||120;
     const X=m=>x0+(m/total)*plotW;
     const baseY=H-padB,barMax=H-padB-padT;
-    function inColor(v){const stops=[[0,[46,204,113]],[.5,[26,160,170]],[1,[40,110,230]]];
-      for(let i=0;i<stops.length-1;i++){const[a,ca]=stops[i],[b,cb]=stops[i+1];
-        if(v>=a&&v<=b){const k=(v-a)/(b-a);return[0,1,2].map(j=>Math.round(ca[j]+(cb[j]-ca[j])*k));}}
-      return stops[2][1];}
+    // v18: inColor() ist jetzt die gemeinsame globale Version
     const slotW=plotW/Math.max(1,nc.pts.length);
     let anyRain=false;
     nc.pts.forEach(p=>{
@@ -4823,10 +4777,13 @@ document.querySelectorAll(".app-version").forEach(el=>{
       ctx.fillText("trocken",W/2,barMax*0.5+padT);
     }
   }
-  function fmtMM(sum){
+  // v18 (Code-Audit): umbenannt von fmtMM(sum) — kollidierte namentlich mit
+  // AURORA.fmtMM(min,max), das eine andere Signatur hat. Gibt jetzt direkt
+  // ohne "mm"-Suffix zurück (einzige Aufrufstelle strippte es ohnehin wieder ab).
+  function fmtMMday(sum){
     if(sum==null||sum<0.05)return "trocken";
     const f=x=>(Math.round(x*10)/10).toString().replace(".",",");
-    return f(sum)+" mm";
+    return f(sum);
   }
   // Findet den Stunden-Index von Mitternacht (lokal) für Tag-Offset d,
   // analog zu AURORA.dayStartIndex — hier lokal, da dieser Fetch getrennt läuft.
@@ -4919,7 +4876,7 @@ document.querySelectorAll(".app-version").forEach(el=>{
       const lo=daily.temperature_2m_min?Math.round(daily.temperature_2m_min[d]):null;
       const hi=daily.temperature_2m_max?Math.round(daily.temperature_2m_max[d]):null;
       const pr=daily.precipitation_sum?daily.precipitation_sum[d]:null;
-      const dry=(pr==null||pr<0.05);const prTxt=dry?"":fmtMM(pr).replace(" mm","");
+      const dry=(pr==null||pr<0.05);const prTxt=dry?"":fmtMMday(pr);
       const loC=lo!=null?rgb(tempColor(lo)):"var(--ink-2)";
       const hiC=hi!=null?rgb(tempColor(hi)):"var(--ink)";
       const dayName=d===0?"Heute":WD[dt.getDay()];
