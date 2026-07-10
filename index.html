@@ -19,7 +19,7 @@
    Runs synchronously in <head> BEFORE the body renders so the
    correct GUI is shown immediately (no layout flash).
    ============================================================ */
-window.APP_VERSION = "v17.3";
+window.APP_VERSION = "v16.9";
 
 // fetch mit Timeout: ein hängender Request darf nie die ganze Ladekette blockieren
 window.fetchT=function(url,opts,ms){
@@ -261,55 +261,16 @@ getUiMode();
   }
   .locgps-btn:hover{border-color:rgba(120,160,220,.45)}
   .locgps-btn svg{width:16px;height:16px;color:var(--rain)}
-  /* Favoriten (v17.3) — gleiche Bauart wie .locgps-btn, plus die Liste darunter */
-  .locfav-current{
-    width:100%;margin-top:8px;display:flex;align-items:center;gap:9px;justify-content:center;
-    font-size:var(--fs-base);font-weight:600;color:var(--ink);background:var(--card-2);
-    border:1px solid var(--stroke);border-radius:var(--radius-sm);padding:var(--sp-3);cursor:pointer;transition:.15s;
-  }
-  .locfav-current:hover{border-color:rgba(120,160,220,.45)}
-  .locfav-current .lfc-star{width:16px;height:16px;color:var(--ink-3);flex:none}
-  .locfav-current.saved .lfc-star{color:var(--t-warm);fill:var(--t-warm)}
-  .locfav-list{margin-top:10px;display:flex;flex-direction:column;gap:0}
-  .locfav-list:not(:empty){border-top:1px solid var(--stroke-2);margin-top:12px;padding-top:2px}
-  .locfav-row{
-    display:flex;align-items:center;gap:8px;width:100%;
-    border-top:1px solid var(--stroke-2);padding:var(--sp-2) 0;
-  }
-  .locfav-row:first-child{border-top:none}
-  .locfav-row .lf-btn{
-    flex:1;min-width:0;text-align:left;background:none;border:none;cursor:pointer;
-    color:var(--ink);font-family:var(--font);display:flex;flex-direction:column;gap:1px;padding:var(--sp-2) var(--sp-1);
-  }
-  .locfav-row .lf-btn:hover{background:var(--stroke-2)}
-  .locfav-row .lf-name{font-size:var(--fs-base);font-weight:600;display:flex;align-items:center;gap:6px}
-  .locfav-row .lf-name .lf-current-dot{width:6px;height:6px;border-radius:50%;background:var(--rain);flex:none}
-  .locfav-row .lf-sub{font-size:var(--fs-sm);color:var(--ink-3)}
-  .locfav-row .lf-remove{
-    flex:none;width:30px;height:30px;border-radius:50%;border:none;background:none;
-    color:var(--ink-3);display:grid;place-items:center;cursor:pointer;
-  }
-  .locfav-row .lf-remove:hover{background:var(--stroke-2);color:var(--feels)}
-  .locfav-row .lf-remove svg{width:15px;height:15px}
   .locresults{margin-top:10px;display:flex;flex-direction:column;gap:0}
   .locresult{
     text-align:left;background:none;border:none;border-top:1px solid var(--stroke-2);
     padding:var(--sp-3) var(--sp-1);cursor:pointer;color:var(--ink);font-family:var(--font);
-    display:flex;align-items:center;gap:8px;
+    display:flex;flex-direction:column;gap:2px;
   }
   .locresult:first-child{border-top:none}
   .locresult:hover{background:var(--stroke-2)}
-  .locresult .lr-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
   .locresult .lr-name{font-size:var(--fs-base);font-weight:600}
   .locresult .lr-sub{font-size:var(--fs-sm);color:var(--ink-3)}
-  .locresult .lr-star{
-    flex:none;width:30px;height:30px;border-radius:50%;border:none;background:none;
-    color:var(--ink-3);display:grid;place-items:center;cursor:pointer;
-  }
-  .locresult .lr-star:hover{background:var(--stroke-2)}
-  .locresult .lr-star svg{width:16px;height:16px}
-  .locresult .lr-star.saved{color:var(--t-warm)}
-  .locresult .lr-star.saved svg{fill:var(--t-warm)}
   .locsheet-hint{margin-top:10px;font-size:var(--fs-sm);color:var(--ink-3);line-height:1.5;min-height:16px}
   .locsheet-hint.err{color:var(--feels)}
 
@@ -573,22 +534,6 @@ getUiMode();
     border-color:var(--t-scorch);background:rgba(255,90,77,.16);
   }
   .warn-strip.sev-3 .ws-ic{color:var(--t-scorch)}
-  /* Regen-Vorwarn-Kachel (v17.1): eigenständige Kachel unter dem Hero, nur
-     sichtbar wenn Regen aufzieht. Gleiche Bauart wie .warn-strip, aber in der
-     Regenfarbe des Themes und als vollwertige Kachel (nicht als Streifen im
-     Hero), da sie zwischen Hero und Nowcast als eigene Sektion sitzt. */
-  .rain-lead{
-    display:flex;align-items:center;gap:var(--sp-2);width:100%;
-    margin:0 0 var(--sp-4);padding:var(--sp-4);
-    border:1px solid var(--rain);border-radius:var(--radius-sm);
-    background:var(--card);color:var(--ink);
-    font-family:var(--font);text-align:left;cursor:pointer;
-    box-shadow:var(--shadow-sm);
-  }
-  .rain-lead .rl-ic{width:22px;height:22px;flex:none;color:var(--rain)}
-  .rain-lead .rl-text{flex:1;min-width:0;font-size:var(--fs-md);font-weight:600;
-    line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .rain-lead .rl-chev{width:16px;height:16px;flex:none;color:var(--ink-3)}
   /* ---------- Hero weather icon ---------- */
   .wx-icon{
     flex:1 1 auto;width:clamp(56px,20vw,100px);height:clamp(56px,20vw,100px);
@@ -814,12 +759,6 @@ getUiMode();
   }
   html[data-ui-mode="watch"][data-theme="light"] #watch-ui .wdaily{
     background:none; border:none; box-shadow:none;
-    /* v17.2: Basis-.wdaily hat overflow:hidden (im Dark-Theme sinnvoll, da die
-       Zeilen randlos sind). Powder Hush macht daraus einzelne Kacheln mit
-       2.5px-Rahmen + 3px-Schlagschatten — overflow:hidden schnitt deren rechte
-       und untere Ecken samt Schatten ab. Hier aufgehoben, plus etwas Luft
-       rechts/unten, damit der Schatten vollständig sichtbar bleibt. */
-    overflow:visible; padding:0 4px 4px 0;
   }
   html[data-ui-mode="watch"][data-theme="light"] #watch-ui .wdrow-wrap{
     background:var(--card); border:2.5px solid #4A3F52; border-radius:12px;
@@ -1027,11 +966,6 @@ getUiMode();
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="4"/></svg>
         Aktuellen Standort verwenden (GPS)
       </button>
-      <button class="locfav-current" id="locfav-current-btn">
-        <svg class="lfc-star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5l2.9 6.6 7.1.7-5.4 4.7 1.6 7-6.2-3.8-6.2 3.8 1.6-7-5.4-4.7 7.1-.7z"/></svg>
-        <span class="lfc-text" id="locfav-current-text">Aktuellen Ort merken</span>
-      </button>
-      <div class="locfav-list" id="locfav-list"></div>
       <div class="locresults" id="locresults"></div>
       <div class="locsheet-hint" id="locsheet-hint"></div>
     </div>
@@ -1057,13 +991,6 @@ getUiMode();
       <svg class="ws-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
     </button>
   </section>
-
-  <!-- RAIN LEAD-TIME · erscheint nur, wenn Regen aufzieht (v17.1) -->
-  <button class="rain-lead" id="rain-lead" style="display:none" aria-label="Zur 2-Stunden-Vorhersage">
-    <svg class="rl-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 13v6"/><path d="M8 13v6"/><path d="M12 15v6"/><path d="M20 16.6A5 5 0 0 0 18 7h-1.3A8 8 0 1 0 4 15.2"/></svg>
-    <span class="rl-text" id="rain-lead-text"></span>
-    <svg class="rl-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
-  </button>
 
   <!-- NOWCAST · next 2h -->
   <section class="nowcast" id="nowcast-card">
@@ -1809,11 +1736,7 @@ const AURORA = (function(){
       if(!base) return;
       const dateStr=base.daily.time[1]; // "morgen" laut API (respektiert timezone=auto)
       if(!dateStr) return;
-      // Standort-Schlüssel wie accLocKey() (dort dokumentiert), hier aber
-      // inline, weil diese Funktion in einem eigenen <script>-Block vor der
-      // accLocKey-Definition liegt. v17.0: .toFixed(1) statt (2) — stabil
-      // gegen GPS-Drift, sonst kommen nie ≥3 Tage am selben Key zusammen.
-      const locKey=(+geo.lat).toFixed(1)+","+(+geo.lon).toFixed(1);
+      const locKey=(+geo.lat).toFixed(2)+","+(+geo.lon).toFixed(2);
       const pred={};
       perModel.forEach((pm,mi)=>{
         const dd=pm.daily, H=pm.hourly;
@@ -2097,17 +2020,13 @@ const AURORA = (function(){
     return mx;
   }
   // ---- drift by cross-correlation (matches the visible motion in the loop) ---
-  // v16.9: optionale Gewichtungsfunktion wfn(x,y)→[0..1] pro Feinzelle —
-  // Grundlage der standortgewichteten Drift (siehe approachEstimateDrift).
-  function approachCoarsen(grid,w,h,D,wfn){
+  function approachCoarsen(grid,w,h,D){
     const cw=Math.ceil(w/D), ch=Math.ceil(h/D);
     const out=new Float32Array(cw*ch);
     for(let y=0;y<h;y++){const row=grid[y];if(!row)continue;
       for(let x=0;x<w;x++){let v=row[x];if(v==null||v<0)v=0;const mmh=(v/100)*12;
         if(mmh<APPROACH_WET_CELL)continue;
-        const wgt = wfn ? wfn(x,y) : 1;
-        if(wgt<=0.001) continue;
-        out[((y/D)|0)*cw+((x/D)|0)]+=mmh*wgt;}}
+        out[((y/D)|0)*cw+((x/D)|0)]+=mmh;}}
     let sum=0; for(let i=0;i<out.length;i++) sum+=out[i];
     return {data:out,cw,ch,sum};
   }
@@ -2174,51 +2093,6 @@ const AURORA = (function(){
     if(!s || s.score<0.3) return null;
     return { vx:(s.sx*D)/dtMin, vy:(s.sy*D)/dtMin, score:s.score };
   }
-  // v16.9: Zugbahn DES Regens, der den Nutzer tatsächlich erreicht.
-  // Bisheriges Problem (dokumentierter offener Punkt "diffuse/mehrteilige
-  // Fronten"): die globale Kreuzkorrelation folgte dem massereichsten
-  // Regengebiet der ganzen Karte — auch wenn das den Nutzer nie trifft.
-  // Lösung: Der Ankunfts-Frame ist aus den Nowcast-Daten bereits bekannt
-  // (autoritativ, keine Schätzung). Wir korrelieren ein nutzerzentriertes
-  // Fenster (harter Kreis R=58 Zellen) zwischen dem Ankunfts-Frame und
-  // einem Frame ~15–75 min davor — das ankommende Objekt dominiert sein
-  // eigenes Fenster naturgemäß, Fernfronten existieren darin nicht.
-  // Erreicht kein Regen den Nutzer im 2h-Fenster, greift weiter die
-  // globale Drift (dann ist "allgemeine Zugrichtung" auch die richtige
-  // Aussage) — Verhalten wie bisher.
-  function approachEstimateDriftLocal(frames,w,h,userX,userY,arrivalIdx){
-    if(arrivalIdx==null || userX==null || userY==null) return null;
-    const D=Math.max(1,Math.round(Math.max(w,h)/64));
-    const maxS=12;
-    const R=35; // Feinzellen (≈ km) — eng genug, um die den Nutzer treffende
-                // Front von fernen Störfronten zu trennen; bei dt≤75 min zieht
-                // die ankommende Front höchstens ~35 Zellen, bleibt also im Fenster
-    const wfn=(x,y)=>{const dx=x-userX,dy=y-userY;return (dx*dx+dy*dy)<=R*R?1:0;};
-    // B: der Ankunfts-Frame (oder knapp danach, falls dort noch zu wenig Masse im Fenster)
-    let B=null,bi=-1;
-    for(let j=arrivalIdx;j<Math.min(frames.length,arrivalIdx+4);j++){
-      const c=approachCoarsen(frames[j].grid,w,h,D,wfn); if(c.sum>40){B=c;bi=j;break;}
-    }
-    if(!B) return null;
-    // A: Frame 15–75 min vor B mit Masse im Fenster — bevorzugt dt≈45 min
-    // (genug Zugweg für ein klares Signal, Objekt aber noch sicher im Fenster)
-    let A=null,ai=-1,bestGap=1e9;
-    for(let i=bi-1;i>=0;i--){
-      const dt=(frames[bi].time-frames[i].time)/60000;
-      if(dt<15) continue;
-      if(dt>75) break;
-      const c=approachCoarsen(frames[i].grid,w,h,D,wfn);
-      if(c.sum>25){
-        const gap=Math.abs(dt-45);
-        if(gap<bestGap){ bestGap=gap; A=c; ai=i; }
-      }
-    }
-    if(!A) return null;
-    const dtMin=(frames[bi].time-frames[ai].time)/60000; if(dtMin<1) return null;
-    const s=approachBestShift(A.data,B.data,A.cw,A.ch,maxS);
-    if(!s||s.score<0.3) return null;
-    return {vx:(s.sx*D)/dtMin, vy:(s.sy*D)/dtMin, score:s.score};
-  }
   function approachBearingLabel(dx,dy){
     const ang=(Math.atan2(dx, -dy)*180/Math.PI+360)%360;
     const dirs=["N","NO","O","SO","S","SW","W","NW"];
@@ -2231,18 +2105,7 @@ const AURORA = (function(){
     if(!map||!map.frames||!map.frames.length) return null;
     const {w,h,userX,userY,frames}=map;
     const nowMs=Date.now();
-    // Ankunft ZUERST bestimmen — sie ist autoritativ aus dem Nowcast und
-    // verankert die lokale Drift-Schätzung (v16.9).
-    let arrival=null;
-    for(let i=0;i<frames.length;i++){
-      if(frames[i].time.getTime()<nowMs-3*60000) continue;
-      if(approachUserWet(frames[i].grid,userX,userY,w,h)>=APPROACH_WET_CELL){ arrival={i,t:frames[i].time}; break; }
-    }
-    // Primär: Zugbahn des Regens, der den Nutzer erreicht (ankunftsverankert,
-    // nutzerzentriertes Fenster). Kein Arrival → globale Drift. Beides ohne
-    // Signal → Zentroid-Track als letzter Fallback.
-    let vel = approachEstimateDriftLocal(frames,w,h,userX,userY, arrival?arrival.i:null)
-           || approachEstimateDrift(frames,w,h);
+    let vel = approachEstimateDrift(frames,w,h);
     if(!vel){
       const cs=[];
       frames.forEach((f)=>{const c=approachFrameCentroid(f.grid,w,h); if(c&&c.mass>20) cs.push({t:f.time.getTime(),x:c.x,y:c.y});});
@@ -2251,6 +2114,11 @@ const AURORA = (function(){
         const dtMin=(b.t-a.t)/60000;
         if(dtMin>1){ vel={ vx:(b.x-a.x)/dtMin, vy:(b.y-a.y)/dtMin }; }
       }
+    }
+    let arrival=null;
+    for(let i=0;i<frames.length;i++){
+      if(frames[i].time.getTime()<nowMs-3*60000) continue;
+      if(approachUserWet(frames[i].grid,userX,userY,w,h)>=APPROACH_WET_CELL){ arrival={i,t:frames[i].time}; break; }
     }
     let upwind=null, samples=[], fromDir=null;
     const speed = vel? Math.hypot(vel.vx,vel.vy) : 0;
@@ -3079,55 +2947,9 @@ function renderNowcast(canvasId){
   else drawNowcast(canvasId);
 }
 
-// v17.1: Regen-Vorwarn-Kachel unter dem Hero. Erscheint NUR, wenn im Nowcast
-// (bevorzugt DWD-Radar, sonst minutely_15) innerhalb der nächsten 2 h Regen
-// aufzieht, der GERADE NOCH NICHT läuft — dieselbe Vorlaufzeit-Logik, die auch
-// die Push-Benachrichtigung ausspielt. Läuft es schon oder bleibt es trocken,
-// bleibt die Kachel versteckt (der Nowcast-Graph darunter trägt die Info dann).
-function updateRainLead(){
-  const el=document.getElementById("rain-lead");
-  if(!el) return;
-  const txt=document.getElementById("rain-lead-text");
-  let leadMin=null;
-  try{
-    const nc=NOWCAST;
-    if(nc && nc.pts && nc.pts.length){
-      if(nc.radar){
-        // Radar-Punkte: {mins, mmh}. Schwelle wie im Nowcast-Summary (0.1 mm/h).
-        const WET=0.1;
-        if(nc.pts[0].mmh < WET){                 // jetzt (noch) trocken
-          const begin=nc.pts.find(p=>p.mmh>=WET);
-          if(begin && begin.mins>0) leadMin=begin.mins;
-        }
-      } else {
-        // minutely_15-Punkte: {t (Std seit Basis-Mitternacht), prob}.
-        const WET=0.4;
-        if(nc.pts[0].prob < WET){
-          const t0=nc.pts[0].t;
-          const begin=nc.pts.find(p=>p.prob>=WET);
-          if(begin){
-            const m=Math.round((begin.t - t0)*60);
-            if(m>0) leadMin=m;
-          }
-        }
-      }
-    }
-  }catch(e){ leadMin=null; }
-
-  if(leadMin==null){ el.style.display="none"; return; }
-  // Formulierung: grobe, ehrliche Vorlaufzeit (nicht auf die Minute genau tun)
-  let phrase;
-  if(leadMin<=5)       phrase="Regen beginnt gleich";
-  else if(leadMin<20)  phrase=`Regen in ~${leadMin} Min.`;
-  else                 phrase=`Regen in ~${Math.round(leadMin/5)*5} Min.`;
-  if(txt) txt.textContent=phrase;
-  el.style.display="flex";
-}
-
 function renderAll(){
   if(document.documentElement.dataset.uiMode==="watch") return;
   renderNowcast("cv-nowcast");
-  updateRainLead();
   drawChart("cv-today", DATA.today, {bands:true, height:268, nowLabel: DATA._nowLabel});
   drawChart("cv-thu", DATA.thu, {bands:true, height:236});
   drawChart("cv-fri", DATA.fri, {bands:true, height:240});
@@ -3511,18 +3333,6 @@ function escapeHtml(s){
   return (s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 }
 
-// v17.0: Standort-Schlüssel für die Treffergenauigkeit. FRÜHER .toFixed(2)
-// (~1,1 km Raster) — das lag so fein, dass schon GPS-Drift von wenigen Metern
-// über eine Rundungsgrenze sprang (z. B. 52.455 → mal "52.46", mal "52.45").
-// Folge: Vorhersage unter Key A gespeichert, Anzeige filterte später mit Key B
-// → nie ≥3 Tage am "selben" Standort → dauerhaft "Sammelt Daten".
-// Jetzt .toFixed(1) (~11 km Raster): der ganze Bezirk fällt in eine Zelle,
-// fürs Wetter mehr als fein genug, und stabil gegen GPS-Jitter.
-function accLocKey(geo){
-  if(!geo || geo.lat==null || geo.lon==null) return null;
-  return (+geo.lat).toFixed(1)+","+(+geo.lon).toFixed(1);
-}
-
 /* ===================== Treffergenauigkeit (v14.4) =====================
    Gleicht offene Vorhersagen (aus captureModelPredictions, AURORA-Modul)
    gegen die echte DWD-Messung ab, sobald der Zieltag vorbei ist. Nutzt
@@ -3532,24 +3342,7 @@ function accLocKey(geo){
 async function resolveAccuracyLog(geo){
   try{
     if(!geo || geo.lat==null) return;
-    // v17.0: Einmalige Migration bestehender Einträge auf das gröbere
-    // Standort-Raster. Alte Keys (z. B. "52.46,13.58") werden auf accLocKey
-    // umgerundet, sonst würden bereits gesammelte Tage nach dem Update aus
-    // der Anzeige fallen. Verlustfrei, idempotent (Flag in localStorage).
-    try{
-      if(localStorage.getItem("w3_acc_keymig")!=="1"){
-        const regrid=k=>{ const m=/^(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)$/.exec(k||"");
-          return m ? (+m[1]).toFixed(1)+","+(+m[2]).toFixed(1) : k; };
-        for(const K of ["w3_acc_log","w3_acc_pending"]){
-          let arr=[]; try{ arr=JSON.parse(localStorage.getItem(K)||"[]"); }catch(e){}
-          let changed=false;
-          arr.forEach(e=>{ if(e && e.loc){ const nk=regrid(e.loc); if(nk!==e.loc){ e.loc=nk; changed=true; } } });
-          if(changed) localStorage.setItem(K, JSON.stringify(arr));
-        }
-        localStorage.setItem("w3_acc_keymig","1");
-      }
-    }catch(e){}
-    const locKey=accLocKey(geo);
+    const locKey=(+geo.lat).toFixed(2)+","+(+geo.lon).toFixed(2);
     let pending=[]; try{ pending=JSON.parse(localStorage.getItem("w3_acc_pending")||"[]"); }catch(e){}
     if(!pending.length) return;
     let log=[]; try{ log=JSON.parse(localStorage.getItem("w3_acc_log")||"[]"); }catch(e){}
@@ -3605,7 +3398,7 @@ async function resolveAccuracyLog(geo){
 }
 function computeAccuracyStats(geo){
   let log=[]; try{ log=JSON.parse(localStorage.getItem("w3_acc_log")||"[]"); }catch(e){}
-  const locKey=accLocKey(geo);
+  const locKey=(geo && geo.lat!=null) ? (+geo.lat).toFixed(2)+","+(+geo.lon).toFixed(2) : null;
   const relevant=locKey ? log.filter(e=>e.loc===locKey) : log;
   const stats={};
   (AURORA.MODELS||[]).forEach(m=>{ stats[m.id]={tempSum:0,tempN:0,rainSum:0,rainN:0,skySum:0,skyN:0,label:m.label,dash:m.dash}; });
@@ -3759,7 +3552,7 @@ const LEGEND_SPEC=[
     {term:"Windband", desc:"Direkt darunter, nur AROME: Dicke&nbsp;= Windstärke, Pfeil&nbsp;= Richtung, in die er weht — ab Sturmböen orange-rot."},
   ]},
   {group:"Wetterwarnungen", rows:[
-    {term:"Vier Stufen", desc:"DWD-Warnungen sind nach Schwere eingefärbt — im Warn-Streifen oben in der App und als Balken oben im Tages-Chart, exakt dieselbe Farbskala."},
+    {term:"Vier Stufen", desc:"DWD-Warnungen sind nach Schwere eingefärbt — im Warn-Streifen oben in der App und als Balken oben im Tages-Chart."},
     {swatch:()=>lgWarnSwatch(0), term:"Gering", desc:"Kleinere Beeinträchtigungen möglich, meist folgenlos."},
     {swatch:()=>lgWarnSwatch(1), term:"Mäßig", desc:"Spürbare Auswirkungen, mit Vorsicht meist unproblematisch."},
     {swatch:()=>lgWarnSwatch(2), term:"Schwer", desc:"Deutliche Gefahr, z.\u00A0B. Sturmböen oder Starkregen."},
@@ -3821,7 +3614,7 @@ function buildLegend(){
   if(acc.days<3){
     const row=document.createElement("div");row.className="lg-row";
     const tx=document.createElement("div");tx.className="lg-text";
-    tx.innerHTML=`<div class="lg-term">Sammelt Daten</div><div class="lg-desc">Seit heute wird für jedes Modell die Tages-Vorhersage gegen die echte DWD-Messung geprüft — Temperatur, Regen und Himmel. Nach ein paar Tagen steht hier, wie genau jedes Modell an diesem Standort lag.</div>`;
+    tx.innerHTML=`<div class="lg-term">Sammelt Daten</div><div class="lg-desc">Seit 8.6.2026 wird für jedes Modell die Tages-Vorhersage gegen die echte DWD-Messung geprüft — Temperatur, Regen und Himmel. Nach ein paar Tagen steht hier hoffentlich, wie genau jedes Modell am Standort der Abfrage lag.</div>`;
     row.appendChild(tx); accGrp.appendChild(row);
   } else {
     const introRow=document.createElement("div");introRow.className="lg-row";
@@ -3860,12 +3653,6 @@ document.addEventListener("DOMContentLoaded",()=>{
   if(strip) strip.addEventListener("click", openWarnModal);
   const stripW=document.getElementById("warn-strip-w");
   if(stripW) stripW.addEventListener("click", openWarnModal);
-  // Regen-Vorwarn-Kachel: zur 2-Stunden-Vorhersage scrollen (v17.1)
-  const rainLead=document.getElementById("rain-lead");
-  if(rainLead) rainLead.addEventListener("click", ()=>{
-    const nc=document.getElementById("nowcast-card");
-    if(nc) nc.scrollIntoView({behavior:"smooth", block:"start"});
-  });
   const close=document.getElementById("warn-close");
   if(close) close.addEventListener("click", closeWarnModal);
   const overlay=document.getElementById("warn-modal");
@@ -3990,83 +3777,15 @@ document.addEventListener("visibilitychange", ()=>{
   const gpsBtn=document.getElementById("locgps-btn");
   const results=document.getElementById("locresults");
   const hint=document.getElementById("locsheet-hint");
-  const favBtn=document.getElementById("locfav-current-btn");
-  const favBtnText=document.getElementById("locfav-current-text");
-  const favList=document.getElementById("locfav-list");
   if(!btn||!sheet) return;
 
   let searchTimer=null;
-
-  // ---- Favoriten (v17.3): einfache Liste in localStorage, kein simultanes
-  // Rendering — nur zum Merken und schnellen Umschalten (bestehender
-  // chooseGeo/boot(true)-Mechanismus, unverändert). Auf 8 gedeckelt, damit
-  // die Liste im Sheet übersichtlich bleibt.
-  const FAV_KEY="weath3r_favorites", FAV_MAX=8;
-  function loadFavs(){
-    try{ const a=JSON.parse(localStorage.getItem(FAV_KEY)||"[]"); return Array.isArray(a)?a:[]; }catch(e){ return []; }
-  }
-  function saveFavs(list){ try{ localStorage.setItem(FAV_KEY, JSON.stringify(list)); }catch(e){} }
-  function sameSpot(a,b){
-    return a && b && Math.abs(a.lat-b.lat)<0.01 && Math.abs(a.lon-b.lon)<0.01;
-  }
-  function findFavIdx(list, geo){ return list.findIndex(f=>sameSpot(f,geo)); }
-  function addFav(geo){
-    if(!geo || geo.lat==null || geo.lon==null) return;
-    const list=loadFavs();
-    if(findFavIdx(list,geo)>=0) return; // schon gemerkt
-    list.push({ lat:+geo.lat, lon:+geo.lon, name:geo.name||"Unbenannter Ort" });
-    while(list.length>FAV_MAX) list.shift(); // älteste raus, bis zur Grenze — robust auch falls die Liste (z. B. durch alte Daten) schon vorher zu groß war
-    saveFavs(list);
-  }
-  function removeFav(geo){
-    const list=loadFavs();
-    const i=findFavIdx(list,geo);
-    if(i>=0){ list.splice(i,1); saveFavs(list); }
-  }
-
-  function renderFavCurrentBtn(){
-    if(!favBtn) return;
-    const cur=window.__currentGeo;
-    if(!cur || cur.lat==null){ favBtn.style.display="none"; return; }
-    favBtn.style.display="flex";
-    const saved=findFavIdx(loadFavs(), cur)>=0;
-    favBtn.classList.toggle("saved", saved);
-    if(favBtnText) favBtnText.textContent=saved
-      ? `${cur.name||"Dieser Ort"} gemerkt`
-      : `${cur.name||"Diesen Ort"} merken`;
-  }
-
-  function renderFavList(){
-    if(!favList) return;
-    const list=loadFavs();
-    favList.innerHTML="";
-    const cur=window.__currentGeo;
-    list.slice().reverse().forEach(f=>{ // zuletzt gemerkt zuerst
-      const row=document.createElement("div");
-      row.className="locfav-row";
-      const isCurrent=sameSpot(f,cur);
-      row.innerHTML=`
-        <button class="lf-btn" type="button">
-          <span class="lf-name">${isCurrent?'<span class="lf-current-dot"></span>':""}${escapeHtml(f.name)}</span>
-        </button>
-        <button class="lf-remove" type="button" aria-label="Favorit entfernen">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
-        </button>`;
-      row.querySelector(".lf-btn").addEventListener("click", ()=>chooseGeo({lat:f.lat, lon:f.lon, name:f.name}));
-      row.querySelector(".lf-remove").addEventListener("click", e=>{
-        e.stopPropagation(); removeFav(f); renderFavList(); renderFavCurrentBtn();
-      });
-      favList.appendChild(row);
-    });
-  }
 
   function open(){
     sheet.hidden=false;
     hint.className="locsheet-hint"; hint.textContent="";
     results.innerHTML="";
     input.value="";
-    renderFavCurrentBtn();
-    renderFavList();
     setTimeout(()=>input.focus(), 50);
   }
   function close(){ sheet.hidden=true; }
@@ -4083,31 +3802,12 @@ document.addEventListener("visibilitychange", ()=>{
     results.innerHTML="";
     if(!list.length){ hint.className="locsheet-hint"; hint.textContent="Keine Treffer."; return; }
     hint.textContent="";
-    const favs=loadFavs();
     list.forEach(r=>{
       const b=document.createElement("button");
       b.className="locresult";
       const sub=[r.admin1, r.country].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(" · ");
-      const geo={lat:r.lat, lon:r.lon, name:r.name};
-      const saved=findFavIdx(favs, geo)>=0;
-      b.innerHTML=`
-        <span class="lr-text">
-          <span class="lr-name">${escapeHtml(r.name)}</span>
-          <span class="lr-sub">${escapeHtml(sub||"")}</span>
-        </span>
-        <button class="lr-star${saved?" saved":""}" type="button" aria-label="Als Favorit speichern">
-          <svg viewBox="0 0 24 24" fill="${saved?"currentColor":"none"}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5l2.9 6.6 7.1.7-5.4 4.7 1.6 7-6.2-3.8-6.2 3.8 1.6-7-5.4-4.7 7.1-.7z"/></svg>
-        </button>`;
-      b.querySelector(".lr-text").addEventListener("click", ()=>chooseGeo(geo));
-      const starBtn=b.querySelector(".lr-star");
-      starBtn.addEventListener("click", e=>{
-        e.stopPropagation();
-        if(starBtn.classList.contains("saved")){ removeFav(geo); }
-        else{ addFav(geo); }
-        starBtn.classList.toggle("saved");
-        starBtn.querySelector("svg").setAttribute("fill", starBtn.classList.contains("saved")?"currentColor":"none");
-        renderFavCurrentBtn(); renderFavList();
-      });
+      b.innerHTML=`<span class="lr-name">${escapeHtml(r.name)}</span><span class="lr-sub">${escapeHtml(sub||"")}</span>`;
+      b.addEventListener("click", ()=>chooseGeo({ lat:r.lat, lon:r.lon, name:r.name }));
       results.appendChild(b);
     });
   }
@@ -4137,12 +3837,6 @@ document.addEventListener("visibilitychange", ()=>{
   closeBtn.addEventListener("click", close);
   sheet.addEventListener("click", e=>{ if(e.target===sheet) close(); });
   gpsBtn.addEventListener("click", useGPS);
-  if(favBtn) favBtn.addEventListener("click", ()=>{
-    const cur=window.__currentGeo;
-    if(!cur) return;
-    if(findFavIdx(loadFavs(), cur)>=0) removeFav(cur); else addFav(cur);
-    renderFavCurrentBtn(); renderFavList();
-  });
   input.addEventListener("input", ()=>{ clearTimeout(searchTimer); searchTimer=setTimeout(doSearch, 280); });
   input.addEventListener("keydown", e=>{
     if(e.key==="Enter"){ e.preventDefault(); clearTimeout(searchTimer); doSearch(); }
@@ -5222,36 +4916,8 @@ document.querySelectorAll(".app-version").forEach(el=>{
     const n=Math.min(4,daily.time.length);
     for(let d=0;d<n;d++){
       const dt=new Date(daily.time[d]);
-      // v17.1: Min/Max NICHT nur aus dem primären daily-Feld lesen — auf
-      // manchen Geräten liefert Open-Meteo die Tageswerte ausschließlich
-      // modell-suffigiert (…_icon_d2 etc.) und das unsuffigierte
-      // temperature_2m_max bleibt leer → in der Liste standen dann nur die
-      // Modellstriche ohne Zahlen. Jetzt über alle Modelle aggregiert
-      // (kältestes Min, wärmstes Max), mit dem primären Feld als erster
-      // Quelle. Fällt alles aus, greift der stündliche Wert des Tages.
-      let loRaw=(daily.temperature_2m_min&&daily.temperature_2m_min[d]!=null)?daily.temperature_2m_min[d]:null;
-      let hiRaw=(daily.temperature_2m_max&&daily.temperature_2m_max[d]!=null)?daily.temperature_2m_max[d]:null;
-      perModel.forEach(pm=>{
-        const dd=pm.daily;
-        if(dd&&dd.temperature_2m_min&&dd.temperature_2m_min[d]!=null){
-          loRaw=(loRaw==null)?dd.temperature_2m_min[d]:Math.min(loRaw,dd.temperature_2m_min[d]);
-        }
-        if(dd&&dd.temperature_2m_max&&dd.temperature_2m_max[d]!=null){
-          hiRaw=(hiRaw==null)?dd.temperature_2m_max[d]:Math.max(hiRaw,dd.temperature_2m_max[d]);
-        }
-      });
-      // Letzter Fallback: aus den Stundenwerten des Tages ableiten
-      if((loRaw==null||hiRaw==null) && perModel[0] && perModel[0].hourly){
-        const H=perModel[0].hourly;
-        const ds=wDayStart(H.time, d);
-        if(ds!=null && H.temperature_2m){
-          let mn=Infinity,mx=-Infinity;
-          for(let h=0;h<24;h++){const v=H.temperature_2m[ds+h]; if(v!=null){ if(v<mn)mn=v; if(v>mx)mx=v; }}
-          if(mn!==Infinity){ if(loRaw==null)loRaw=mn; if(hiRaw==null)hiRaw=mx; }
-        }
-      }
-      const lo=loRaw!=null?Math.round(loRaw):null;
-      const hi=hiRaw!=null?Math.round(hiRaw):null;
+      const lo=daily.temperature_2m_min?Math.round(daily.temperature_2m_min[d]):null;
+      const hi=daily.temperature_2m_max?Math.round(daily.temperature_2m_max[d]):null;
       const pr=daily.precipitation_sum?daily.precipitation_sum[d]:null;
       const dry=(pr==null||pr<0.05);const prTxt=dry?"":fmtMM(pr).replace(" mm","");
       const loC=lo!=null?rgb(tempColor(lo)):"var(--ink-2)";
