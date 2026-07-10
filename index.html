@@ -19,7 +19,7 @@
    Runs synchronously in <head> BEFORE the body renders so the
    correct GUI is shown immediately (no layout flash).
    ============================================================ */
-window.APP_VERSION = "v17.0";
+window.APP_VERSION = "v17.1";
 
 // fetch mit Timeout: ein hängender Request darf nie die ganze Ladekette blockieren
 window.fetchT=function(url,opts,ms){
@@ -534,6 +534,22 @@ getUiMode();
     border-color:var(--t-scorch);background:rgba(255,90,77,.16);
   }
   .warn-strip.sev-3 .ws-ic{color:var(--t-scorch)}
+  /* Regen-Vorwarn-Kachel (v17.1): eigenständige Kachel unter dem Hero, nur
+     sichtbar wenn Regen aufzieht. Gleiche Bauart wie .warn-strip, aber in der
+     Regenfarbe des Themes und als vollwertige Kachel (nicht als Streifen im
+     Hero), da sie zwischen Hero und Nowcast als eigene Sektion sitzt. */
+  .rain-lead{
+    display:flex;align-items:center;gap:var(--sp-2);width:100%;
+    margin:0 0 var(--sp-4);padding:var(--sp-4);
+    border:1px solid var(--rain);border-radius:var(--radius-sm);
+    background:var(--card);color:var(--ink);
+    font-family:var(--font);text-align:left;cursor:pointer;
+    box-shadow:var(--shadow-sm);
+  }
+  .rain-lead .rl-ic{width:22px;height:22px;flex:none;color:var(--rain)}
+  .rain-lead .rl-text{flex:1;min-width:0;font-size:var(--fs-md);font-weight:600;
+    line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .rain-lead .rl-chev{width:16px;height:16px;flex:none;color:var(--ink-3)}
   /* ---------- Hero weather icon ---------- */
   .wx-icon{
     flex:1 1 auto;width:clamp(56px,20vw,100px);height:clamp(56px,20vw,100px);
@@ -991,6 +1007,13 @@ getUiMode();
       <svg class="ws-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
     </button>
   </section>
+
+  <!-- RAIN LEAD-TIME · erscheint nur, wenn Regen aufzieht (v17.1) -->
+  <button class="rain-lead" id="rain-lead" style="display:none" aria-label="Zur 2-Stunden-Vorhersage">
+    <svg class="rl-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 13v6"/><path d="M8 13v6"/><path d="M12 15v6"/><path d="M20 16.6A5 5 0 0 0 18 7h-1.3A8 8 0 1 0 4 15.2"/></svg>
+    <span class="rl-text" id="rain-lead-text"></span>
+    <svg class="rl-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+  </button>
 
   <!-- NOWCAST · next 2h -->
   <section class="nowcast" id="nowcast-card">
@@ -3006,9 +3029,55 @@ function renderNowcast(canvasId){
   else drawNowcast(canvasId);
 }
 
+// v17.1: Regen-Vorwarn-Kachel unter dem Hero. Erscheint NUR, wenn im Nowcast
+// (bevorzugt DWD-Radar, sonst minutely_15) innerhalb der nächsten 2 h Regen
+// aufzieht, der GERADE NOCH NICHT läuft — dieselbe Vorlaufzeit-Logik, die auch
+// die Push-Benachrichtigung ausspielt. Läuft es schon oder bleibt es trocken,
+// bleibt die Kachel versteckt (der Nowcast-Graph darunter trägt die Info dann).
+function updateRainLead(){
+  const el=document.getElementById("rain-lead");
+  if(!el) return;
+  const txt=document.getElementById("rain-lead-text");
+  let leadMin=null;
+  try{
+    const nc=NOWCAST;
+    if(nc && nc.pts && nc.pts.length){
+      if(nc.radar){
+        // Radar-Punkte: {mins, mmh}. Schwelle wie im Nowcast-Summary (0.1 mm/h).
+        const WET=0.1;
+        if(nc.pts[0].mmh < WET){                 // jetzt (noch) trocken
+          const begin=nc.pts.find(p=>p.mmh>=WET);
+          if(begin && begin.mins>0) leadMin=begin.mins;
+        }
+      } else {
+        // minutely_15-Punkte: {t (Std seit Basis-Mitternacht), prob}.
+        const WET=0.4;
+        if(nc.pts[0].prob < WET){
+          const t0=nc.pts[0].t;
+          const begin=nc.pts.find(p=>p.prob>=WET);
+          if(begin){
+            const m=Math.round((begin.t - t0)*60);
+            if(m>0) leadMin=m;
+          }
+        }
+      }
+    }
+  }catch(e){ leadMin=null; }
+
+  if(leadMin==null){ el.style.display="none"; return; }
+  // Formulierung: grobe, ehrliche Vorlaufzeit (nicht auf die Minute genau tun)
+  let phrase;
+  if(leadMin<=5)       phrase="Regen beginnt gleich";
+  else if(leadMin<20)  phrase=`Regen in ~${leadMin} Min.`;
+  else                 phrase=`Regen in ~${Math.round(leadMin/5)*5} Min.`;
+  if(txt) txt.textContent=phrase;
+  el.style.display="flex";
+}
+
 function renderAll(){
   if(document.documentElement.dataset.uiMode==="watch") return;
   renderNowcast("cv-nowcast");
+  updateRainLead();
   drawChart("cv-today", DATA.today, {bands:true, height:268, nowLabel: DATA._nowLabel});
   drawChart("cv-thu", DATA.thu, {bands:true, height:236});
   drawChart("cv-fri", DATA.fri, {bands:true, height:240});
@@ -3741,6 +3810,12 @@ document.addEventListener("DOMContentLoaded",()=>{
   if(strip) strip.addEventListener("click", openWarnModal);
   const stripW=document.getElementById("warn-strip-w");
   if(stripW) stripW.addEventListener("click", openWarnModal);
+  // Regen-Vorwarn-Kachel: zur 2-Stunden-Vorhersage scrollen (v17.1)
+  const rainLead=document.getElementById("rain-lead");
+  if(rainLead) rainLead.addEventListener("click", ()=>{
+    const nc=document.getElementById("nowcast-card");
+    if(nc) nc.scrollIntoView({behavior:"smooth", block:"start"});
+  });
   const close=document.getElementById("warn-close");
   if(close) close.addEventListener("click", closeWarnModal);
   const overlay=document.getElementById("warn-modal");
@@ -5004,8 +5079,36 @@ document.querySelectorAll(".app-version").forEach(el=>{
     const n=Math.min(4,daily.time.length);
     for(let d=0;d<n;d++){
       const dt=new Date(daily.time[d]);
-      const lo=daily.temperature_2m_min?Math.round(daily.temperature_2m_min[d]):null;
-      const hi=daily.temperature_2m_max?Math.round(daily.temperature_2m_max[d]):null;
+      // v17.1: Min/Max NICHT nur aus dem primären daily-Feld lesen — auf
+      // manchen Geräten liefert Open-Meteo die Tageswerte ausschließlich
+      // modell-suffigiert (…_icon_d2 etc.) und das unsuffigierte
+      // temperature_2m_max bleibt leer → in der Liste standen dann nur die
+      // Modellstriche ohne Zahlen. Jetzt über alle Modelle aggregiert
+      // (kältestes Min, wärmstes Max), mit dem primären Feld als erster
+      // Quelle. Fällt alles aus, greift der stündliche Wert des Tages.
+      let loRaw=(daily.temperature_2m_min&&daily.temperature_2m_min[d]!=null)?daily.temperature_2m_min[d]:null;
+      let hiRaw=(daily.temperature_2m_max&&daily.temperature_2m_max[d]!=null)?daily.temperature_2m_max[d]:null;
+      perModel.forEach(pm=>{
+        const dd=pm.daily;
+        if(dd&&dd.temperature_2m_min&&dd.temperature_2m_min[d]!=null){
+          loRaw=(loRaw==null)?dd.temperature_2m_min[d]:Math.min(loRaw,dd.temperature_2m_min[d]);
+        }
+        if(dd&&dd.temperature_2m_max&&dd.temperature_2m_max[d]!=null){
+          hiRaw=(hiRaw==null)?dd.temperature_2m_max[d]:Math.max(hiRaw,dd.temperature_2m_max[d]);
+        }
+      });
+      // Letzter Fallback: aus den Stundenwerten des Tages ableiten
+      if((loRaw==null||hiRaw==null) && perModel[0] && perModel[0].hourly){
+        const H=perModel[0].hourly;
+        const ds=wDayStart(H.time, d);
+        if(ds!=null && H.temperature_2m){
+          let mn=Infinity,mx=-Infinity;
+          for(let h=0;h<24;h++){const v=H.temperature_2m[ds+h]; if(v!=null){ if(v<mn)mn=v; if(v>mx)mx=v; }}
+          if(mn!==Infinity){ if(loRaw==null)loRaw=mn; if(hiRaw==null)hiRaw=mx; }
+        }
+      }
+      const lo=loRaw!=null?Math.round(loRaw):null;
+      const hi=hiRaw!=null?Math.round(hiRaw):null;
       const pr=daily.precipitation_sum?daily.precipitation_sum[d]:null;
       const dry=(pr==null||pr<0.05);const prTxt=dry?"":fmtMM(pr).replace(" mm","");
       const loC=lo!=null?rgb(tempColor(lo)):"var(--ink-2)";
