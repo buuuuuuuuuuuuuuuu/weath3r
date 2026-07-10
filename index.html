@@ -19,7 +19,7 @@
    Runs synchronously in <head> BEFORE the body renders so the
    correct GUI is shown immediately (no layout flash).
    ============================================================ */
-window.APP_VERSION = "v17.1";
+window.APP_VERSION = "v17.2";
 
 // fetch mit Timeout: ein hängender Request darf nie die ganze Ladekette blockieren
 window.fetchT=function(url,opts,ms){
@@ -775,6 +775,12 @@ getUiMode();
   }
   html[data-ui-mode="watch"][data-theme="light"] #watch-ui .wdaily{
     background:none; border:none; box-shadow:none;
+    /* v17.2: Basis-.wdaily hat overflow:hidden (im Dark-Theme sinnvoll, da die
+       Zeilen randlos sind). Powder Hush macht daraus einzelne Kacheln mit
+       2.5px-Rahmen + 3px-Schlagschatten — overflow:hidden schnitt deren rechte
+       und untere Ecken samt Schatten ab. Hier aufgehoben, plus etwas Luft
+       rechts/unten, damit der Schatten vollständig sichtbar bleibt. */
+    overflow:visible; padding:0 4px 4px 0;
   }
   html[data-ui-mode="watch"][data-theme="light"] #watch-ui .wdrow-wrap{
     background:var(--card); border:2.5px solid #4A3F52; border-radius:12px;
