@@ -2653,7 +2653,7 @@ function drawChart(canvasId, day, opts){
       day.storm.forEach(seg=>{
         const a=seg[0], b=seg[1], inten=seg[2]!=null?seg[2]:.7;
         const th = minTh + (maxTh-minTh)*inten;
-        roundBar(ctx, X(a)+1, sy - th/2, X(b)-X(a)-2, th, '#e35bff');
+        roundBar(ctx, X(a)+1, sy - th/2, X(b)-X(a)-2, th, cssVar('--storm','#e35bff')); // v18.2: Token statt Hardcode — hält Chart & Legende automatisch synchron
       });
     }
   }
