@@ -19,7 +19,7 @@
    Runs synchronously in <head> BEFORE the body renders so the
    correct GUI is shown immediately (no layout flash).
    ============================================================ */
-window.APP_VERSION = "v18.1";
+window.APP_VERSION = "v18.2";
 
 // fetch mit Timeout: ein hängender Request darf nie die ganze Ladekette blockieren
 window.fetchT=function(url,opts,ms){
@@ -3683,7 +3683,7 @@ function lgSkyWindHeroSwatch(){
   // Nutzt dieselben Konstanten/Helfer wie der echte Chart (roundBar, windColor,
   // drawWindArrow) — bleibt dadurch automatisch stimmig bei Design-Änderungen.
   const c=document.createElement("canvas");
-  const W=272,H=72,DPR=window.devicePixelRatio||1;
+  const W=272,H=88,DPR=window.devicePixelRatio||1; // v18.2: +16px für die Gewitter-Beispielspur
   c.width=W*DPR;c.height=H*DPR;c.style.width=W+"px";c.style.height=H+"px";
   const ctx=c.getContext("2d");ctx.setTransform(DPR,0,0,DPR,0,0);
 
@@ -3709,9 +3709,18 @@ function lgSkyWindHeroSwatch(){
     });
   });
 
+  // Gewitter-Streifen (v18.2): sitzt wie im echten Chart als schmale vierte
+  // Spur direkt unter den drei Himmelsspuren — nur während des Gewitter-
+  // Zeitfensters, Dicke = Gewitterenergie (vgl. buildStorm).
+  const stormY=trackY+3*trackGap;
+  [{a:96,b:150,inten:.55},{a:150,b:196,inten:.95}].forEach(s=>{
+    const th=minTh+(maxTh-minTh)*s.inten;
+    roundBar(ctx, s.a+1, stormY-th/2, s.b-s.a-2, th, cssVar('--storm'));
+  });
+
   // Windspur: normale Böe, dann eine Sturmböe (>=70 km/h → orange-rot)
   const pal=(typeof resolveWindPalette==="function")?resolveWindPalette():null;
-  const laneC=trackY+3*trackGap+6;
+  const laneC=trackY+4*trackGap+6; // v18.2: eine Spur tiefer (Gewitter-Reihe dazwischen)
   const windSegs=[
     {a:4,b:150,speed:22,gust:38},
     {a:150,b:268,speed:34,gust:74},
@@ -3733,7 +3742,8 @@ function lgSkyWindHeroSwatch(){
 const LEGEND_SPEC=[
   {group:"Himmel & Wind", hero:()=>lgSkyWindHeroSwatch(), rows:[
     {term:"Himmelsspuren", desc:"Drei Streifen, Stunde für Stunde — je Modell: Farbe zeigt Sonne, Wolken oder Regen, die Dicke, wie ausgeprägt."},
-    {term:"Windband", desc:"Direkt darunter, nur AROME: Dicke&nbsp;= Windstärke, Pfeil&nbsp;= Richtung, in die er weht — ab Sturmböen orange-rot."},
+    {term:"Gewitter-Streifen", desc:"Violett, direkt unter den Himmelsspuren — erscheint nur, wenn ein Modell Gewitterpotenzial sieht (viel Gewitterenergie plus Regen zur selben Stunde). Je dicker, desto mehr Energie in der Luft."},
+    {term:"Windband", desc:"Ganz unten, nur AROME: Dicke&nbsp;= Windstärke, Pfeil&nbsp;= Richtung, in die er weht — ab Sturmböen orange-rot."},
   ]},
   {group:"Wetterwarnungen", rows:[
     {term:"Vier Stufen", desc:"DWD-Warnungen sind nach Schwere eingefärbt — im Warn-Streifen oben in der App und als Balken oben im Tages-Chart, exakt dieselbe Farbskala."},
