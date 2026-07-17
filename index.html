@@ -19,7 +19,7 @@
    Runs synchronously in <head> BEFORE the body renders so the
    correct GUI is shown immediately (no layout flash).
    ============================================================ */
-window.APP_VERSION = "v18.2";
+window.APP_VERSION = "v18.3";
 
 // fetch mit Timeout: ein hängender Request darf nie die ganze Ladekette blockieren
 window.fetchT=function(url,opts,ms){
@@ -607,6 +607,9 @@ getUiMode();
   .wxi .wx-flake.f3{animation-delay:2s}
   .wxi .wx-bolt{transform-box:fill-box;transform-origin:center;animation:wxFlash 3.8s steps(1,end) infinite}
   .wxi .wx-fog{transform-box:fill-box;transform-origin:center;animation:wxFog 4.6s ease-in-out infinite}
+  /* Akku (v18.3): alle Icon-Endlos-Animationen pausieren, solange die Seite
+     verborgen ist (Klasse wird per visibilitychange gesetzt) */
+  html.page-hidden .wxi *{animation-play-state:paused!important}
   @keyframes wxSunPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
   @keyframes wxRays{0%,100%{transform:scale(1);opacity:.9}50%{transform:scale(1.06);opacity:.7}}
   @keyframes wxMoon{0%,100%{transform:scale(1) rotate(0)}50%{transform:scale(1.03) rotate(-2deg)}}
@@ -3975,6 +3978,8 @@ if(document.documentElement.dataset.uiMode!=="watch") boot();
 // werden die Daten automatisch neu geladen statt kommentarlos zu veralten.
 let __lastLoadOk=0;
 document.addEventListener("visibilitychange", ()=>{
+  // Akku (v18.3): Endlos-Animationen (Hero-Icon) pausieren, solange verborgen
+  document.documentElement.classList.toggle("page-hidden", document.visibilityState!=="visible");
   if(document.visibilityState!=="visible") return;
   if(document.documentElement.dataset.uiMode==="watch") return;
   const ttl=(AURORA && AURORA.CACHE_TTL) || 30*60*1000;
@@ -4755,6 +4760,23 @@ document.addEventListener("visibilitychange", ()=>{
     });
     ro.observe(wrap);
   }
+
+  // Akku (v18.3): Playback stoppt von selbst, statt unbemerkt weiterzulaufen —
+  // (a) wenn die App/der Tab in den Hintergrund geht (sonst animiert das Radar
+  //     nach der Rückkehr ggf. stundenlang weiter), (b) wenn die Karte bei
+  //     offenem Zustand aus dem sichtbaren Bereich gescrollt wird.
+  // Der Play-Button bleibt — ein Tipper startet es jederzeit wieder.
+  document.addEventListener("visibilitychange", ()=>{
+    if(document.visibilityState!=="visible") setPlaying(false);
+  });
+  if(window.IntersectionObserver){
+    const io=new IntersectionObserver(entries=>{
+      for(const e of entries){
+        if(!e.isIntersecting && timer) setPlaying(false);
+      }
+    });
+    io.observe(wrap);
+  }
 })();
 
 /* ---------- Refresh: button + pull-to-refresh ---------- */
@@ -5000,6 +5022,13 @@ document.querySelectorAll(".app-version").forEach(el=>{
   function stopRadarAnim(){
     if(_radarTimer){ clearInterval(_radarTimer); _radarTimer=null; }
   }
+  // Akku (v18.3): Watch-Radar-Loop pausiert im Hintergrund; bei Rückkehr läuft
+  // er nur weiter, wenn die Radar-Box noch aufgeklappt ist.
+  document.addEventListener("visibilitychange", ()=>{
+    if(document.visibilityState!=="visible"){ stopRadarAnim(); return; }
+    const box=document.getElementById("wrain-box");
+    if(box && box.classList.contains("expanded") && _radarMap) startRadarAnim();
+  });
   async function ensureRadarSnapshot(geo){
     const statusEl=document.getElementById("wradar-status");
     if(_radarMap){ drawRadarSnapshot(_radarMap, _radarIdx); startRadarAnim(); return; }
@@ -5342,7 +5371,12 @@ document.querySelectorAll(".app-version").forEach(el=>{
       boot().finally(()=>reloadBtn.classList.remove("spinning"));
     });
   }
-  tick();setInterval(tick,30000);
+  // Akku (v18.3): Uhr zeigt nur HH:MM — statt alle 30 s zu ticken, exakt zum
+  // Minutenwechsel aufwachen (halbiert die Timer-Aufrufe, keine sichtbare Änderung).
+  tick();
+  (function schedTick(){
+    setTimeout(()=>{ tick(); schedTick(); }, 60000-(Date.now()%60000)+20);
+  })();
   boot();
 })();
 
