@@ -19,7 +19,7 @@
    Runs synchronously in <head> BEFORE the body renders so the
    correct GUI is shown immediately (no layout flash).
    ============================================================ */
-window.APP_VERSION = "v18.3";
+window.APP_VERSION = "v18.4";
 
 // fetch mit Timeout: ein hängender Request darf nie die ganze Ladekette blockieren
 window.fetchT=function(url,opts,ms){
@@ -2746,6 +2746,25 @@ function drawChart(canvasId, day, opts){
     }
     ctx.strokeStyle=rgba(m.col,.7);ctx.lineWidth=1.2;ctx.stroke();
   });
+
+  /* --- Skala der Regenwahrscheinlichkeit (v18.4) ---
+     Ohne Bezugsgröße war die Höhe der blauen Fläche nicht lesbar. Zwei dezente
+     Marken (50/100 %) INNERHALB der Fläche, links am Plotrand — keine eigene
+     Achsenspalte, damit die Kachelbreite unverändert bleibt. Farbe/Font folgen
+     der bestehenden Stundenachse (--c-axis), nur eine Stufe kleiner; die "100"
+     trägt das Prozentzeichen, die "50" bleibt nackt (weniger Rauschen).
+     Nur wenn es überhaupt eine Regenfläche gibt. */
+  if(day.precip.length){
+    ctx.save();
+    ctx.font="9px "+getComputedStyle(document.body).fontFamily;
+    ctx.textAlign="left";
+    ctx.fillStyle=cssVar("--c-axis");
+    ctx.textBaseline="top";
+    ctx.fillText("100 %", x0+2, precipBot-precipH+1);
+    ctx.textBaseline="middle";
+    ctx.fillText("50", x0+2, precipBot-precipH*0.5);
+    ctx.restore();
+  }
 
   /* --- inter-model spread band (min..max across the 3 models) --- */
   if(day.temp.length>=2){
