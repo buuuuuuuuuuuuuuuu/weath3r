@@ -1422,6 +1422,23 @@ const AURORA = (function(){
         const area=buildPrecipArea(ds, H.precipitation_probability, cols[mi]||cols[0]);
         if(area.pts.some(p=>p.y>0)) day.precip.push(area);
       });
+      // Regenmenge in mm/h (v18.4) — EIN Datensatz statt drei: AROME als
+      // Primärquelle, analog zur Windspur. Drei überlagerte Balkensätze wären
+      // im selben Feld wie die Wahrscheinlichkeitsfläche visuelles Chaos;
+      // die Modell-Streuung der Menge steht bereits in der Kopfzeile (2,3–2,7).
+      {
+        const pmR=perModel.find(pm=>pm.hourly&&pm.hourly.time&&pm.hourly.precipitation);
+        const HR=pmR?pmR.hourly:null;
+        const dsR=HR?dayStartIndex(HR.time,dOffset):null;
+        if(HR && dsR!=null){
+          const rain=[];
+          for(let h=0;h<24;h++){
+            const v=HR.precipitation[dsR+h];
+            rain.push({ h, mm:(v==null||isNaN(v))?0:Math.max(0,v) });
+          }
+          if(rain.some(r=>r.mm>0)) day.rain=rain;
+        }
+      }
       // sky bands + storm
       if(includeBands){
         // Always emit one track per model (in fixed model order), so a model
@@ -2589,6 +2606,17 @@ function drawChart(canvasId, day, opts){
   const precipH = 40;
   const tempBot = H - padB - precipH - 6;
   const tempH = tempBot - tempTop;
+  /* Regenfeld (v18.4): Wahrscheinlichkeit und Menge nutzen jetzt die GANZE
+     Plot-Höhe (tempTop … Grundlinie) statt eines 40-px-Streifens unten — bei
+     40 px entsprachen 10 % gerade 4 px, das war nicht ablesbar. Regen und
+     Temperatur teilen sich denselben Raum: die Fläche liegt hinter den
+     Temp-Linien und ist entsprechend transparenter gehalten. Die Temperatur-
+     Geometrie (tempTop/tempBot) bleibt dabei UNVERÄNDERT — die Kurven liegen
+     exakt wie vorher, nur der Hintergrund reicht weiter herauf. */
+  const rainBot = H - padB - 2;
+  const rainTop = tempTop;
+  const rainH   = rainBot - rainTop;
+  const RAIN_MM_FULL = 10;   // rechte Achse fix 0–10 mm/h (wie Nowcast-Karte) → Tage bleiben vergleichbar
 
   /* --- day/night shading --- */
   ctx.fillStyle=cssVar("--c-night");
@@ -2720,49 +2748,83 @@ function drawChart(canvasId, day, opts){
     cv._warnHit={x:ix-12, y:iy-12, w:24, h:24};
   }
 
-  /* --- PRECIP areas (bottom) --- */
-  const precipTop=H-padB-precipH-2, precipBot=H-padB-2;
+  /* --- REGENFELD (v18.4): Wahrscheinlichkeit (Fläche, linke %-Achse)
+         + Menge (Balken, rechte mm/h-Achse) über die volle Plot-Höhe ---
+     Reihenfolge: Fläche → Balken → (später) Temp-Linien. Alles Regen-bezogene
+     liegt damit HINTER der Temperatur, die weiterhin die oberste Ebene ist. */
   day.precip.forEach(m=>{
     const ys=lerpSeries(m.pts,N);
     ctx.beginPath();
-    ctx.moveTo(x0, precipBot);
+    ctx.moveTo(x0, rainBot);
     for(let i=0;i<N;i++){
       const x=x0+(i/(N-1))*plotW;
       const v=Math.max(0,Math.min(1,ys[i]));
-      ctx.lineTo(x, precipBot-v*precipH);
+      ctx.lineTo(x, rainBot-v*rainH);
     }
-    ctx.lineTo(x1, precipBot);
+    ctx.lineTo(x1, rainBot);
     ctx.closePath();
-    const g=ctx.createLinearGradient(0,precipTop,0,precipBot);
-    g.addColorStop(0, rgba(m.col,.55));
-    g.addColorStop(1, rgba(m.col,.10));
+    // Deckkraft deutlich reduziert (vorher .55/.10 auf 40 px): über die volle
+    // Höhe und mit drei überlagerten Modellflächen würde der alte Wert die
+    // Temperaturkurven zudecken.
+    const g=ctx.createLinearGradient(0,rainTop,0,rainBot);
+    g.addColorStop(0, rgba(m.col,.20));
+    g.addColorStop(1, rgba(m.col,.05));
     ctx.fillStyle=g; ctx.fill();
-    // top stroke
+    // top stroke — die Kante trägt die Information, sie bleibt kräftig
     ctx.beginPath();
     for(let i=0;i<N;i++){
       const x=x0+(i/(N-1))*plotW;
       const v=Math.max(0,Math.min(1,ys[i]));
-      i?ctx.lineTo(x,precipBot-v*precipH):ctx.moveTo(x,precipBot-v*precipH);
+      i?ctx.lineTo(x,rainBot-v*rainH):ctx.moveTo(x,rainBot-v*rainH);
     }
-    ctx.strokeStyle=rgba(m.col,.7);ctx.lineWidth=1.2;ctx.stroke();
+    ctx.strokeStyle=rgba(m.col,.65);ctx.lineWidth=1.2;ctx.stroke();
   });
 
-  /* --- Skala der Regenwahrscheinlichkeit (v18.4) ---
-     Ohne Bezugsgröße war die Höhe der blauen Fläche nicht lesbar. Zwei dezente
-     Marken (50/100 %) INNERHALB der Fläche, links am Plotrand — keine eigene
-     Achsenspalte, damit die Kachelbreite unverändert bleibt. Farbe/Font folgen
-     der bestehenden Stundenachse (--c-axis), nur eine Stufe kleiner; die "100"
-     trägt das Prozentzeichen, die "50" bleibt nackt (weniger Rauschen).
-     Nur wenn es überhaupt eine Regenfläche gibt. */
-  if(day.precip.length){
+  /* --- Regenmenge: Stundenbalken, feste Skala 0–10 mm/h (v18.4) ---
+     Gleiches Muster wie die Nowcast-Karte oben (Balken + inColor-Rampe),
+     damit beide Darstellungen dieselbe Sprache sprechen. Feste Skala =
+     Tage sind untereinander vergleichbar; Werte über 10 mm/h werden
+     gekappt und mit einer Kappungslinie oben markiert (ehrlicher als ein
+     stillschweigend abgeschnittener Balken). */
+  if(day.rain && day.rain.length){
+    day.rain.forEach(e=>{
+      if(e.mm<0.05) return;
+      const frac=Math.min(1, e.mm/RAIN_MM_FULL);
+      const x=X(e.h), w=X(e.h+1)-x;
+      const bw=Math.max(2, w*0.62), bx=x+(w-bw)/2;
+      const bh=Math.max(2, frac*rainH);
+      const c=inColor(frac);
+      roundRect(ctx, bx, rainBot-bh, bw, bh, Math.min(bw/2,2.5));
+      ctx.fillStyle=rgba(c,.55); ctx.fill();
+      if(e.mm>RAIN_MM_FULL){
+        ctx.fillStyle=rgba(c,.95);
+        ctx.fillRect(bx, rainBot-bh, bw, 2);
+      }
+    });
+  }
+
+  /* --- Achsen des Regenfelds (v18.4) ---
+     Beide Skalen INNEN am Plotrand (links %, rechts mm/h) — keine eigenen
+     Achsenspalten, die Kachelbreite bleibt unverändert. Font/Farbe folgen der
+     bestehenden Stundenachse (--c-axis), eine Stufe kleiner. Die obere Zeile
+     trägt jeweils die Einheit, die 50-%/5-mm-Zeile bleibt nackt.
+     Nur zeichnen, wenn es überhaupt Regen-Inhalt gibt. */
+  if(day.precip.length || (day.rain && day.rain.length)){
     ctx.save();
     ctx.font="9px "+getComputedStyle(document.body).fontFamily;
-    ctx.textAlign="left";
     ctx.fillStyle=cssVar("--c-axis");
-    ctx.textBaseline="top";
-    ctx.fillText("100 %", x0+2, precipBot-precipH+1);
-    ctx.textBaseline="middle";
-    ctx.fillText("50", x0+2, precipBot-precipH*0.5);
+    const yTop=rainTop, yMid=rainBot-rainH*0.5;
+    // sehr dezente Bezugslinie auf halber Höhe — ohne sie "schwebt" die 50
+    ctx.strokeStyle=cssVar("--c-grid-soft");ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(x0,yMid);ctx.lineTo(x1,yMid);ctx.stroke();
+    ctx.textAlign="left";
+    ctx.textBaseline="top";    ctx.fillText("100 %", x0+2, yTop+1);
+    ctx.textBaseline="middle"; ctx.fillText("50", x0+2, yMid);
+    if(day.rain && day.rain.length){
+      ctx.textAlign="right";
+      ctx.textBaseline="top";    ctx.fillText("10 mm/h", x1-2, yTop+1);
+      ctx.textBaseline="middle"; ctx.fillText("5", x1-2, yMid);
+    }
     ctx.restore();
   }
 
@@ -3761,6 +3823,43 @@ function lgSkyWindHeroSwatch(){
   return c;
 }
 
+function lgRainAreaSwatch(){
+  // Miniatur der Wahrscheinlichkeitsfläche — gleiche Deckkraft/Kante wie im
+  // Chart (v18.4), damit Legende und Chart automatisch stimmig bleiben.
+  const c=document.createElement("canvas");
+  const W=44,H=26,DPR=window.devicePixelRatio||1;
+  c.width=W*DPR;c.height=H*DPR;c.style.width=W+"px";c.style.height=H+"px";
+  const x=c.getContext("2d");x.setTransform(DPR,0,0,DPR,0,0);
+  const col=[61,155,233], top=3, bot=H-3;
+  const ys=[.15,.35,.75,.95,.6,.3];
+  const px=i=>2+(i/(ys.length-1))*(W-4);
+  const py=v=>bot-v*(bot-top);
+  x.beginPath();x.moveTo(px(0),bot);
+  ys.forEach((v,i)=>x.lineTo(px(i),py(v)));
+  x.lineTo(px(ys.length-1),bot);x.closePath();
+  const g=x.createLinearGradient(0,top,0,bot);
+  g.addColorStop(0,rgba(col,.20));g.addColorStop(1,rgba(col,.05));
+  x.fillStyle=g;x.fill();
+  x.beginPath();ys.forEach((v,i)=> i?x.lineTo(px(i),py(v)):x.moveTo(px(i),py(v)));
+  x.strokeStyle=rgba(col,.65);x.lineWidth=1.2;x.stroke();
+  return c;
+}
+function lgRainBarSwatch(){
+  // Drei Stundenbalken in der inColor-Rampe — wie im Chart und in der
+  // Nowcast-Karte (leicht, mittel, kräftig).
+  const c=document.createElement("canvas");
+  const W=44,H=26,DPR=window.devicePixelRatio||1;
+  c.width=W*DPR;c.height=H*DPR;c.style.width=W+"px";c.style.height=H+"px";
+  const x=c.getContext("2d");x.setTransform(DPR,0,0,DPR,0,0);
+  const bot=H-3, maxH=H-6;
+  [.25,.6,.95].forEach((f,i)=>{
+    const bw=8, bx=5+i*13, bh=Math.max(2,f*maxH);
+    roundRect(x,bx,bot-bh,bw,bh,2.5);
+    x.fillStyle=rgba(inColor(f),.55);x.fill();
+  });
+  return c;
+}
+
 const LEGEND_SPEC=[
   {group:"Himmel & Wind", hero:()=>lgSkyWindHeroSwatch(), rows:[
     {term:"Himmelsspuren", desc:"Drei Streifen, Stunde für Stunde — je Modell: Farbe zeigt Sonne, Wolken oder Regen, die Dicke, wie ausgeprägt."},
@@ -3782,6 +3881,8 @@ const LEGEND_SPEC=[
     {swatch:()=>lgNowSwatch(), term:"Rote Linie", desc:"Die aktuelle Uhrzeit — die Zeit daneben wandert mit."},
   ]},
   {group:"Regen & Vorschau", rows:[
+    {swatch:()=>lgRainAreaSwatch(), term:"Regen-Fläche", desc:"Wahrscheinlichkeit je Modell, über die volle Chart-Höhe. Skala links im Chart: 50&nbsp;% auf halber Höhe, 100&nbsp;% ganz oben."},
+    {swatch:()=>lgRainBarSwatch(), term:"mm-Balken", desc:"Regenmenge pro Stunde, nur AROME. Feste Skala rechts im Chart: 0–10&nbsp;mm/h, damit Tage vergleichbar bleiben — mehr als 10&nbsp;mm/h wird gekappt und oben markiert."},
     {html:()=>SVG.drop, term:"Tropfen-Symbol", desc:"Erwartete Regenmenge in mm."},
     {swatch:()=>lgGradientSwatch([[95,208,196],[244,196,48]]), term:"Temperatur-Balken", desc:"Bei den Folgetagen: Tief- bis Höchstwert als kleiner Farbverlauf."},
   ]},
